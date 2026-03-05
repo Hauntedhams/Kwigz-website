@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contact Us — KWIGZ</title>
+  <meta name="description" content="Request a KWIGZ nicotine vending machine for your venue. Get in touch today." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=6" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar scrolled" id="navbar">
+    <div class="container nav-container">
+      <a href="index.html" class="logo">KWIGZ</a>
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="revenue.html">Revenue & Partnership</a></li>
+        <li><a href="compliance.html">Compliance & Legal</a></li>
+        <li><a href="contact.html" class="btn btn-sm active">Contact Us</a></li>
+      </ul>
+      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- PAGE HERO -->
+  <header class="page-hero">
+    <div class="container">
+      <span class="section-tag">Let's Talk</span>
+      <h1>Request a Machine</h1>
+      <p>Fill out the form and we'll reach out within 24 hours to discuss getting a KWIGZ machine in your venue.</p>
+    </div>
+  </header>
+
+  <!-- CONTACT FORM -->
+  <section class="section">
+    <div class="container">
+      <div class="contact-layout">
+        <form class="contact-form" id="contactForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="name">Your Name *</label>
+              <input type="text" id="name" name="name" placeholder="John Doe" required />
+            </div>
+            <div class="form-group">
+              <label for="venue-name">Bar / Venue Name *</label>
+              <input type="text" id="venue-name" name="venue-name" placeholder="The Grand Lounge" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="phone">Phone Number *</label>
+              <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" required />
+            </div>
+            <div class="form-group">
+              <label for="email">Email Address *</label>
+              <input type="email" id="email" name="email" placeholder="john@venue.com" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="address">Venue Address</label>
+            <input type="text" id="address" name="address" placeholder="123 Main St, Phoenix, AZ 85001" />
+          </div>
+          <div class="form-group">
+            <label for="venue-type">Venue Type</label>
+            <select id="venue-type" name="venue-type">
+              <option value="" disabled selected>Select your venue type</option>
+              <option value="bar">Bar / Lounge</option>
+              <option value="club">Club / Nightclub</option>
+              <option value="casino">Casino</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="message">Anything else you'd like us to know?</label>
+            <textarea id="message" name="message" rows="4" placeholder="Average nightly guests, preferred machine location, questions, etc."></textarea>
+          </div>
+          <button type="submit" class="btn btn-lg btn-full">Send Request</button>
+        </form>
+
+        <div class="contact-sidebar">
+          <div class="sidebar-card">
+            <h3>📞 Prefer to Call?</h3>
+            <p>Reach out directly and we'll walk you through everything.</p>
+            <a href="mailto:info@kwigz.com" class="sidebar-link">info@kwigz.com</a>
+          </div>
+          <div class="sidebar-card">
+            <h3>⏱️ Response Time</h3>
+            <p>We respond to all inquiries within <strong>24 hours</strong>.</p>
+          </div>
+          <div class="sidebar-card">
+            <h3>📍 Based In</h3>
+            <p>Arizona — serving venues across the state and expanding.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success message -->
+      <div class="form-success" id="formSuccess">
+        <div class="success-icon">✓</div>
+        <h3>Request Sent!</h3>
+        <p>We'll be in touch within 24 hours to discuss getting a machine in your venue.</p>
+        <a href="index.html" class="btn" style="margin-top: 24px;">Back to Home</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand">
+        <a href="index.html" class="logo">KWIGZ</a>
+        <p>Premium vape &amp; nicotine pouch vending machines for clubs, casinos, and bars.</p>
+        <div class="age-warning">⚠️ 21+ ONLY — All sales require valid ID verification.</div>
+      </div>
+      <div class="footer-links-col">
+        <h4>Pages</h4>
+        <a href="index.html">Home</a>
+        <a href="revenue.html">Revenue & Partnership</a>
+        <a href="compliance.html">Compliance & Legal</a>
+        <a href="contact.html">Contact Us</a>
+      </div>
+      <div class="footer-contact-col">
+        <h4>Contact</h4>
+        <a href="mailto:info@kwigz.com">info@kwigz.com</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="container">
+        <p>&copy; 2026 KWIGZ LLC. All rights reserved. All products are age-restricted. Must be 21+ to purchase.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js?v=6"></script>
+</body>
+</html>
