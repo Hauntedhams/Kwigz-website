@@ -72,10 +72,13 @@ img { max-width: 100%; display: block; }
   justify-content: space-between;
 }
 .logo {
-  font-size: 1.8rem;
-  font-weight: 900;
-  letter-spacing: 3px;
-  color: #dc2626;
+  display: inline-flex;
+  align-items: center;
+}
+.logo img {
+  height: 64px;
+  width: auto;
+  display: block;
 }
 .nav-links {
   display: flex;
@@ -125,7 +128,7 @@ img { max-width: 100%; display: block; }
 
 /* ===== HERO (Home) ===== */
 .hero {
-  padding: 140px 0 100px;
+  padding: 100px 0 100px;
   background: linear-gradient(135deg, #fff 0%, #fef8f8 50%, #fff 100%);
   position: relative;
   overflow: hidden;
@@ -307,7 +310,7 @@ img { max-width: 100%; display: block; }
 }
 
 /* ===== VALUE PROPS ===== */
-.value-props { background: #fafafa; }
+.value-props { background: #fafafa; padding-top: 160px; }
 .value-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -770,7 +773,7 @@ img { max-width: 100%; display: block; }
   max-width: 300px;
   line-height: 1.6;
 }
-.footer .logo { color: #dc2626; }
+.footer .logo img { /* no filter needed — logo has transparent background */ }
 .footer-links-col h4,
 .footer-contact-col h4 {
   font-size: 0.8rem;
