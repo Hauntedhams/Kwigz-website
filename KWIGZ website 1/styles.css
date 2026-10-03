@@ -433,7 +433,7 @@ img { max-width: 100%; display: block; }
   box-shadow: 0 12px 40px rgba(220,38,38,0.1);
 }
 .profit-card.featured::before {
-  content: '★ POPULAR';
+  content: 'POPULAR';
   position: absolute;
   top: 16px; right: -32px;
   background: #dc2626;

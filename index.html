@@ -4,113 +4,310 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KWIGZ — Vape & Nicotine Vending Machines for Venues</title>
-  <meta name="description" content="KWIGZ installs vape and nicotine pouch vending machines in clubs, casinos, and bars. Zero labor, zero liability — you just get paid." />
+  <meta name="description" content="KWIGZ installs vape and nicotine pouch vending machines in clubs, casinos, and bars. We provide the machine, handle inventory, maintenance, and compliance — you get a cut. See if you qualify." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="icons.css?v=1" />
 </head>
-<body>
+<body class="home">
 
   <!-- NAVBAR -->
   <nav class="navbar" id="navbar">
     <div class="container nav-container">
-      <a href="index.html" class="logo"><img src="kwigz-logo-nobg.png" alt="KWIGZ" /></a>
-      <ul class="nav-links" id="navLinks">
-        <li><a href="index.html" class="active">Home</a></li>
-        <li><a href="revenue.html">Revenue & Partnership</a></li>
-        <li><a href="compliance.html">Compliance & Legal</a></li>
-        <li><a href="contact.html" class="btn btn-sm">Contact Us</a></li>
-      </ul>
-      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
         <span></span><span></span><span></span>
       </button>
+      <a href="index.html" class="logo"><img src="kwigz-logo-nobg.png" alt="KWIGZ" /></a>
+      <a href="#qualify" class="btn btn-sm nav-cta">See If You Qualify</a>
     </div>
   </nav>
 
-  <!-- VALUE PROPS -->
-  <section class="section value-props">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Why KWIGZ</span>
-        <h2>The Simplest Revenue Stream<br/>Your Venue Will Ever Have</h2>
-      </div>
-      <div class="value-grid">
-        <div class="value-card">
-          <h3>Passive Revenue</h3>
-          <p>Earn commissions on every single sale — with zero effort from your staff.</p>
-        </div>
-        <div class="value-card">
-          <h3>Zero Liability</h3>
-          <p>We carry all the licensing, insurance, and legal responsibility. Not you.</p>
-        </div>
-        <div class="value-card">
-          <h3>Keep Guests Longer</h3>
-          <p>15–30% of guests leave to buy nicotine. Keep them in your venue, spending with you.</p>
-        </div>
-        <div class="value-card">
-          <h3>Truly Zero Labor</h3>
-          <p>We install, stock, and maintain. Your staff never touches the machine.</p>
-        </div>
-      </div>
+  <!-- SLIDE-OUT MENU -->
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <aside class="site-menu" id="siteMenu" aria-hidden="true">
+    <div class="site-menu-header">
+      <img src="kwigz-logo-nobg.png" alt="KWIGZ" />
+      <button class="menu-close" id="menuClose" aria-label="Close menu">&times;</button>
     </div>
-  </section>
+    <ul class="site-menu-links">
+      <li><a href="index.html" class="active">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="revenue.html">Revenue &amp; Partnership</a></li>
+      <li><a href="compliance.html">Compliance &amp; Legal</a></li>
+      <li><a href="contact.html">Contact Us</a></li>
+    </ul>
+    <a href="#qualify" class="btn btn-full site-menu-cta">See If You Qualify</a>
+    <div class="site-menu-footer">
+      <a href="mailto:kwigzvending@gmail.com">kwigzvending@gmail.com</a>
+    </div>
+  </aside>
 
-  <!-- HERO -->
-  <header class="hero">
-    <div class="container hero-grid">
-      <div class="hero-text">
-        <span class="hero-tag">Nicotine Vending Solutions</span>
-        <h1>Turn Empty Space<br/>into Passive Income.</h1>
-        <div class="zero-labor-badge">The Zero Labor Promise</div>
-        <p class="hero-sub">
-          We provide the unit. We take the liability. <strong>You get paid.</strong>
-        </p>
-        <ul class="hero-bullets">
-          <li><span class="bullet-check">✓</span> We provide &amp; install the machine — free</li>
-          <li><span class="bullet-check">✓</span> We hold all liability for sales</li>
-          <li><span class="bullet-check">✓</span> We stock &amp; maintain everything</li>
-          <li><span class="bullet-check">✓</span> You collect passive income every month</li>
-        </ul>
-        <div class="hero-cta">
-          <a href="contact.html" class="btn btn-lg">Request a Machine</a>
-          <a href="revenue.html" class="btn btn-outline btn-lg">See How You Profit</a>
-        </div>
-      </div>
-      <div class="hero-image">
-        <img src="slimwall-installed.jpeg" alt="KWIGZ Vending Machine Installed" />
+  <!-- HERO / FUNNEL TOP -->
+  <header class="funnel-hero">
+    <div class="funnel-hero-bg" role="img" aria-label="KWIGZ vending machine installed in a bar"></div>
+    <div class="container funnel-hero-content">
+      <span class="hero-tag hero-tag-dark">Nicotine Vending Partnerships</span>
+      <h1>We Put the Machine In.<br/><span>You Get Paid.</span></h1>
+      <p class="funnel-hero-sub">
+        KWIGZ installs age-verified vape &amp; nicotine pouch vending machines in bars, clubs, and casinos — at zero cost to you.
+      </p>
+
+      <ul class="benefit-list">
+        <li>
+          <span class="benefit-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#package"></use></svg></span>
+          <div><strong>We provide the machine</strong><small>Installed free. No upfront cost, ever.</small></div>
+        </li>
+        <li>
+          <span class="benefit-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#refresh"></use></svg></span>
+          <div><strong>We handle inventory</strong><small>Stocked and restocked on our dime.</small></div>
+        </li>
+        <li>
+          <span class="benefit-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#wrench"></use></svg></span>
+          <div><strong>We cover maintenance &amp; labor</strong><small>Your staff never touches it.</small></div>
+        </li>
+        <li>
+          <span class="benefit-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#scales"></use></svg></span>
+          <div><strong>We carry legal compliance</strong><small>Licensing, insurance, 21+ ID checks — all on us.</small></div>
+        </li>
+        <li class="benefit-highlight">
+          <span class="benefit-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#banknote"></use></svg></span>
+          <div><strong>You get a cut of every sale</strong><small>Passive income, paid monthly.</small></div>
+        </li>
+      </ul>
+
+      <div class="hero-cta">
+        <a href="#qualify" class="btn btn-lg">See If You Qualify →</a>
+        <a href="about.html" class="btn btn-lg btn-ghost">Learn More</a>
       </div>
     </div>
+    <a href="#qualify" class="scroll-hint" aria-label="Scroll to qualifier"><span></span></a>
   </header>
 
-  <!-- MACHINE SHOWCASE -->
-  <section class="section machine-showcase">
-    <div class="container showcase-grid">
-      <div class="showcase-image">
-        <img src="slimwall-inside.jpeg" alt="KWIGZ Vending Machine Interior" />
+  <!-- QUALIFIER -->
+  <section class="section qualify-section" id="qualify">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">Takes 30 Seconds</span>
+        <h2>See If You Qualify</h2>
+        <p class="section-desc">Tell us who you are and answer a few quick questions.</p>
       </div>
-      <div class="showcase-text">
-        <span class="section-tag">The Machine</span>
-        <h2>Compact. Smart.<br/>Built for Nightlife.</h2>
-        <p>Our sleek, wall-mounted units feature a full touchscreen interface and built-in ID verification. They fit anywhere — behind the bar, near restrooms, or in a VIP lounge.</p>
-        <div class="spec-list">
-          <div class="spec"><strong>Height:</strong> 40.5 inches</div>
-          <div class="spec"><strong>Width:</strong> 23.6 inches</div>
-          <div class="spec"><strong>Depth:</strong> 10.2 inches</div>
-          <div class="spec"><strong>ID Scanning:</strong> Built-in age verification</div>
-          <div class="spec"><strong>Payment:</strong> Card / Apple Pay / Google Pay</div>
-        </div>
-        <a href="revenue.html" class="btn" style="margin-top: 24px;">Learn About the Partnership →</a>
-      </div>
-    </div>
-  </section>
 
-  <!-- CTA BANNER -->
-  <section class="section cta-banner">
-    <div class="container cta-banner-content">
-      <h2>Ready to Turn Dead Space into Revenue?</h2>
-      <p>No cost. No labor. No liability. Just passive income.</p>
-      <a href="contact.html" class="btn btn-lg btn-white">Request a Machine</a>
+      <div class="qualifier" id="qualifier">
+
+        <!-- STEP 0: choose path -->
+        <div class="q-step is-active" data-step="choose">
+          <div class="path-grid">
+            <button type="button" class="path-card" data-path="business">
+              <span class="path-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#store"></use></svg></span>
+              <h3>I'm a Business Owner</h3>
+              <p>I own or manage a bar, club, casino, or venue and want a machine on-site.</p>
+              <span class="path-go">Get started →</span>
+            </button>
+            <button type="button" class="path-card" data-path="advertiser">
+              <span class="path-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#megaphone"></use></svg></span>
+              <h3>I'm an Advertiser</h3>
+              <p>I want to reach 21+ nightlife audiences on KWIGZ machine screens.</p>
+              <span class="path-go">Get started →</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- BUSINESS PATH -->
+        <div class="q-step" data-step="b1">
+          <div class="q-progress"><span style="width:33%"></span></div>
+          <p class="q-count">Question 1 of 3</p>
+          <h3 class="q-question">Are you 21 years of age or older?</h3>
+          <p class="q-help">Required by law for all nicotine vending partnerships.</p>
+          <div class="q-options">
+            <button type="button" class="q-opt" data-answer="yes" data-key="age21" data-next="b2" data-pass="true">Yes, I'm 21+</button>
+            <button type="button" class="q-opt" data-answer="no" data-key="age21" data-next="b-fail" data-pass="false">No</button>
+          </div>
+          <button type="button" class="q-back" data-back="choose">← Back</button>
+        </div>
+
+        <div class="q-step" data-step="b2">
+          <div class="q-progress"><span style="width:66%"></span></div>
+          <p class="q-count">Question 2 of 3</p>
+          <h3 class="q-question">Do you have at least 3 ft of open wall space?</h3>
+          <p class="q-help">Our units are wall-mounted — a hallway, near restrooms, or beside the bar works great.</p>
+          <div class="q-options">
+            <button type="button" class="q-opt" data-answer="yes" data-key="wallSpace" data-next="b3" data-pass="true">Yes, I have the space</button>
+            <button type="button" class="q-opt" data-answer="no" data-key="wallSpace" data-next="b-fail" data-pass="false">No / Not sure</button>
+          </div>
+          <button type="button" class="q-back" data-back="b1">← Back</button>
+        </div>
+
+        <div class="q-step" data-step="b3">
+          <div class="q-progress"><span style="width:100%"></span></div>
+          <p class="q-count">Question 3 of 3</p>
+          <h3 class="q-question">What size machine fits your venue?</h3>
+          <p class="q-help">Not sure? Pick medium — we'll help you dial it in.</p>
+          <div class="q-options q-options-3">
+            <button type="button" class="q-opt" data-answer="small" data-key="machineSize" data-next="b-pass" data-pass="true"><strong>Small</strong><small>Tight spots &amp; lounges</small></button>
+            <button type="button" class="q-opt" data-answer="medium" data-key="machineSize" data-next="b-pass" data-pass="true"><strong>Medium</strong><small>Most bars &amp; clubs</small></button>
+            <button type="button" class="q-opt" data-answer="large" data-key="machineSize" data-next="b-pass" data-pass="true"><strong>Large</strong><small>High-traffic venues</small></button>
+          </div>
+          <button type="button" class="q-back" data-back="b2">← Back</button>
+        </div>
+
+        <!-- BUSINESS PASS -->
+        <div class="q-step q-result" data-step="b-pass">
+          <div class="success-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#check"></use></svg></div>
+          <h3 class="q-question">You qualify! <svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#sparkles"></use></svg></h3>
+          <p class="q-help">We'll reach out to you with an offer shortly. Drop your email below so we know where to send it.</p>
+          <form class="lead-form" id="businessLeadForm" data-type="business" novalidate>
+            <div class="lead-row">
+              <input type="email" name="email" placeholder="you@yourvenue.com" required autocomplete="email" />
+              <button type="submit" class="btn">Send Me the Offer</button>
+            </div>
+            <input type="text" name="venue" placeholder="Venue name (optional)" autocomplete="organization" />
+            <p class="lead-error" hidden></p>
+            <p class="lead-fine">No spam. We'll only contact you about your KWIGZ offer.</p>
+          </form>
+          <div class="lead-done" hidden>
+            <h4>You're on the list.</h4>
+            <p>Keep an eye on your inbox — we'll be in touch soon with your offer.</p>
+          </div>
+        </div>
+
+        <!-- BUSINESS FAIL -->
+        <div class="q-step q-result" data-step="b-fail">
+          <div class="fail-icon">!</div>
+          <h3 class="q-question">Looks like we're not a fit just yet.</h3>
+          <p class="q-help" id="failReason">We require all venue partners to be 21+ with at least 3 ft of open wall space.</p>
+          <p class="q-help">Think we got it wrong, or want to chat anyway? Leave your email and we'll follow up.</p>
+          <form class="lead-form" id="businessFailForm" data-type="business-not-qualified" novalidate>
+            <div class="lead-row">
+              <input type="email" name="email" placeholder="you@yourvenue.com" required autocomplete="email" />
+              <button type="submit" class="btn btn-outline">Contact Me</button>
+            </div>
+            <p class="lead-error" hidden></p>
+          </form>
+          <div class="lead-done" hidden>
+            <h4>Got it.</h4>
+            <p>We'll reach out to see if there's another way to work together.</p>
+          </div>
+          <button type="button" class="q-back" data-back="b1">← Start over</button>
+        </div>
+
+        <!-- ADVERTISER PATH -->
+        <div class="q-step" data-step="a1">
+          <div class="q-progress"><span style="width:20%"></span></div>
+          <p class="q-count">Step 1 of 5</p>
+          <h3 class="q-question">What type of business are you?</h3>
+          <p class="q-help">Each KWIGZ machine hosts <strong>one advertiser per category</strong> — you'll never share a screen with a direct competitor.</p>
+          <div class="cat-grid" id="catGrid"></div>
+          <button type="button" class="q-back" data-back="choose">← Back</button>
+        </div>
+
+        <div class="q-step" data-step="a2">
+          <div class="q-progress"><span style="width:40%"></span></div>
+          <p class="q-count">Step 2 of 5</p>
+          <h3 class="q-question">Where do you want to advertise?</h3>
+          <p class="q-help">Pick a machine. We'll check whether your category is still open there.</p>
+          <div class="machine-list" id="machineList"></div>
+          <button type="button" class="q-back" data-back="a1">← Back</button>
+        </div>
+
+        <div class="q-step q-result" data-step="a-taken">
+          <div class="fail-icon">!</div>
+          <h3 class="q-question" id="takenTitle">That category is already taken here.</h3>
+          <p class="q-help" id="takenHelp">Only one business per category advertises on each machine. Leave your email and we'll let you know the moment it opens up — or when a new machine launches near you.</p>
+          <form class="lead-form" id="advertiserWaitlistForm" data-type="advertiser-waitlist" novalidate>
+            <div class="lead-row">
+              <input type="email" name="email" placeholder="you@yourbrand.com" required autocomplete="email" />
+              <button type="submit" class="btn btn-outline">Join the Waitlist</button>
+            </div>
+            <input type="text" name="businessName" placeholder="Business name (optional)" autocomplete="organization" />
+            <p class="lead-error" hidden></p>
+          </form>
+          <div class="lead-done" hidden>
+            <h4>You're on the waitlist.</h4>
+            <p>We'll reach out as soon as a spot opens.</p>
+          </div>
+          <button type="button" class="q-back" data-back="a2">← Pick a different machine</button>
+        </div>
+
+        <div class="q-step" data-step="a3">
+          <div class="q-progress"><span style="width:60%"></span></div>
+          <p class="q-count">Step 3 of 5</p>
+          <h3 class="q-question">What's your monthly budget?</h3>
+          <p class="q-help">Higher budgets receive proportionally more banner rotations. <strong>Pay more → your ad shows more often.</strong></p>
+          <div class="budget-grid" id="budgetGrid"></div>
+          <p class="q-fine" id="budgetNote"></p>
+          <button type="button" class="q-back" data-back="a2">← Back</button>
+        </div>
+
+        <div class="q-step" data-step="a4">
+          <div class="q-progress"><span style="width:80%"></span></div>
+          <p class="q-count">Step 4 of 5</p>
+          <h3 class="q-question">Review your campaign</h3>
+          <p class="q-help">Your ad will rotate automatically alongside other businesses on this machine during its advertising hours.</p>
+          <div class="campaign-summary" id="campaignSummary"></div>
+          <div class="q-actions">
+            <button type="button" class="btn btn-lg" data-go="a5">Looks good →</button>
+          </div>
+          <button type="button" class="q-back" data-back="a3">← Change budget</button>
+        </div>
+
+        <div class="q-step" data-step="a5">
+          <div class="q-progress"><span style="width:100%"></span></div>
+          <p class="q-count">Step 5 of 5</p>
+          <h3 class="q-question">Tell us about your business</h3>
+          <p class="q-help">We'll review your application and reach out with payment and launch details.</p>
+          <form class="lead-form lead-form-wide" id="advertiserApplyForm" data-type="advertiser-application" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ad-business">Business name *</label>
+                <input type="text" id="ad-business" name="businessName" placeholder="Desert Ink Tattoo" required autocomplete="organization" />
+              </div>
+              <div class="form-group">
+                <label for="ad-website">Website</label>
+                <input type="url" id="ad-website" name="website" placeholder="https://yourbusiness.com" autocomplete="url" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="ad-contact">Contact name *</label>
+                <input type="text" id="ad-contact" name="contactName" placeholder="Jane Doe" required autocomplete="name" />
+              </div>
+              <div class="form-group">
+                <label for="ad-phone">Phone *</label>
+                <input type="tel" id="ad-phone" name="phone" placeholder="(555) 123-4567" required autocomplete="tel" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="ad-email">Email *</label>
+              <input type="email" id="ad-email" name="email" placeholder="jane@yourbusiness.com" required autocomplete="email" />
+            </div>
+            <div class="form-group">
+              <label for="ad-banner">Upload your banner <span class="label-opt">(optional — we can help you design one)</span></label>
+              <label class="upload-box" id="uploadBox" for="ad-banner">
+                <input type="file" id="ad-banner" name="banner" accept="image/png,image/jpeg,image/webp" />
+                <span class="upload-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#image"></use></svg></span>
+                <span class="upload-text"><strong>Click to upload</strong> PNG or JPG<br/><small>Recommended size: <b>1080 × 441</b> pixels · max 5 MB</small></span>
+              </label>
+              <div class="upload-preview" id="uploadPreview" hidden>
+                <img alt="Banner preview" />
+                <div class="upload-meta"><span id="uploadName"></span><span id="uploadDims"></span><button type="button" class="upload-remove" id="uploadRemove">Remove</button></div>
+              </div>
+              <p class="upload-warn" id="uploadWarn" hidden></p>
+            </div>
+            <button type="submit" class="btn btn-lg btn-full">Submit Application</button>
+            <p class="lead-error" hidden></p>
+            <p class="lead-fine">No payment today. We'll confirm availability and approve your creative first.</p>
+          </form>
+          <div class="lead-done q-result" hidden>
+            <div class="success-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#check"></use></svg></div>
+            <h4>Application received! <svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#sparkles"></use></svg></h4>
+            <p>We'll review your campaign and reach out within 24 hours with payment and launch details.</p>
+          </div>
+          <button type="button" class="q-back" data-back="a4">← Back</button>
+        </div>
+
+      </div>
     </div>
   </section>
 
@@ -120,13 +317,14 @@
       <div class="footer-brand">
         <a href="index.html" class="logo"><img src="kwigz-logo-nobg.png" alt="KWIGZ" /></a>
         <p>Premium vape &amp; nicotine pouch vending machines for clubs, casinos, and bars.</p>
-        <div class="age-warning">⚠️ 21+ ONLY — All sales require valid ID verification.</div>
+        <div class="age-warning"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#alert"></use></svg> 21+ ONLY — All sales require valid ID verification.</div>
       </div>
       <div class="footer-links-col">
         <h4>Pages</h4>
         <a href="index.html">Home</a>
-        <a href="revenue.html">Revenue & Partnership</a>
-        <a href="compliance.html">Compliance & Legal</a>
+        <a href="about.html">About</a>
+        <a href="revenue.html">Revenue &amp; Partnership</a>
+        <a href="compliance.html">Compliance &amp; Legal</a>
         <a href="contact.html">Contact Us</a>
       </div>
       <div class="footer-contact-col">
@@ -141,6 +339,7 @@
     </div>
   </footer>
 
-  <script src="script.js?v=6"></script>
+  <script src="ads-config.js?v=2"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>

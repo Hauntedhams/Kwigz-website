@@ -1,0 +1,17 @@
+{
+  "name": "kwigz-website",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KWIGZ marketing site, first-party lead collector, and admin dashboard",
+  "main": "server/leads-server.js",
+  "scripts": {
+    "start": "node server/leads-server.js",
+    "dev": "node server/leads-server.js",
+    "check": "node --check script.js && node --check ads-config.js && node --check server/leads-server.js",
+    "test": "node --test server/leads-server.test.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,35 @@
+.site-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  vertical-align: -0.15em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.benefit-icon,
+.path-icon,
+.cat-icon,
+.upload-icon,
+.credential-icon,
+.liability-icon {
+  color: #dc2626;
+}
+
+.benefit-icon,
+.path-icon,
+.cat-icon,
+.upload-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.benefit-icon { color: #fca5a5; }
+.bullet-check .site-icon { width: 14px; height: 14px; }
+.avail-badge { display: inline-flex; align-items: center; gap: 6px; }
+.avail-badge.taken { color: #b91c1c; background: #fef2f2; }

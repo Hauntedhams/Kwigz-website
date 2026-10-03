@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>KWIGZ Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/icons.css" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --red: #dc2626; --red-dark: #b91c1c; --red-soft: #fef2f2; --red-border: #fecaca;
+      --ink: #0f0f0f; --text: #1a1a1a; --muted: #6b7280; --line: #e5e7eb; --bg: #f6f6f7; --card: #fff;
+      --green: #15803d; --green-soft: #dcfce7; --amber: #b45309; --amber-soft: #fef3c7; --gray-soft: #f3f4f6;
+    }
+    html { font-size: 15px; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
+    a { color: inherit; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    [hidden] { display: none !important; }
+    .site-icon { stroke-width: 1.9; }
+
+    /* ---- login ---- */
+    .login { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 20% 20%, #fff 0%, var(--bg) 60%); }
+    .login-card { width: 100%; max-width: 380px; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 36px 32px; box-shadow: 0 20px 60px rgba(0,0,0,0.06); text-align: center; }
+    .login-card img { height: 56px; margin: 0 auto 18px; }
+    .login-card h1 { font-size: 1.3rem; font-weight: 800; margin-bottom: 4px; }
+    .login-card p { color: var(--muted); font-size: 0.9rem; margin-bottom: 22px; }
+    .login-card input { width: 100%; padding: 13px 16px; border: 1.5px solid var(--line); border-radius: 12px; margin-bottom: 12px; outline: none; }
+    .login-card input:focus { border-color: var(--red); box-shadow: 0 0 0 3px rgba(220,38,38,0.08); }
+    .login-error { color: var(--red); font-size: 0.85rem; margin-top: 10px; font-weight: 600; }
+
+    /* ---- shell ---- */
+    .shell { display: grid; grid-template-columns: 230px 1fr; min-height: 100vh; }
+    .side { background: var(--ink); color: #fff; padding: 26px 18px; display: flex; flex-direction: column; gap: 6px; position: sticky; top: 0; height: 100vh; }
+    .side img { height: 44px; margin: 0 8px 22px; filter: brightness(0) invert(1); }
+    .nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: none; color: #bbb; padding: 11px 12px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.93rem; transition: all 0.2s; }
+    .nav-btn:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .nav-btn.active { background: var(--red); color: #fff; }
+    .nav-btn .count { margin-left: auto; background: rgba(255,255,255,0.15); font-size: 0.72rem; padding: 2px 8px; border-radius: 50px; }
+    .nav-btn.active .count { background: rgba(0,0,0,0.25); }
+    .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; }
+    .side-foot .nav-btn { font-size: 0.85rem; }
+    .side-note { color: #777; font-size: 0.72rem; padding: 8px 12px; line-height: 1.4; }
+
+    .main { padding: 32px 36px 80px; min-width: 0; }
+    .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .page-head h1 { font-size: 1.6rem; font-weight: 900; letter-spacing: -0.3px; }
+    .page-head p { color: var(--muted); font-size: 0.9rem; }
+    .head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ---- controls ---- */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 600; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .btn:hover { border-color: #ccc; background: #fafafa; }
+    .btn-primary { background: var(--red); border-color: var(--red); color: #fff; }
+    .btn-primary:hover { background: var(--red-dark); border-color: var(--red-dark); }
+    .btn-sm { padding: 6px 11px; font-size: 0.78rem; border-radius: 8px; }
+    .btn-danger { color: var(--red); }
+    .btn-danger:hover { background: var(--red-soft); border-color: var(--red-border); }
+    .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+    select.inline, input.inline { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 0.82rem; outline: none; }
+    select.inline:focus, input.inline:focus { border-color: var(--red); }
+    .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .chip { padding: 7px 14px; border-radius: 50px; border: 1px solid var(--line); background: #fff; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: var(--muted); }
+    .chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .chips .search { margin-left: auto; min-width: 240px; }
+
+    /* ---- cards ---- */
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 22px 24px; }
+    .card + .card { margin-top: 18px; }
+    .card h2 { font-size: 1rem; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+    .card h2 .sub { font-weight: 500; color: var(--muted); font-size: 0.82rem; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+    .stat .label { color: var(--muted); font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
+    .stat .value { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.5px; margin: 4px 0 2px; }
+    .stat .hint { color: var(--muted); font-size: 0.78rem; }
+    .stat.accent { background: var(--red); border-color: var(--red); color: #fff; }
+    .stat.accent .label, .stat.accent .hint { color: rgba(255,255,255,0.75); }
+    .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
+    .two-col .card + .card { margin-top: 0; }
+
+    /* ---- badges ---- */
+    .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 50px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; background: var(--gray-soft); color: #374151; }
+    .badge.red { background: var(--red-soft); color: var(--red-dark); }
+    .badge.green { background: var(--green-soft); color: var(--green); }
+    .badge.amber { background: var(--amber-soft); color: var(--amber); }
+    .badge.blue { background: #dbeafe; color: #1d4ed8; }
+    .badge.purple { background: #ede9fe; color: #6d28d9; }
+    .badge.dot::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* ---- tables ---- */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+    th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); padding: 10px 12px; border-bottom: 1px solid var(--line); font-weight: 700; white-space: nowrap; }
+    td { padding: 13px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr.lead-row { cursor: pointer; }
+    tr.lead-row:hover td { background: #fafafa; }
+    tr.lead-row.is-new td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+    tr.detail td { background: #fafafa; padding: 16px 20px 20px; }
+    .who strong { display: block; font-weight: 700; }
+    .who span, .contact span { display: block; color: var(--muted); font-size: 0.8rem; }
+    .contact a { color: var(--text); text-decoration: none; display: block; }
+    .contact a:hover { color: var(--red); }
+    .details { color: #374151; font-size: 0.8rem; line-height: 1.6; }
+    .details b { color: var(--ink); font-weight: 600; }
+    .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 20px; font-size: 0.82rem; margin-bottom: 14px; }
+    .kv div { display: flex; gap: 8px; }
+    .kv span { color: var(--muted); min-width: 110px; }
+    .notes { width: 100%; min-height: 70px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; resize: vertical; outline: none; font-size: 0.85rem; background: #fff; }
+    .notes:focus { border-color: var(--red); }
+    .row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+    .empty { text-align: center; color: var(--muted); padding: 40px 20px; font-size: 0.9rem; }
+    .banner-thumb { max-width: 420px; border-radius: 10px; border: 1px solid var(--line); background: #111; display: block; margin-bottom: 12px; }
+
+    /* ---- advertisers ---- */
+    .machine-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+    .machine-head h2 { font-size: 1.2rem; margin-bottom: 2px; }
+    .machine-head p { color: var(--muted); font-size: 0.85rem; }
+    .machine-metrics { display: flex; gap: 22px; flex-wrap: wrap; }
+    .metric .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); font-weight: 700; }
+    .metric .value { font-size: 1.15rem; font-weight: 800; }
+    .slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+    .slot { border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 16px; background: #fff; min-height: 120px; display: flex; flex-direction: column; gap: 6px; }
+    .slot.open { border-style: dashed; background: #fcfcfc; }
+    .slot.active { border-color: #86efac; background: #f0fdf4; }
+    .slot.pending { border-color: #fcd34d; background: #fffbeb; }
+    .slot-cat { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 0.88rem; }
+    .slot-cat .site-icon { color: var(--red); font-size: 1.05rem; }
+    .slot-open-label { color: var(--muted); font-size: 0.82rem; margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
+    .slot .biz { font-weight: 700; font-size: 0.95rem; }
+    .slot .meta { font-size: 0.78rem; color: #374151; line-height: 1.5; }
+    .slot .meta b { font-weight: 700; color: var(--ink); }
+    .slot .badges { display: flex; gap: 5px; flex-wrap: wrap; }
+    .slot .slot-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: auto; padding-top: 6px; }
+    .slot .slot-actions .btn { padding: 5px 9px; font-size: 0.74rem; }
+
+    /* ---- calendar / timeline ---- */
+    .cal-nav { display: flex; align-items: center; gap: 10px; }
+    .cal-nav h3 { font-size: 1.05rem; font-weight: 800; min-width: 170px; text-align: center; }
+    .timeline { overflow-x: auto; }
+    .tl-grid { display: grid; grid-template-columns: 210px repeat(var(--days), minmax(26px, 1fr)); font-size: 0.75rem; min-width: 900px; }
+    .tl-head { position: sticky; top: 0; background: #fff; z-index: 2; }
+    .tl-head div, .tl-row div { border-bottom: 1px solid #f0f0f0; }
+    .tl-day { text-align: center; padding: 6px 0; color: var(--muted); font-weight: 600; border-left: 1px solid #f3f4f6; }
+    .tl-day.weekend { background: #fafafa; }
+    .tl-day.today { color: var(--red); }
+    .tl-day small { display: block; font-weight: 500; font-size: 0.65rem; }
+    .tl-label { padding: 10px 12px; font-weight: 600; font-size: 0.8rem; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--line); background: #fff; position: sticky; left: 0; z-index: 1; }
+    .tl-label small { color: var(--muted); font-weight: 500; font-size: 0.72rem; }
+    .tl-cell { border-left: 1px solid #f3f4f6; min-height: 46px; position: relative; }
+    .tl-cell.weekend { background: #fafafa; }
+    .tl-cell.today { background: rgba(220,38,38,0.05); }
+    .tl-bar { position: absolute; top: 10px; height: 26px; border-radius: 7px; display: flex; align-items: center; padding: 0 8px; font-size: 0.72rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; z-index: 1; cursor: pointer; }
+    .tl-bar.active { background: #bbf7d0; color: #14532d; }
+    .tl-bar.pending { background: #fde68a; color: #78350f; }
+    .tl-bar.ended, .tl-bar.cancelled { background: #e5e7eb; color: #4b5563; }
+    .tl-bar.clipped-start { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+    .tl-bar.clipped-end { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+    .tl-machine { grid-column: 1 / -1; background: var(--gray-soft); padding: 6px 12px; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: #4b5563; }
+    .legend { display: flex; gap: 14px; font-size: 0.78rem; color: var(--muted); margin-top: 14px; flex-wrap: wrap; }
+    .legend span::before { content: ''; display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -2px; }
+    .legend .l-active::before { background: #bbf7d0; } .legend .l-pending::before { background: #fde68a; } .legend .l-ended::before { background: #e5e7eb; }
+    .dates-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+    .date-item { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font-size: 0.83rem; }
+    .date-item .d { font-weight: 800; min-width: 54px; text-align: center; line-height: 1.1; }
+    .date-item .d small { display: block; font-weight: 600; color: var(--muted); font-size: 0.68rem; text-transform: uppercase; }
+    .date-item .t { color: var(--muted); font-size: 0.76rem; }
+
+    /* ---- modal ---- */
+    dialog { border: none; border-radius: 20px; padding: 0; max-width: 620px; width: calc(100% - 32px); box-shadow: 0 30px 80px rgba(0,0,0,0.25); }
+    dialog::backdrop { background: rgba(0,0,0,0.45); }
+    .modal { padding: 28px 30px; }
+    .modal h3 { font-size: 1.15rem; font-weight: 800; margin-bottom: 18px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .form-grid .full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: 0.75rem; font-weight: 700; color: #374151; margin-bottom: 5px; }
+    .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; outline: none; background: #fff; font-size: 0.88rem; }
+    .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--red); }
+    .field .hint { color: var(--muted); font-size: 0.74rem; margin-top: 4px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; align-items: center; }
+    .modal-error { color: var(--red); font-size: 0.82rem; font-weight: 600; margin-right: auto; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 50; }
+    .toast.show { opacity: 1; }
+
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; padding: 14px; }
+      .side img { margin: 0 8px; height: 32px; }
+      .side-foot { margin: 0 0 0 auto; flex-direction: row; }
+      .side-note { display: none; }
+      .main { padding: 20px 16px 60px; }
+      .two-col { grid-template-columns: 1fr; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login" id="login" hidden>
+  <form class="login-card" id="loginForm">
+    <img src="/kwigz-logo-nobg.png" alt="KWIGZ" />
+    <h1>Admin Dashboard</h1>
+    <p>Enter your admin password to continue.</p>
+    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" autofocus />
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;">Sign in</button>
+    <p class="login-error" id="loginError" hidden></p>
+  </form>
+</div>
+
+<!-- APP -->
+<div class="shell" id="app" hidden>
+  <aside class="side">
+    <img src="/kwigz-logo-nobg.png" alt="KWIGZ" />
+    <button class="nav-btn active" data-tab="overview"><svg class="site-icon"><use href="/icons.svg#chart"/></svg> Overview</button>
+    <button class="nav-btn" data-tab="leads"><svg class="site-icon"><use href="/icons.svg#document"/></svg> Leads <span class="count" id="navLeadCount">0</span></button>
+    <button class="nav-btn" data-tab="advertisers"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Advertisers <span class="count" id="navCampCount">0</span></button>
+    <button class="nav-btn" data-tab="calendar"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg> Calendar</button>
+    <div class="side-foot">
+      <button class="nav-btn" id="refreshBtn"><svg class="site-icon"><use href="/icons.svg#refresh"/></svg> Refresh</button>
+      <a class="nav-btn" href="/" target="_blank" rel="noopener" style="text-decoration:none;"><svg class="site-icon"><use href="/icons.svg#store"/></svg> View site</a>
+      <button class="nav-btn" id="logoutBtn"><svg class="site-icon"><use href="/icons.svg#lock"/></svg> Sign out</button>
+      <div class="side-note" id="sideNote"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- OVERVIEW -->
+    <section data-panel="overview">
+      <div class="page-head">
+        <div><h1>Overview</h1><p id="overviewSub">Loading…</p></div>
+        <div class="head-actions"><a class="btn" id="exportBtn" href="#">Export leads CSV</a><button class="btn btn-primary" data-open-campaign>+ Add campaign</button></div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="two-col">
+        <div class="card"><h2>Needs attention</h2><div id="attention"></div></div>
+        <div class="card"><h2>Recent leads</h2><div id="recentLeads"></div></div>
+      </div>
+    </section>
+
+    <!-- LEADS -->
+    <section data-panel="leads" hidden>
+      <div class="page-head">
+        <div><h1>Leads</h1><p>Every form submission from kwigz.com. Click a row for details and notes.</p></div>
+        <div class="head-actions"><a class="btn" id="exportBtn2" href="#">Export CSV</a></div>
+      </div>
+      <div class="chips" id="typeChips">
+        <button class="chip active" data-type="">All</button>
+        <button class="chip" data-type="business">Venues</button>
+        <button class="chip" data-type="advertiser-application">Advertiser apps</button>
+        <button class="chip" data-type="advertiser-waitlist">Ad waitlist</button>
+        <button class="chip" data-type="business-not-qualified">Not qualified</button>
+        <button class="chip" data-type="contact">Contact form</button>
+        <select class="inline" id="statusFilter"><option value="">Any status</option><option value="new">New</option><option value="contacted">Contacted</option><option value="won">Won</option><option value="lost">Lost</option></select>
+        <input class="inline search" id="leadSearch" type="search" placeholder="Search name, email, venue…" />
+      </div>
+      <div class="card" style="padding: 6px 0 0;">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Received</th><th>Type</th><th>Who</th><th>Contact</th><th>Details</th><th>Status</th></tr></thead>
+            <tbody id="leadRows"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="leadEmpty" hidden>No leads match.</div>
+      </div>
+    </section>
+
+    <!-- ADVERTISERS -->
+    <section data-panel="advertisers" hidden>
+      <div class="page-head">
+        <div><h1>Advertisers</h1><p>Ad slots, campaigns, payment and creative status per machine.</p></div>
+        <div class="head-actions"><button class="btn btn-primary" data-open-campaign>+ Add campaign</button></div>
+      </div>
+      <div id="machines"></div>
+      <div class="card" id="pastCampaignsCard" hidden><h2>Past &amp; cancelled campaigns</h2><div class="tbl-wrap"><table><thead><tr><th>Business</th><th>Machine</th><th>Category</th><th>Budget</th><th>Dates</th><th>Status</th><th></th></tr></thead><tbody id="pastCampaigns"></tbody></table></div></div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section data-panel="calendar" hidden>
+      <div class="page-head">
+        <div><h1>Calendar</h1><p>Campaign timeline across all machines. Click a bar to edit.</p></div>
+        <div class="cal-nav">
+          <button class="btn btn-sm" id="calPrev">‹ Prev</button>
+          <h3 id="calTitle"></h3>
+          <button class="btn btn-sm" id="calNext">Next ›</button>
+          <button class="btn btn-sm" id="calToday">Today</button>
+        </div>
+      </div>
+      <div class="card"><div class="timeline" id="timeline"></div><div class="legend"><span class="l-active">Active</span><span class="l-pending">Pending (reserved, awaiting payment/creative)</span><span class="l-ended">Ended / cancelled</span></div></div>
+      <div class="card"><h2>Key dates this month <span class="sub">starts, renewals &amp; expirations</span></h2><div class="dates-list" id="keyDates"></div></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- CAMPAIGN MODAL -->
+<dialog id="campaignModal">
+  <form class="modal" id="campaignForm" method="dialog">
+    <h3 id="campaignModalTitle">Add campaign</h3>
+    <div class="form-grid">
+      <div class="field"><label>Machine</label><select name="machineId" id="cfMachine" required></select></div>
+      <div class="field"><label>Category</label><select name="categoryId" id="cfCategory" required></select></div>
+      <div class="field full"><label>Business name</label><input name="business" required placeholder="Desert Ink Tattoo" /></div>
+      <div class="field"><label>Contact name</label><input name="contactName" /></div>
+      <div class="field"><label>Email</label><input name="email" type="email" /></div>
+      <div class="field"><label>Phone</label><input name="phone" /></div>
+      <div class="field"><label>Website</label><input name="website" /></div>
+      <div class="field"><label>Monthly budget</label><select name="budget" id="cfBudget"></select><div class="hint" id="cfUnitsHint"></div></div>
+      <div class="field"><label>Est. scheduled plays / month</label><input name="estPlays" id="cfPlays" type="number" min="0" /><div class="hint">Auto-calculated from budget &amp; machine hours; override if needed.</div></div>
+      <div class="field"><label>Start date</label><input name="start" id="cfStart" type="date" required /></div>
+      <div class="field"><label>End date</label><input name="end" id="cfEnd" type="date" required /><div class="hint">Defaults to 30 days.</div></div>
+      <div class="field"><label>Campaign status</label><select name="status"><option value="pending">Pending (reserves slot)</option><option value="active">Active (live on screen)</option><option value="ended">Ended</option><option value="cancelled">Cancelled</option></select></div>
+      <div class="field"><label>Payment</label><select name="paymentStatus"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="refunded">Refunded</option></select></div>
+      <div class="field"><label>Creative</label><select name="creativeStatus"><option value="pending">Pending review</option><option value="approved">Approved</option><option value="needs-changes">Needs changes</option></select></div>
+      <div class="field"><label>Banner file</label><input name="bannerFile" placeholder="from upload, optional" /></div>
+      <div class="field full"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
+    </div>
+    <input type="hidden" name="id" /><input type="hidden" name="leadId" />
+    <div class="modal-actions">
+      <span class="modal-error" id="campaignError"></span>
+      <button type="button" class="btn btn-danger" id="campaignDelete" hidden>Delete</button>
+      <button type="button" class="btn" id="campaignCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="campaignSave">Save campaign</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="/ads-config.js"></script>
+<script>
+(() => {
+  const ADS = window.KWIGZ_ADS;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+  const TOKEN_KEY = 'kwigz_admin_token';
+  let token = sessionStorage.getItem(TOKEN_KEY) || '';
+  let leads = [], campaigns = [];
+  let leadType = '', leadStatus = '', leadQuery = '', openLeadId = null;
+  let calMonth = new Date(); calMonth.setDate(1);
+
+  // ---------- helpers ----------
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmtN = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
+  const money = (n) => '$' + fmtN(n);
+  const icon = (name) => `<svg class="site-icon" aria-hidden="true"><use href="/icons.svg#${name}"/></svg>`;
+  const pad = (n) => String(n).padStart(2, '0');
+  const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const parseISO = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+  const todayISO = iso(new Date());
+  const fmtDate = (s) => s ? parseISO(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+  const fmtDateYear = (s) => s ? parseISO(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+  const timeAgo = (isoStr) => {
+    const diff = (Date.now() - new Date(isoStr)) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    if (diff < 7 * 86400) return `${Math.floor(diff / 86400)}d ago`;
+    return new Date(isoStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const addDays = (s, n) => { const d = parseISO(s); d.setDate(d.getDate() + n); return iso(d); };
+  const machineById = (id) => ADS.machines.find((m) => m.id === id) || { id, name: id, city: '', adHoursPerDay: 16 };
+  const catById = (id) => ADS.categories.find((c) => c.id === id) || { id, label: id, icon: 'sparkles' };
+  const budgetByAmount = (amt) => ADS.budgets.find((b) => b.amount === Number(amt));
+  const isLive = (c) => ['pending', 'active'].includes(c.status) && (!c.end || c.end >= todayISO);
+  const campaignForLead = (l) => campaigns.find((c) => c.leadId === l.id || (c.email && c.email === l.email && c.categoryId === (l.categoryId || '')));
+  const plays = (machine, units, totalUnits) => 3600 / (ADS.bannerSeconds * Math.max(totalUnits, units)) * machine.adHoursPerDay * ADS.campaignDays * units;
+  const quotedPlays = (machine, units) => plays(machine, units, ADS.maxUnits);
+  const activeUnits = (machineId) => campaigns.filter((c) => c.machineId === machineId && c.status === 'active' && c.start <= todayISO && c.end >= todayISO).reduce((s, c) => s + (Number(c.units) || 0), 0);
+
+  const TYPE_LABEL = { business: ['Venue', 'green'], 'advertiser-application': ['Advertiser', 'purple'], 'advertiser-waitlist': ['Ad waitlist', 'blue'], 'business-not-qualified': ['Not qualified', 'amber'], contact: ['Contact', ''] };
+  const typeBadge = (t) => { const [l, c] = TYPE_LABEL[t] || [t, '']; return `<span class="badge ${c}">${esc(l)}</span>`; };
+  const STATUS_COLOR = { new: 'red', contacted: 'blue', won: 'green', lost: '' };
+  const PAY_COLOR = { unpaid: 'amber', paid: 'green', refunded: '' };
+  const CREATIVE_COLOR = { pending: 'amber', approved: 'green', 'needs-changes': 'red' };
+  const CAMP_COLOR = { pending: 'amber', active: 'green', ended: '', cancelled: '' };
+
+  let toastTimer;
+  const toast = (msg) => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600); };
+
+  // ---------- api ----------
+  async function api(path, opts = {}) {
+    const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const res = await fetch(path, { ...opts, headers });
+    if (res.status === 401) { showLogin('Session expired or wrong password.'); throw new Error('Unauthorized'); }
+    const data = await res.json();
+    if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { data, status: res.status });
+    return data;
+  }
+
+  // ---------- auth ----------
+  function showLogin(msg) {
+    $('#app').hidden = true; $('#login').hidden = false;
+    const e = $('#loginError'); e.textContent = msg || ''; e.hidden = !msg;
+    setTimeout(() => $('#loginPassword').focus(), 50);
+  }
+  async function tryEnter() {
+    try {
+      const probe = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: token }) });
+      const d = await probe.json();
+      if (d.ok) { if (d.mode === 'localhost') $('#sideNote').textContent = 'No ADMIN_PASSWORD set — dashboard is open to localhost only.'; return enterApp(); }
+    } catch (err) {
+      console.error('Admin connection failed', err);
+      showLogin('Could not connect to the server. Please retry.');
+      return;
+    }
+    showLogin('');
+  }
+  $('#loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    token = $('#loginPassword').value;
+    try {
+      const res = await fetch('/api/admin/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: token }) });
+      const d = await res.json();
+      if (d.ok) { sessionStorage.setItem(TOKEN_KEY, token); enterApp(); } else { token = ''; showLogin(d.error || 'Wrong password.'); }
+    } catch (err) {
+      console.error('Admin sign-in failed', err);
+      showLogin('Could not sign in. Please retry.');
+    }
+  });
+  $('#logoutBtn').addEventListener('click', () => { token = ''; sessionStorage.removeItem(TOKEN_KEY); showLogin(''); });
+
+  async function enterApp() {
+    $('#login').hidden = true; $('#app').hidden = false;
+    await load();
+  }
+
+  // Export link needs the token: fetch + blob so the header is sent.
+  $$('#exportBtn, #exportBtn2').forEach((a) => a.addEventListener('click', async (e) => {
+    e.preventDefault();
+    const res = await fetch('/api/leads.csv', { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (!res.ok) return toast('Export failed');
+    const blob = await res.blob(); const url = URL.createObjectURL(blob);
+    const link = Object.assign(document.createElement('a'), { href: url, download: `kwigz-leads-${todayISO}.csv` });
+    link.click(); URL.revokeObjectURL(url);
+  }));
+
+  // ---------- data ----------
+  async function load() {
+    try {
+      const [l, c] = await Promise.all([api('/api/leads'), api('/api/campaigns')]);
+      leads = l.leads.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+      campaigns = c.campaigns;
+      renderAll();
+    } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
+  }
+  $('#refreshBtn').addEventListener('click', () => { load(); toast('Refreshed'); });
+
+  function renderAll() {
+    $('#navLeadCount').textContent = leads.filter((l) => l.status === 'new').length;
+    $('#navCampCount').textContent = campaigns.filter(isLive).length;
+    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar();
+  }
+
+  // ---------- tabs ----------
+  $$('.nav-btn[data-tab]').forEach((b) => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+  function switchTab(tab) {
+    $$('.nav-btn[data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
+    $$('[data-panel]').forEach((p) => p.hidden = p.dataset.panel !== tab);
+    window.scrollTo({ top: 0 });
+  }
+
+  // ---------- overview ----------
+  function renderOverview() {
+    const weekAgo = Date.now() - 7 * 86400000;
+    const live = campaigns.filter(isLive);
+    const active = live.filter((c) => c.status === 'active' && c.start <= todayISO);
+    const mrr = active.reduce((s, c) => s + (Number(c.budget) || 0), 0);
+    const booked = live.reduce((s, c) => s + (Number(c.budget) || 0), 0);
+    const totalSlots = ADS.machines.length * ADS.maxUnits;
+    $('#overviewSub').textContent = `${leads.length} total leads · ${ADS.machines.length} machine${ADS.machines.length === 1 ? '' : 's'} · updated ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+    $('#stats').innerHTML = [
+      ['New leads', leads.filter((l) => l.status === 'new').length, 'awaiting first contact', 'accent'],
+      ['This week', leads.filter((l) => new Date(l.receivedAt) > weekAgo).length, 'leads in the last 7 days'],
+      ['Qualified venues', leads.filter((l) => l.type === 'business').length, 'passed the 3-question check'],
+      ['Advertiser apps', leads.filter((l) => l.type === 'advertiser-application').length, `${leads.filter((l) => l.type === 'advertiser-waitlist').length} on waitlist`],
+      ['Ad slots filled', `${live.length} / ${totalSlots}`, `${active.length} live on screen`],
+      ['Monthly ad revenue', money(mrr), `${money(booked)} incl. pending`],
+    ].map(([label, value, hint, cls = '']) => `<div class="stat ${cls}"><div class="label">${label}</div><div class="value">${value}</div><div class="hint">${hint}</div></div>`).join('');
+
+    const items = [];
+    leads.filter((l) => l.type === 'advertiser-application' && ['new', 'contacted'].includes(l.status) && !campaignForLead(l))
+      .forEach((l) => items.push({ badge: ['Review application', 'purple'], text: `<b>${esc(l.businessName || l.email)}</b> wants ${esc(l.category || 'a slot')} at ${esc(l.machine || 'a machine')} · ${money(l.budget)}/mo`, action: `<button class="btn btn-sm btn-primary" data-campaign-from-lead="${esc(l.id)}">Create campaign</button>` }));
+    live.filter((c) => c.paymentStatus === 'unpaid').forEach((c) => items.push({ badge: ['Unpaid', 'amber'], text: `<b>${esc(c.business)}</b> · ${money(c.budget)} · ${catById(c.categoryId).label} at ${esc(machineById(c.machineId).name)}`, action: `<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"paymentStatus":"paid"}'>Mark paid</button>` }));
+    live.filter((c) => c.creativeStatus === 'pending').forEach((c) => items.push({ badge: ['Creative review', 'amber'], text: `<b>${esc(c.business)}</b> banner awaiting approval`, action: `<button class="btn btn-sm" data-edit-campaign="${c.id}">Review</button>` }));
+    live.filter((c) => c.status === 'pending' && c.paymentStatus === 'paid' && c.creativeStatus === 'approved').forEach((c) => items.push({ badge: ['Ready to go live', 'green'], text: `<b>${esc(c.business)}</b> is paid &amp; approved — assign it in VapeTM, then activate`, action: `<button class="btn btn-sm btn-primary" data-camp-patch="${c.id}" data-patch='{"status":"active"}'>Activate</button>` }));
+    live.filter((c) => c.status === 'active' && c.end <= addDays(todayISO, 7)).forEach((c) => items.push({ badge: ['Renewal due', 'blue'], text: `<b>${esc(c.business)}</b> ends ${fmtDate(c.end)} — reach out to renew`, action: `<button class="btn btn-sm" data-renew-campaign="${c.id}">Renew +30d</button>` }));
+    leads.filter((l) => l.type === 'business' && l.status === 'new').slice(0, 5).forEach((l) => items.push({ badge: ['Send offer', 'green'], text: `<b>${esc(l.venue || l.email)}</b> qualified (${esc(l.machineSize || 'medium')} machine) · ${timeAgo(l.receivedAt)}`, action: `<a class="btn btn-sm" href="mailto:${esc(l.email)}">Email</a>` }));
+    $('#attention').innerHTML = items.length
+      ? items.map((i) => `<div class="date-item" style="margin-bottom:8px;"><span class="badge ${i.badge[1]}">${i.badge[0]}</span><span style="flex:1;">${i.text}</span>${i.action}</div>`).join('')
+      : '<div class="empty">All caught up.</div>';
+
+    $('#recentLeads').innerHTML = leads.length
+      ? leads.slice(0, 8).map((l) => `<div class="date-item" style="margin-bottom:8px;cursor:pointer;" data-goto-lead="${esc(l.id)}">${typeBadge(l.type)}<span style="flex:1;"><b>${esc(leadName(l))}</b><br/><span class="t">${esc(l.email)}</span></span><span class="t">${timeAgo(l.receivedAt)}</span></div>`).join('')
+      : '<div class="empty">No leads yet. They\'ll appear here the moment someone submits a form.</div>';
+  }
+
+  function leadName(l) { return l.businessName || l.venue || l.name || l.contactName || l.company || l.email; }
+
+  // ---------- leads ----------
+  $$('#typeChips .chip').forEach((c) => c.addEventListener('click', () => { leadType = c.dataset.type; $$('#typeChips .chip').forEach((x) => x.classList.toggle('active', x === c)); renderLeads(); }));
+  $('#statusFilter').addEventListener('change', (e) => { leadStatus = e.target.value; renderLeads(); });
+  $('#leadSearch').addEventListener('input', (e) => { leadQuery = e.target.value.toLowerCase(); renderLeads(); });
+
+  function leadDetails(l) {
+    if (l.type === 'business' || l.type === 'business-not-qualified') {
+      return [l.age21 && `21+: <b>${esc(l.age21)}</b>`, l.wallSpace && `3 ft wall: <b>${esc(l.wallSpace)}</b>`, l.machineSize && `Size: <b>${esc(l.machineSize)}</b>`].filter(Boolean).join(' · ');
+    }
+    if (l.type === 'advertiser-application') {
+      return `<b>${esc(l.category)}</b> at ${esc(l.machine)}<br/>${money(l.budget)}/mo · ${esc(l.units)}× · ~${fmtN(l.estPlays)} plays${l.bannerFile ? ' · banner attached' : ''}`;
+    }
+    if (l.type === 'advertiser-waitlist') return `Waiting for <b>${esc(l.category || '—')}</b> at ${esc(l.machine || '—')}`;
+    if (l.type === 'contact') return [l['venue-type'] && `Type: <b>${esc(l['venue-type'])}</b>`, l.address && esc(l.address), l.message && `“${esc(l.message.slice(0, 90))}${l.message.length > 90 ? '…' : ''}”`].filter(Boolean).join('<br/>');
+    return '';
+  }
+
+  function renderLeads() {
+    const rows = leads.filter((l) => (!leadType || l.type === leadType) && (!leadStatus || l.status === leadStatus) &&
+      (!leadQuery || JSON.stringify(l).toLowerCase().includes(leadQuery)));
+    $('#leadEmpty').hidden = rows.length > 0;
+    $('#leadRows').innerHTML = rows.map((l) => `
+      <tr class="lead-row ${l.status === 'new' ? 'is-new' : ''}" data-lead="${esc(l.id)}">
+        <td style="white-space:nowrap;"><b>${timeAgo(l.receivedAt)}</b><br/><span class="t" style="color:var(--muted);font-size:0.75rem;">${new Date(l.receivedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></td>
+        <td>${typeBadge(l.type)}</td>
+        <td class="who"><strong>${esc(leadName(l))}</strong>${l.contactName && l.businessName ? `<span>${esc(l.contactName)}</span>` : ''}${l.venue && l.name ? `<span>${esc(l.name)}</span>` : ''}</td>
+        <td class="contact"><a href="mailto:${esc(l.email)}">${esc(l.email)}</a>${l.phone ? `<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>` : ''}</td>
+        <td class="details">${leadDetails(l)}</td>
+        <td><select class="inline" data-lead-status="${esc(l.id)}">${['new', 'contacted', 'won', 'lost'].map((s) => `<option value="${s}" ${l.status === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></td>
+      </tr>
+      ${openLeadId === l.id ? `<tr class="detail"><td colspan="6">${leadDetailPanel(l)}</td></tr>` : ''}`).join('');
+  }
+
+  function leadDetailPanel(l) {
+    const skip = new Set(['id', 'status', 'notes', 'updatedAt', 'type', 'ip', 'page', 'submittedAt', 'path']);
+    const kv = Object.entries(l).filter(([k, v]) => !skip.has(k) && v !== '' && v != null).map(([k, v]) => `<div><span>${esc(k)}</span><b>${k === 'bannerFile' ? `<a href="/api/uploads/${esc(v)}" target="_blank" data-auth-link>${esc(v)}</a>` : esc(v)}</b></div>`).join('');
+    const banner = l.bannerFile ? `<img class="banner-thumb" data-banner="${esc(l.bannerFile)}" alt="Banner" />` : '';
+    const linked = campaignForLead(l);
+    const actions = [
+      l.type === 'advertiser-application' && !linked ? `<button class="btn btn-sm btn-primary" data-campaign-from-lead="${esc(l.id)}">Create campaign from this application</button>` : '',
+      linked ? `<span class="badge green">Campaign created</span><button class="btn btn-sm" data-edit-campaign="${linked.id}">Open campaign</button>` : '',
+      `<a class="btn btn-sm" href="mailto:${esc(l.email)}">Email ${esc(l.email)}</a>`,
+      l.phone ? `<a class="btn btn-sm" href="tel:${esc(l.phone)}">Call</a>` : '',
+      `<span style="color:var(--muted);font-size:0.75rem;">IP ${esc(l.ip || '—')} · from ${esc((l.page || '').replace(/^https?:\/\//, '').slice(0, 40))}</span>`,
+    ].join('');
+    return `${banner}<div class="kv">${kv}</div><label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Notes</label><textarea class="notes" data-lead-notes="${esc(l.id)}" placeholder="Call notes, offer sent, follow-up date…">${esc(l.notes)}</textarea><div class="row-actions">${actions}</div>`;
+  }
+
+  // Banner images need the auth header, so load them as blobs.
+  async function hydrateBanners(root = document) {
+    for (const img of $$('img[data-banner]', root)) {
+      if (img.src) continue;
+      try {
+        const res = await fetch(`/api/uploads/${img.dataset.banner}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+        if (res.ok) img.src = URL.createObjectURL(await res.blob());
+      } catch {}
+    }
+  }
+
+  // ---------- advertisers ----------
+  function renderAdvertisers() {
+    const live = campaigns.filter(isLive);
+    $('#machines').innerHTML = ADS.machines.map((m) => {
+      const mine = live.filter((c) => c.machineId === m.id);
+      const actUnits = activeUnits(m.id);
+      const revenue = mine.filter((c) => c.status === 'active' && c.start <= todayISO).reduce((s, c) => s + (Number(c.budget) || 0), 0);
+      const booked = mine.reduce((s, c) => s + (Number(c.budget) || 0), 0);
+      const slotCats = ADS.categories.filter((c) => c.id !== 'other');
+      const otherCamps = mine.filter((c) => c.categoryId === 'other');
+      const slotHtml = [...slotCats.map((cat) => slotCard(m, cat, mine.find((c) => c.categoryId === cat.id), actUnits)), ...otherCamps.map((c) => slotCard(m, catById('other'), c, actUnits))].join('');
+      return `<div class="card">
+        <div class="machine-head">
+          <div><h2>${esc(m.name)}</h2><p>${esc(m.city)} · ${m.adHoursPerDay} ad hours/day · ${ADS.bannerSeconds}s banners</p></div>
+          <div class="machine-metrics">
+            <div class="metric"><div class="label">Slots</div><div class="value">${mine.length} / ${ADS.maxUnits}</div></div>
+            <div class="metric"><div class="label">Live revenue</div><div class="value">${money(revenue)}<span style="font-size:0.75rem;color:var(--muted);font-weight:600;">/mo</span></div></div>
+            <div class="metric"><div class="label">Booked incl. pending</div><div class="value">${money(booked)}</div></div>
+            <div class="metric"><div class="label">Live rotation</div><div class="value">${actUnits}× · ${actUnits * ADS.bannerSeconds}s</div></div>
+          </div>
+        </div>
+        <div class="slots">${slotHtml}</div>
+      </div>`;
+    }).join('');
+
+    const past = campaigns.filter((c) => !isLive(c)).sort((a, b) => b.end.localeCompare(a.end));
+    $('#pastCampaignsCard').hidden = past.length === 0;
+    $('#pastCampaigns').innerHTML = past.map((c) => `<tr><td><b>${esc(c.business)}</b></td><td>${esc(machineById(c.machineId).name)}</td><td>${esc(catById(c.categoryId).label)}</td><td>${money(c.budget)} · ${c.units}×</td><td>${fmtDate(c.start)} – ${fmtDateYear(c.end)}</td><td><span class="badge ${CAMP_COLOR[c.status]}">${c.status}</span></td><td style="white-space:nowrap;"><button class="btn btn-sm" data-renew-campaign="${c.id}">Renew</button> <button class="btn btn-sm" data-edit-campaign="${c.id}">Edit</button></td></tr>`).join('');
+  }
+
+  function slotCard(m, cat, c, actUnits) {
+    if (!c) return `<div class="slot open"><div class="slot-cat">${icon(cat.icon)} ${esc(cat.label)}</div><div class="slot-open-label"><span>Open</span><button class="btn btn-sm" data-open-campaign data-prefill='${esc(JSON.stringify({ machineId: m.id, categoryId: cat.id }))}'>+ Book</button></div></div>`;
+    const current = c.status === 'active' && c.start <= todayISO
+      ? plays(m, Number(c.units) || 0, Math.max(actUnits, Number(c.units) || 0)) : null;
+    const quoted = c.estPlays || quotedPlays(m, Number(c.units) || 0);
+    const next = [];
+    if (c.paymentStatus === 'unpaid') next.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"paymentStatus":"paid"}'>Mark paid</button>`);
+    if (c.creativeStatus !== 'approved') next.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"creativeStatus":"approved"}'>Approve creative</button>`);
+    if (c.status === 'pending') next.push(`<button class="btn btn-sm btn-primary" data-camp-patch="${c.id}" data-patch='{"status":"active"}'>Activate</button>`);
+    if (c.status === 'active') next.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"status":"ended"}'>End</button>`);
+    next.push(`<button class="btn btn-sm" data-edit-campaign="${c.id}">Edit</button>`);
+    return `<div class="slot ${c.status}">
+      <div class="slot-cat">${icon(cat.icon)} ${esc(cat.label)}</div>
+      <div class="biz">${esc(c.business)}</div>
+      <div class="meta"><b>${money(c.budget)}/mo</b> · ${c.units}× rotation<br/>Quoted ~${fmtN(quoted)}${current === null ? ' · not live yet' : ` · at live rotation ~${fmtN(current)} plays/mo`}<br/>${fmtDate(c.start)} – ${fmtDateYear(c.end)}${c.status === 'active' ? ` · <b>${Math.max(0, Math.ceil((parseISO(c.end) - parseISO(todayISO)) / 86400000))}d left</b>` : ''}</div>
+      <div class="badges"><span class="badge ${CAMP_COLOR[c.status]} dot">${c.status}</span><span class="badge ${PAY_COLOR[c.paymentStatus]}">${c.paymentStatus}</span><span class="badge ${CREATIVE_COLOR[c.creativeStatus]}">creative: ${c.creativeStatus}</span></div>
+      <div class="slot-actions">${next.join('')}</div>
+    </div>`;
+  }
+
+  // ---------- calendar ----------
+  $('#calPrev').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() - 1); renderCalendar(); });
+  $('#calNext').addEventListener('click', () => { calMonth.setMonth(calMonth.getMonth() + 1); renderCalendar(); });
+  $('#calToday').addEventListener('click', () => { calMonth = new Date(); calMonth.setDate(1); renderCalendar(); });
+
+  function renderCalendar() {
+    const y = calMonth.getFullYear(), mo = calMonth.getMonth();
+    const days = new Date(y, mo + 1, 0).getDate();
+    const first = iso(new Date(y, mo, 1)), last = iso(new Date(y, mo, days));
+    $('#calTitle').textContent = calMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const inMonth = campaigns.filter((c) => c.start <= last && c.end >= first);
+    const dayCells = (cls) => Array.from({ length: days }, (_, i) => { const d = new Date(y, mo, i + 1); const w = d.getDay() === 0 || d.getDay() === 6; return `<div class="${cls} ${w ? 'weekend' : ''} ${iso(d) === todayISO ? 'today' : ''}">${cls === 'tl-day' ? `${i + 1}<small>${d.toLocaleDateString('en-US', { weekday: 'narrow' })}</small>` : ''}</div>`; }).join('');
+    let html = `<div class="tl-grid" style="--days:${days}"><div class="tl-head tl-label"><b>Campaign</b></div>${dayCells('tl-day')}`;
+    if (!inMonth.length) html += `<div class="tl-machine">No campaigns this month</div>`;
+    for (const m of ADS.machines) {
+      const rows = inMonth.filter((c) => c.machineId === m.id).sort((a, b) => a.start.localeCompare(b.start));
+      if (!rows.length) continue;
+      html += `<div class="tl-machine">${esc(m.name)} · ${esc(m.city)}</div>`;
+      for (const c of rows) {
+        const s = Math.max(1, parseISO(c.start < first ? first : c.start).getDate());
+        const e = Math.min(days, parseISO(c.end > last ? last : c.end).getDate());
+        const clippedS = c.start < first, clippedE = c.end > last;
+        html += `<div class="tl-label">${esc(c.business)}<small>${esc(catById(c.categoryId).label)} · ${money(c.budget)}</small></div>`;
+        html += Array.from({ length: days }, (_, i) => {
+          const d = i + 1; const dt = new Date(y, mo, d); const w = dt.getDay() === 0 || dt.getDay() === 6;
+          const bar = d === s ? `<div class="tl-bar ${c.status} ${clippedS ? 'clipped-start' : ''} ${clippedE ? 'clipped-end' : ''}" style="left:2px;width:calc(${(e - s + 1)} * 100% - 4px);" data-edit-campaign="${c.id}" title="${esc(c.business)} · ${fmtDate(c.start)} – ${fmtDateYear(c.end)}">${esc(c.business)}</div>` : '';
+          return `<div class="tl-cell ${w ? 'weekend' : ''} ${iso(dt) === todayISO ? 'today' : ''}">${bar}</div>`;
+        }).join('');
+      }
+    }
+    html += '</div>';
+    $('#timeline').innerHTML = html;
+
+    const events = [];
+    inMonth.forEach((c) => {
+      if (c.start >= first && c.start <= last) events.push({ date: c.start, label: `${c.business} starts`, sub: `${catById(c.categoryId).label} · ${machineById(c.machineId).name}`, badge: ['Start', 'green'], id: c.id });
+      if (c.end >= first && c.end <= last) events.push({ date: c.end, label: `${c.business} ${c.status === 'cancelled' ? 'cancelled' : 'ends'}`, sub: isLive(c) ? 'renewal opportunity' : catById(c.categoryId).label, badge: isLive(c) ? ['Renew', 'blue'] : ['End', ''], id: c.id });
+    });
+    events.sort((a, b) => a.date.localeCompare(b.date));
+    $('#keyDates').innerHTML = events.length ? events.map((e) => { const d = parseISO(e.date); return `<div class="date-item" style="cursor:pointer;" data-edit-campaign="${e.id}"><div class="d">${d.getDate()}<small>${d.toLocaleDateString('en-US', { month: 'short' })}</small></div><div style="flex:1;"><b>${esc(e.label)}</b><div class="t">${esc(e.sub)}</div></div><span class="badge ${e.badge[1]}">${e.badge[0]}</span></div>`; }).join('') : '<div class="empty" style="grid-column:1/-1;">Nothing scheduled this month.</div>';
+  }
+
+  // ---------- campaign modal ----------
+  const modal = $('#campaignModal'), form = $('#campaignForm');
+  $('#cfMachine').innerHTML = ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
+  $('#cfCategory').innerHTML = ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+  $('#cfBudget').innerHTML = ADS.budgets.map((b) => `<option value="${b.amount}">$${b.amount}/mo — ${b.units}× rotation</option>`).join('');
+
+  function recalcModal() {
+    const m = machineById(form.machineId.value);
+    const b = budgetByAmount(form.budget.value) || ADS.budgets[0];
+    $('#cfUnitsHint').textContent = `${b.units} rotation unit${b.units === 1 ? '' : 's'} · ${ADS.bannerSeconds}s banner`;
+    if (!form.estPlays.dataset.manual) form.estPlays.value = Math.round(quotedPlays(m, b.units));
+  }
+  form.machineId.addEventListener('change', recalcModal);
+  form.budget.addEventListener('change', recalcModal);
+  form.estPlays.addEventListener('input', () => { form.estPlays.dataset.manual = '1'; });
+  form.start.addEventListener('change', () => { if (form.start.value && !form.end.dataset.manual) form.end.value = addDays(form.start.value, ADS.campaignDays - 1); });
+  form.end.addEventListener('input', () => { form.end.dataset.manual = '1'; });
+
+  function openCampaignModal(data = {}, { title = 'Add campaign', isEdit = false } = {}) {
+    form.reset(); delete form.estPlays.dataset.manual; delete form.end.dataset.manual;
+    $('#campaignModalTitle').textContent = title; $('#campaignError').textContent = '';
+    $('#campaignDelete').hidden = !isEdit;
+    const start = data.start || addDays(todayISO, ADS.approvalDays);
+    const defaults = { machineId: ADS.machines[0]?.id, categoryId: ADS.categories[0]?.id, budget: ADS.budgets[0]?.amount, start, end: data.end || addDays(start, ADS.campaignDays - 1), status: 'pending', paymentStatus: 'unpaid', creativeStatus: data.bannerFile ? 'pending' : 'pending' };
+    const vals = { ...defaults, ...data };
+    for (const [k, v] of Object.entries(vals)) { if (form.elements[k] && v != null) form.elements[k].value = v; }
+    if (data.estPlays) form.estPlays.dataset.manual = '1';
+    recalcModal();
+    modal.showModal();
+  }
+  $('#campaignCancel').addEventListener('click', () => modal.close());
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = Object.fromEntries(new FormData(form).entries());
+    const b = budgetByAmount(fd.budget);
+    const payload = { ...fd, budget: Number(fd.budget), units: b ? b.units : 0, estPlays: Number(fd.estPlays) || 0 };
+    const id = payload.id; delete payload.id;
+    $('#campaignSave').disabled = true;
+    try {
+      await api(id ? `/api/campaigns/${id}` : '/api/campaigns', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
+      modal.close(); toast(id ? 'Campaign updated' : 'Campaign created'); await load();
+    } catch (err) {
+      $('#campaignError').textContent = err.message;
+    } finally { $('#campaignSave').disabled = false; }
+  });
+  $('#campaignDelete').addEventListener('click', async () => {
+    const id = form.elements.namedItem('id').value; if (!id || !confirm('Delete this campaign permanently? (Use "Cancelled" status to keep a record.)')) return;
+    try { await api(`/api/campaigns/${id}`, { method: 'DELETE' }); modal.close(); toast('Campaign deleted'); await load(); } catch (err) { $('#campaignError').textContent = err.message; }
+  });
+
+  function campaignFromLead(l) {
+    const machineId = l.machineId || ADS.machines.find((m) => (l.machine || '').startsWith(m.name))?.id || ADS.machines[0]?.id;
+    const categoryId = l.categoryId || ADS.categories.find((c) => c.label === l.category)?.id || 'other';
+    const start = l.campaignStart && l.campaignStart >= todayISO ? l.campaignStart : addDays(todayISO, ADS.approvalDays);
+    openCampaignModal({ machineId, categoryId, business: l.businessName || '', contactName: l.contactName || '', email: l.email, phone: l.phone || '', website: l.website || '', budget: Number(l.budget) || ADS.budgets[0].amount, estPlays: Number(l.estPlays) || 0, start, end: addDays(start, ADS.campaignDays - 1), bannerFile: l.bannerFile || '', leadId: l.id, creativeStatus: 'pending' }, { title: `New campaign — ${l.businessName || l.email}` });
+  }
+
+  // ---------- delegated events ----------
+  document.addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-lead], [data-goto-lead], [data-campaign-from-lead], [data-edit-campaign], [data-camp-patch], [data-renew-campaign], [data-open-campaign]');
+    if (!t) return;
+    if (t.matches('select, textarea, a[href^="mailto"], a[href^="tel"]') || e.target.closest('select, textarea, a[href^="mailto"], a[href^="tel"]')) return;
+
+    if (t.dataset.openCampaign !== undefined) { openCampaignModal(t.dataset.prefill ? JSON.parse(t.dataset.prefill) : {}); return; }
+    if (t.dataset.gotoLead) { switchTab('leads'); openLeadId = t.dataset.gotoLead; leadType = ''; leadStatus = ''; leadQuery = ''; $('#leadSearch').value = ''; $('#statusFilter').value = ''; $$('#typeChips .chip').forEach((x) => x.classList.toggle('active', !x.dataset.type)); renderLeads(); hydrateBanners(); $(`tr[data-lead="${CSS.escape(openLeadId)}"]`)?.scrollIntoView({ block: 'center' }); return; }
+    if (t.dataset.lead && !e.target.closest('button, a')) { openLeadId = openLeadId === t.dataset.lead ? null : t.dataset.lead; renderLeads(); hydrateBanners(); return; }
+    if (t.dataset.campaignFromLead) { const l = leads.find((x) => x.id === t.dataset.campaignFromLead); if (l) campaignFromLead(l); return; }
+    if (t.dataset.editCampaign) { const c = campaigns.find((x) => x.id === t.dataset.editCampaign); if (c) openCampaignModal({ ...c }, { title: `Edit — ${c.business}`, isEdit: true }); return; }
+    if (t.dataset.campPatch) {
+      t.disabled = true;
+      try { await api(`/api/campaigns/${t.dataset.campPatch}`, { method: 'PATCH', body: JSON.stringify(JSON.parse(t.dataset.patch)) }); toast('Updated'); await load(); } catch (err) { toast(err.message); t.disabled = false; }
+      return;
+    }
+    if (t.dataset.renewCampaign) {
+      const c = campaigns.find((x) => x.id === t.dataset.renewCampaign); if (!c) return;
+      const start = c.end >= todayISO ? addDays(c.end, 1) : addDays(todayISO, 1);
+      openCampaignModal({ ...c, id: undefined, leadId: c.leadId, start, end: addDays(start, ADS.campaignDays - 1), status: 'pending', paymentStatus: 'unpaid', creativeStatus: c.creativeStatus === 'approved' ? 'approved' : 'pending', notes: `Renewal of ${c.id}` }, { title: `Renew — ${c.business}` });
+    }
+  });
+
+  document.addEventListener('change', async (e) => {
+    const sel = e.target.closest('[data-lead-status]');
+    if (sel) { try { await api(`/api/leads/${encodeURIComponent(sel.dataset.leadStatus)}`, { method: 'PATCH', body: JSON.stringify({ status: sel.value }) }); const l = leads.find((x) => x.id === sel.dataset.leadStatus); if (l) l.status = sel.value; renderOverview(); renderLeads(); hydrateBanners(); $('#navLeadCount').textContent = leads.filter((x) => x.status === 'new').length; toast('Status saved'); } catch (err) { toast(err.message); } }
+  });
+  document.addEventListener('focusout', async (e) => {
+    const ta = e.target.closest('[data-lead-notes]');
+    if (ta) { const l = leads.find((x) => x.id === ta.dataset.leadNotes); if (!l || l.notes === ta.value) return; try { await api(`/api/leads/${encodeURIComponent(l.id)}`, { method: 'PATCH', body: JSON.stringify({ notes: ta.value }) }); l.notes = ta.value; toast('Notes saved'); } catch (err) { toast(err.message); } }
+  });
+  // Authenticated file links (banner filenames) open via blob.
+  document.addEventListener('click', async (e) => {
+    const a = e.target.closest('a[data-auth-link]'); if (!a) return;
+    e.preventDefault();
+    const res = await fetch(a.getAttribute('href'), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+    if (res.ok) window.open(URL.createObjectURL(await res.blob()), '_blank');
+  });
+
+  tryEnter();
+})();
+</script>
+</body>
+</html>

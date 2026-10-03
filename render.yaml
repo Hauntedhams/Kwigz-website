@@ -1,0 +1,28 @@
+# Render Blueprint — deploy with "New → Blueprint" and pick this repo.
+# Creates one web service that serves kwigz.com AND stores leads on a
+# persistent disk (so they survive deploys/restarts).
+services:
+  - type: web
+    name: kwigz-website
+    runtime: node
+    plan: starter          # persistent disks require a paid instance (Starter is the cheapest)
+    region: oregon
+    buildCommand: npm run check
+    startCommand: node server/leads-server.js
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: TZ
+        value: America/Phoenix
+      - key: DATA_DIR
+        value: /data
+      - key: ADMIN_PASSWORD
+        sync: false        # Render prompts you to enter this securely on first deploy
+    disk:
+      name: kwigz-data
+      mountPath: /data
+      sizeGB: 1

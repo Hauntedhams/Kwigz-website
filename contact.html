@@ -8,25 +8,41 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="icons.css?v=1" />
 </head>
 <body>
 
   <!-- NAVBAR -->
   <nav class="navbar scrolled" id="navbar">
     <div class="container nav-container">
-      <a href="index.html" class="logo"><img src="kwigz-logo-nobg.png" alt="KWIGZ" /></a>
-      <ul class="nav-links" id="navLinks">
-        <li><a href="index.html">Home</a></li>
-        <li><a href="revenue.html">Revenue & Partnership</a></li>
-        <li><a href="compliance.html">Compliance & Legal</a></li>
-        <li><a href="contact.html" class="btn btn-sm active">Contact Us</a></li>
-      </ul>
-      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+      <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="siteMenu">
         <span></span><span></span><span></span>
       </button>
+      <a href="index.html" class="logo"><img src="kwigz-logo-nobg.png" alt="KWIGZ" /></a>
+      <a href="index.html#qualify" class="btn btn-sm nav-cta">See If You Qualify</a>
     </div>
   </nav>
+
+  <!-- SLIDE-OUT MENU -->
+  <div class="menu-overlay" id="menuOverlay"></div>
+  <aside class="site-menu" id="siteMenu" aria-hidden="true">
+    <div class="site-menu-header">
+      <img src="kwigz-logo-nobg.png" alt="KWIGZ" />
+      <button class="menu-close" id="menuClose" aria-label="Close menu">&times;</button>
+    </div>
+    <ul class="site-menu-links">
+      <li><a href="index.html">Home</a></li>
+      <li><a href="about.html">About</a></li>
+      <li><a href="revenue.html">Revenue &amp; Partnership</a></li>
+      <li><a href="compliance.html">Compliance &amp; Legal</a></li>
+      <li><a href="contact.html" class="active">Contact Us</a></li>
+    </ul>
+    <a href="index.html#qualify" class="btn btn-full site-menu-cta">See If You Qualify</a>
+    <div class="site-menu-footer">
+      <a href="mailto:kwigzvending@gmail.com">kwigzvending@gmail.com</a>
+    </div>
+  </aside>
 
   <!-- PAGE HERO -->
   <header class="page-hero">
@@ -86,16 +102,16 @@
 
         <div class="contact-sidebar">
           <div class="sidebar-card">
-            <h3>📞 Prefer to Call?</h3>
+            <h3><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#phone"></use></svg> Prefer to Call?</h3>
             <p>Reach out directly and we'll walk you through everything.</p>
             <a href="mailto:kwigzvending@gmail.com" class="sidebar-link">kwigzvending@gmail.com</a>
           </div>
           <div class="sidebar-card">
-            <h3>⏱️ Response Time</h3>
+            <h3><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#clock"></use></svg> Response Time</h3>
             <p>We respond to all inquiries within <strong>24 hours</strong>.</p>
           </div>
           <div class="sidebar-card">
-            <h3>📍 Based In</h3>
+            <h3><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#map-pin"></use></svg> Based In</h3>
             <p>Arizona — serving venues across the state and expanding.</p>
           </div>
         </div>
@@ -103,7 +119,7 @@
 
       <!-- Success message -->
       <div class="form-success" id="formSuccess">
-        <div class="success-icon">✓</div>
+        <div class="success-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#check"></use></svg></div>
         <h3>Request Sent!</h3>
         <p>We'll be in touch within 24 hours to discuss getting a machine in your venue.</p>
         <a href="index.html" class="btn" style="margin-top: 24px;">Back to Home</a>
@@ -117,13 +133,14 @@
       <div class="footer-brand">
         <a href="index.html" class="logo"><img src="kwigz-logo-nobg.png" alt="KWIGZ" /></a>
         <p>Premium vape &amp; nicotine pouch vending machines for clubs, casinos, and bars.</p>
-        <div class="age-warning">⚠️ 21+ ONLY — All sales require valid ID verification.</div>
+        <div class="age-warning"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#alert"></use></svg> 21+ ONLY — All sales require valid ID verification.</div>
       </div>
       <div class="footer-links-col">
         <h4>Pages</h4>
         <a href="index.html">Home</a>
-        <a href="revenue.html">Revenue & Partnership</a>
-        <a href="compliance.html">Compliance & Legal</a>
+        <a href="about.html">About</a>
+        <a href="revenue.html">Revenue &amp; Partnership</a>
+        <a href="compliance.html">Compliance &amp; Legal</a>
         <a href="contact.html">Contact Us</a>
       </div>
       <div class="footer-contact-col">
@@ -138,6 +155,6 @@
     </div>
   </footer>
 
-  <script src="script.js?v=6"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>

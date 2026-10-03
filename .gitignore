@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Collected leads — contains emails, never commit to the public repo
+server/data/
+.env
+.env.*
+!.env.example
+node_modules/

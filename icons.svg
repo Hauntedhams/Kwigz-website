@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <symbol id="package" viewBox="0 0 24 24">
+    <path d="m12 3 9 5v8l-9 5-9-5V8l9-5Zm0 9v9M3 8l9 4 9-4M7.5 5.5l9 5v4"/>
+  </symbol>
+  <symbol id="refresh" viewBox="0 0 24 24">
+    <path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/>
+  </symbol>
+  <symbol id="wrench" viewBox="0 0 24 24">
+    <path d="M14 4a6 6 0 0 0-7 8l-4 4a3 3 0 0 0 5 5l4-4a6 6 0 0 0 8-7l-4 4-4-4 4-4Z"/>
+  </symbol>
+  <symbol id="scales" viewBox="0 0 24 24">
+    <path d="M12 3v18m-5 0h10M4 6h16M6 6l-4 8h8L6 6Zm12 0-4 8h8l-4-8ZM2 14a4 4 0 0 0 8 0m4 0a4 4 0 0 0 8 0"/>
+  </symbol>
+  <symbol id="banknote" viewBox="0 0 24 24">
+    <rect x="2" y="5" width="20" height="14" rx="2"/>
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M6 9h.01M18 15h.01"/>
+  </symbol>
+  <symbol id="store" viewBox="0 0 24 24">
+    <path d="M3 10v11h18V10M2 10l2-7h16l2 7M2 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0M9 21v-7h6v7M7 3v7m5-7v7m5-7v7"/>
+  </symbol>
+  <symbol id="megaphone" viewBox="0 0 24 24">
+    <path d="m4 9 15-6v18L4 15V9Zm0 0H2v6h2m2 1 2 6h4l-2-5M22 9v6"/>
+  </symbol>
+  <symbol id="check" viewBox="0 0 24 24">
+    <path d="m5 12 4 4L19 6"/>
+  </symbol>
+  <symbol id="check-circle" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="m8 12 3 3 5-6"/>
+  </symbol>
+  <symbol id="alert" viewBox="0 0 24 24">
+    <path d="m12 3 10 18H2L12 3Zm0 6v5m0 3h.01"/>
+  </symbol>
+  <symbol id="image" viewBox="0 0 24 24">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <circle cx="8" cy="8" r="1"/>
+    <path d="m21 16-6-6L3 21"/>
+  </symbol>
+  <symbol id="phone" viewBox="0 0 24 24">
+    <path d="M4 3h4l2 5-3 2a15 15 0 0 0 7 7l2-3 5 2v4a2 2 0 0 1-2 2A19 19 0 0 1 2 5a2 2 0 0 1 2-2Z"/>
+  </symbol>
+  <symbol id="clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 7v5l3 2"/>
+  </symbol>
+  <symbol id="map-pin" viewBox="0 0 24 24">
+    <path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z"/>
+    <circle cx="12" cy="10" r="2"/>
+  </symbol>
+  <symbol id="shield" viewBox="0 0 24 24">
+    <path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/>
+    <path d="m8 12 3 3 5-6"/>
+  </symbol>
+  <symbol id="document" viewBox="0 0 24 24">
+    <path d="M14 2H5v20h14V7l-5-5Zm0 0v5h5M8 11h8m-8 4h8m-8 4h5"/>
+  </symbol>
+  <symbol id="building" viewBox="0 0 24 24">
+    <path d="m12 3 10 5H2l10-5ZM2 21h20M4 18h16M6 8v10m6-10v10m6-10v10"/>
+  </symbol>
+  <symbol id="briefcase" viewBox="0 0 24 24">
+    <rect x="3" y="7" width="18" height="14" rx="2"/>
+    <path d="M8 7V3h8v4M3 12l9 3 9-3m-9 0v4"/>
+  </symbol>
+  <symbol id="vending" viewBox="0 0 24 24">
+    <rect x="5" y="2" width="14" height="20" rx="2"/>
+    <path d="M8 5h8v9H8V5Zm0 13h5m3 0h.01"/>
+  </symbol>
+  <symbol id="lock" viewBox="0 0 24 24">
+    <rect x="5" y="10" width="14" height="11" rx="2"/>
+    <path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2"/>
+  </symbol>
+  <symbol id="unlock" viewBox="0 0 24 24">
+    <rect x="5" y="10" width="14" height="11" rx="2"/>
+    <path d="M8 10V6a4 4 0 0 1 8 0m-4 9v2"/>
+  </symbol>
+  <symbol id="download" viewBox="0 0 24 24">
+    <path d="M12 3v12m-5-5 5 5 5-5M3 16v5h18v-5"/>
+  </symbol>
+  <symbol id="clipboard" viewBox="0 0 24 24">
+    <path d="M8 4H4v18h16V4h-4M8 10h8m-8 4h8m-8 4h5"/>
+    <rect x="8" y="2" width="8" height="4" rx="1"/>
+  </symbol>
+  <symbol id="award" viewBox="0 0 24 24">
+    <circle cx="12" cy="8" r="5"/>
+    <path d="m8 12-2 10 6-3 6 3-2-10"/>
+  </symbol>
+  <symbol id="chart" viewBox="0 0 24 24">
+    <path d="M3 3v18h18M7 17v-4m5 4V9m5 8V5"/>
+  </symbol>
+  <symbol id="bandage" viewBox="0 0 24 24">
+    <path d="m4 12 8-8a5.7 5.7 0 0 1 8 8l-8 8a5.7 5.7 0 0 1-8-8Zm4-4 8 8M8 16l8-8m-6 3h.01M13 14h.01"/>
+  </symbol>
+  <symbol id="motorcycle" viewBox="0 0 24 24">
+    <circle cx="5" cy="17" r="4"/>
+    <circle cx="19" cy="17" r="4"/>
+    <path d="m19 17-4-12h-4m5 4H9l-4 8h7l4-8M6 9H3"/>
+  </symbol>
+  <symbol id="pen" viewBox="0 0 24 24">
+    <path d="m14 4 6 6M3 21l2-7L16 3a2 2 0 0 1 5 5L10 19l-7 2Z"/>
+  </symbol>
+  <symbol id="snowflake" viewBox="0 0 24 24">
+    <path d="M12 2v20M3 7l18 10M3 17 21 7M9 3l3 3 3-3m-6 18 3-3 3 3M3 10l4-1-1-4m15 9-4 1 1 4M3 14l4 1-1 4m15-9-4-1 1-4"/>
+  </symbol>
+  <symbol id="car" viewBox="0 0 24 24">
+    <path d="m4 10 2-6h12l2 6M3 10h18v9H3v-9Zm2 9v3m14-3v3M6 14h2m8 0h2"/>
+  </symbol>
+  <symbol id="utensils" viewBox="0 0 24 24">
+    <path d="M4 2v7a3 3 0 0 0 6 0V2M7 2v20M20 2c-4 2-5 6-5 11h5m0-11v20"/>
+  </symbol>
+  <symbol id="sparkles" viewBox="0 0 24 24">
+    <path d="m12 3 3 6 6 3-6 3-3 6-3-6-6-3 6-3 3-6ZM4 2v4M2 4h4m14 14v4m-2-2h4"/>
+  </symbol>
+</svg>
