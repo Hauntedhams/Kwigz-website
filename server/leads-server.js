@@ -44,11 +44,11 @@ if (PRODUCTION && !process.env.DATA_DIR) {
 }
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
-const STRIPE_MODE = STRIPE_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test';
+const STRIPE_MODE = /^(sk|rk)_live_/.test(STRIPE_SECRET_KEY) ? 'live' : 'test';
 const STRIPE_API_BASE = process.env.STRIPE_API_BASE || 'https://api.stripe.com/v1'; // overridable for tests only
 const SITE_URL = (process.env.SITE_URL || 'https://kwigz.com').replace(/\/+$/, '');
 if (STRIPE_SECRET_KEY && !/^(sk|rk)_(test|live)_/.test(STRIPE_SECRET_KEY)) {
-  throw new Error('STRIPE_SECRET_KEY must be a Stripe secret key (sk_test_… or sk_live_…).');
+  throw new Error('STRIPE_SECRET_KEY must be a Stripe secret or restricted key (sk_test_…, sk_live_…, rk_test_…, or rk_live_…).');
 }
 if (PRODUCTION && STRIPE_SECRET_KEY && !STRIPE_WEBHOOK_SECRET) {
   throw new Error('Set STRIPE_WEBHOOK_SECRET so payments can be confirmed automatically.');

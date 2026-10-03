@@ -8,11 +8,11 @@ window.KWIGZ_ADS = {
   approvalDays: 3,       // estimated days from application to going live
   bannerSize: { width: 1080, height: 441 },
 
-  // Budget → rotation units ($100 per unit). Higher budget = proportionally more plays.
+  // Budget → rotation units ($200 per unit). Higher budget = proportionally more plays.
   budgets: [
-    { amount: 200, units: 2 },
-    { amount: 300, units: 3 },
-    { amount: 400, units: 4 },
+    { amount: 200, units: 1 },
+    { amount: 300, units: 1.5 },
+    { amount: 400, units: 2 },
   ],
 
   // One advertiser per category per machine.

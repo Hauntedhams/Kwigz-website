@@ -88,6 +88,60 @@ async function stop(child) {
   await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
 }
 
+test('campaign pricing preserves original play allocations at the higher prices', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-pricing-'));
+  let instance;
+  try {
+    instance = await start(dataDir);
+    const config = { window: {} };
+    vm.runInNewContext(readFileSync(path.join(__dirname, '..', 'ads-config.js'), 'utf8'), config);
+    assert.equal(JSON.stringify(config.window.KWIGZ_ADS.budgets), JSON.stringify([
+      { amount: 200, units: 1 }, { amount: 300, units: 1.5 }, { amount: 400, units: 2 },
+    ]));
+    for (const [budget, units, estPlays, categoryId] of [
+      [200, 1, 11520, 'tattoo'], [300, 1.5, 17280, 'hvac'], [400, 2, 23040, 'plumbing'],
+    ]) {
+      const response = await fetch(`${instance.base}/api/campaigns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` },
+        body: JSON.stringify({
+          machineId: 'chopper-johns-phoenix', categoryId, business: 'Pricing test',
+          budget, units: 999, start: '2099-01-01', end: '2099-01-30',
+        }),
+      });
+      assert.equal(response.status, 201);
+      const { campaign } = await response.json();
+      assert.equal(campaign.budget, budget);
+      assert.equal(campaign.units, units);
+      assert.equal(campaign.estPlays, estPlays);
+    }
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('Stripe mode recognizes standard and restricted live and test keys', async () => {
+  for (const [key, mode] of [
+    ['sk_live_mock', 'live'], ['rk_live_mock', 'live'],
+    ['sk_test_mock', 'test'], ['rk_test_mock', 'test'],
+  ]) {
+    const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-mode-'));
+    let instance;
+    try {
+      instance = await start(dataDir, { STRIPE_SECRET_KEY: key, STRIPE_WEBHOOK_SECRET: 'whsec_mock' });
+      const response = await fetch(`${instance.base}/api/campaigns`, {
+        headers: { Authorization: `Bearer ${password}` },
+      });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).stripe.mode, mode);
+    } finally {
+      if (instance) await stop(instance.child);
+      rmSync(dataDir, { recursive: true, force: true });
+    }
+  }
+});
+
 test('production API protects private files and persists valid leads and campaigns', async () => {
   const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-test-'));
   let instance;
@@ -136,8 +190,8 @@ test('production API protects private files and persists valid leads and campaig
     const created = await request('/api/campaigns', { method: 'POST', auth: true, data: campaign });
     assert.equal(created.status, 201);
     const saved = (await created.json()).campaign;
-    assert.equal(saved.units, 2);
-    assert.equal(saved.estPlays, 23040);
+    assert.equal(saved.units, 1);
+    assert.equal(saved.estPlays, 11520);
     assert.equal((await request('/api/campaigns', { method: 'POST', auth: true, data: { ...campaign, force: true } })).status, 409);
     const availability = await (await request('/api/availability')).json();
     assert.deepEqual(availability.machines[0].takenCategories, ['tattoo']);
@@ -224,6 +278,9 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     assert.match(link.email.subject, /HVAC at Chopper John's/);
     assert.ok(link.email.body.includes(link.url) && link.email.body.includes('$300/month') && link.email.body.includes('Hi Sam'));
     assert.ok(link.email.body.includes('ASAP') && !/business days/.test(link.email.body));
+    assert.equal(c.units, 1.5);
+    assert.equal(c.estPlays, 17280);
+    assert.ok(link.email.body.includes('1.5x rotation') && link.email.body.includes('17,280'));
     const priceCall = mock.calls.find((x) => x.path === '/prices');
     assert.equal(priceCall.auth, 'Bearer sk_test_mock');
     assert.equal(priceCall.params.unit_amount, '30000');

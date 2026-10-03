@@ -189,7 +189,7 @@ Machines, categories, budgets and the play formula live in
 
 - `machines[]` — add a machine with its `adHoursPerDay`. (`takenCategories` is a
   static fallback; live availability now comes from campaigns in `/admin`.)
-- `budgets[]` — budget → rotation units at $100/unit (`$200 = 2×`, `$300 = 3×`, `$400 = 4×`).
+- `budgets[]` — budget → rotation units at $200/unit (`$200 = 1×`, `$300 = 1.5×`, `$400 = 2×`).
   The second-to-last tier is marked "Most popular" on the site.
 - `bannerSeconds` (15), `maxUnits` (10), `campaignDays` (30), `approvalDays` (3), `bannerSize` (1080 × 441).
 
@@ -200,10 +200,17 @@ adHoursPerDay × 3600 / (bannerSeconds × max(maxUnits, units)) × units × camp
 ```
 
 With 15-second banners, 16 ad hours/day and a fully booked 10-unit rotation,
-1 unit ≈ 11,520 plays/month, so the $200 tier ≈ **23,040 plays/month** and
-$400 ≈ 46,080. The quote
+1 unit ≈ 11,520 plays/month, so the $200 tier ≈ **11,520 plays/month**,
+$300 ≈ 17,280, and $400 ≈ 23,040. The quote
 assumes a full rotation, so a lighter rotation only ever means more plays than
 promised; the dashboard shows both the quoted and the live-rotation figure.
+
+Pricing configuration applies to newly created campaigns. Existing stored
+campaign allocations, quoted plays, and Stripe subscriptions are not
+automatically migrated; review existing agreements before editing them.
+Stripe mode detection supports both standard (`sk_live_…`) and restricted
+(`rk_live_…`) live keys. Restricted keys still need permissions for the API
+operations used by the integration.
 
 ## API
 
