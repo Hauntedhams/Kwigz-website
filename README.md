@@ -113,6 +113,11 @@ dashboard in sync — no manual "Mark paid" needed. Stripe sends receipts,
 monthly invoices, and failed-card emails itself. Zero npm dependencies: the
 server calls Stripe's REST API directly.
 
+Payment-link requests omit optional checkout `custom_text`, which Stripe rejects
+when Managed Payments is enabled. Billing and creative-approval details remain
+in the editable payment-link email; the integration does not change your
+account's Managed Payments setting.
+
 ### One-time setup
 
 1. **Finish Stripe's account review** (Dashboard banner: "Review in progress").

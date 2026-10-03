@@ -535,7 +535,6 @@ async function createPaymentLink(c) {
     },
     restrictions: { completed_sessions: { limit: 1 } },
     after_completion: { type: 'redirect', redirect: { url: `${SITE_URL}/payment-complete.html?session_id={CHECKOUT_SESSION_ID}` } },
-    custom_text: { submit: { message: `Billed monthly. Your banner goes live within about ${ADS.approvalDays} business days of payment and creative approval.` } },
   });
   return { price, link };
 }
