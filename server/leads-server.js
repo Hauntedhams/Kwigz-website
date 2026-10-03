@@ -11,10 +11,14 @@
 //                   on Render point this at a persistent disk, e.g. /data)
 //   ADMIN_PASSWORD  password for /admin and the admin API. If unset, admin
 //                   routes only work from localhost.
+//   STRIPE_SECRET_KEY      sk_test_… or sk_live_…  (enables payment links + recurring billing)
+//   STRIPE_WEBHOOK_SECRET  whsec_… from the webhook endpoint for POST /api/stripe/webhook
+//   SITE_URL               public origin used for post-payment redirects (default https://kwigz.com)
 //
-// Public:  POST /api/leads   GET /api/availability   GET /healthz
+// Public:  POST /api/leads   GET /api/availability   GET /healthz   POST /api/stripe/webhook
 // Admin:   GET /admin        GET/PATCH /api/leads     GET /api/leads.csv
 //          GET/POST/PATCH/DELETE /api/campaigns       GET /api/uploads/<file>
+//          POST /api/campaigns/:id/payment-link       POST /api/campaigns/:id/stop-billing
 
 const http = require('http');
 const fs = require('fs');
@@ -38,11 +42,22 @@ if (PRODUCTION && ADMIN_PASSWORD.length < 24) {
 if (PRODUCTION && !process.env.DATA_DIR) {
   throw new Error('Set DATA_DIR to the persistent disk mount before deploying.');
 }
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || '';
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || '';
+const STRIPE_MODE = STRIPE_SECRET_KEY.startsWith('sk_live_') ? 'live' : 'test';
+const STRIPE_API_BASE = process.env.STRIPE_API_BASE || 'https://api.stripe.com/v1'; // overridable for tests only
+const SITE_URL = (process.env.SITE_URL || 'https://kwigz.com').replace(/\/+$/, '');
+if (STRIPE_SECRET_KEY && !/^(sk|rk)_(test|live)_/.test(STRIPE_SECRET_KEY)) {
+  throw new Error('STRIPE_SECRET_KEY must be a Stripe secret key (sk_test_… or sk_live_…).');
+}
+if (PRODUCTION && STRIPE_SECRET_KEY && !STRIPE_WEBHOOK_SECRET) {
+  throw new Error('Set STRIPE_WEBHOOK_SECRET so payments can be confirmed automatically.');
+}
 const configContext = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'ads-config.js'), 'utf8'), configContext);
 const ADS = configContext.window.KWIGZ_ADS;
 const PUBLIC_FILES = new Set([
-  'index.html', 'about.html', 'revenue.html', 'compliance.html', 'contact.html',
+  'index.html', 'about.html', 'revenue.html', 'compliance.html', 'contact.html', 'payment-complete.html',
   'styles.css', 'script.js', 'ads-config.js', 'icons.css', 'icons.svg',
   'hero-bg.jpg', 'kwigz-logo-nobg.png', 'kwigz-logo.png',
   'slimwall-installed-web.jpg', 'slimwall-inside-web.jpg', 'IMG_2898.jpeg',
@@ -61,7 +76,7 @@ const CSV_COLUMNS = [
 const BANNER_EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
 const LEAD_STATUSES = ['new', 'contacted', 'won', 'lost'];
 const CAMPAIGN_STATUSES = ['pending', 'active', 'ended', 'cancelled'];
-const PAYMENT_STATUSES = ['unpaid', 'paid', 'refunded'];
+const PAYMENT_STATUSES = ['unpaid', 'paid', 'past-due', 'refunded'];
 const CREATIVE_STATUSES = ['pending', 'approved', 'needs-changes'];
 
 const MIME = {
@@ -213,13 +228,13 @@ function readBody(req) {
       if (size > MAX_BODY) { reject(new Error('Payload too large')); req.destroy(); return; }
       chunks.push(c);
     });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
 
 async function readJsonBody(req) {
-  const raw = await readBody(req);
+  const raw = (await readBody(req)).toString('utf8');
   let data;
   try { data = JSON.parse(raw || '{}'); } catch { throw new Error('Invalid JSON body'); }
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected a JSON object');
@@ -402,6 +417,16 @@ async function handleCampaignPatch(req, res, id) {
     if (conflict) {
       return sendJson(res, 409, { ok: false, error: `${conflict.business || 'Another campaign'} already holds this category for overlapping dates`, conflict });
     }
+    // Ending a campaign must also stop Stripe from charging for it again.
+    const closing = ['ended', 'cancelled'].includes(c.status) && !['ended', 'cancelled'].includes(campaigns[idx].status);
+    if (closing && STRIPE_SECRET_KEY) {
+      try {
+        await stopBilling(c, { immediately: c.status === 'cancelled' && c.paymentStatus !== 'paid' });
+        if (c.paymentStatus !== 'paid') await deactivatePaymentLink(c);
+      } catch (err) {
+        return sendJson(res, 502, { ok: false, error: `Campaign not saved — Stripe refused to stop billing: ${err.message}` });
+      }
+    }
     campaigns[idx] = c;
     writeJson(CAMPAIGNS_FILE, campaigns);
     sendJson(res, 200, { ok: true, campaign: c });
@@ -416,6 +441,254 @@ function handleCampaignDelete(res, id) {
   if (next.length === campaigns.length) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
   writeJson(CAMPAIGNS_FILE, next);
   sendJson(res, 200, { ok: true });
+}
+
+// ---------- Stripe: payment links + recurring billing ----------
+// Talks to Stripe's REST API directly (no SDK) so the server stays dependency-free.
+
+function formEncode(obj, prefix = '', out = []) {
+  for (const [k, v] of Object.entries(obj)) {
+    if (v === undefined || v === null) continue;
+    const key = prefix ? `${prefix}[${k}]` : k;
+    if (typeof v === 'object') formEncode(v, key, out);
+    else out.push(`${encodeURIComponent(key)}=${encodeURIComponent(v)}`);
+  }
+  return out.join('&');
+}
+
+async function stripe(method, endpoint, params) {
+  if (!STRIPE_SECRET_KEY) throw new Error('Stripe is not configured on the server (set STRIPE_SECRET_KEY).');
+  const res = await fetch(`${STRIPE_API_BASE}${endpoint}`, {
+    method,
+    headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params ? formEncode(params) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error?.message || `Stripe request failed (${res.status})`);
+  return data;
+}
+
+function addDaysISO(isoDate, days) {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+const unixToISODate = (secs) => (secs ? new Date(secs * 1000).toISOString().slice(0, 10) : '');
+const fmtLongDate = (iso) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+// Newer Stripe API versions moved these fields; accept both shapes.
+const invoiceSubscriptionId = (inv) => (typeof inv.subscription === 'string' ? inv.subscription : inv.subscription?.id) || inv.parent?.subscription_details?.subscription || '';
+const invoiceMetadata = (inv) => inv.subscription_details?.metadata || inv.parent?.subscription_details?.metadata || {};
+const subscriptionPeriodEnd = (sub) => sub.current_period_end || sub.items?.data?.[0]?.current_period_end || 0;
+
+function campaignLabels(c) {
+  return {
+    machine: ADS.machines.find((m) => m.id === c.machineId) || { name: c.machineId, city: '' },
+    category: ADS.categories.find((x) => x.id === c.categoryId) || { label: c.categoryId },
+  };
+}
+
+function paymentUrlFor(c) {
+  const u = new URL(c.paymentUrl);
+  u.searchParams.set('client_reference_id', c.id);
+  if (c.email) u.searchParams.set('prefilled_email', c.email);
+  return u.toString();
+}
+
+function paymentEmail(c, url) {
+  const { machine, category } = campaignLabels(c);
+  return {
+    subject: `Your KWIGZ ad slot — ${category.label} at ${machine.name}`,
+    body: [
+      `Hi ${c.contactName || 'there'},`,
+      '',
+      `Your ${category.label} slot at ${machine.name}${machine.city ? ` (${machine.city})` : ''} is reserved. To lock it in, set up your monthly billing here:`,
+      '',
+      url,
+      '',
+      `- $${c.budget}/month, ${c.units}x rotation, ${ADS.bannerSeconds}-second banner, about ${Math.round(c.estPlays).toLocaleString('en-US')} scheduled plays per month`,
+      `- First run ${fmtLongDate(c.start)} to ${fmtLongDate(c.end)}, then renews automatically each month. Cancel anytime by replying to this email.`,
+      `- Your banner goes live within about ${ADS.approvalDays} business days of payment and creative approval.`,
+      '',
+      'Thanks,',
+      'KWIGZ',
+    ].join('\n'),
+  };
+}
+
+// One recurring Price + one single-use Payment Link per campaign. Payment Links don't
+// expire (Checkout Sessions do after 24h), so the emailed link keeps working.
+async function createPaymentLink(c) {
+  const { machine, category } = campaignLabels(c);
+  const price = await stripe('POST', '/prices', {
+    currency: 'usd',
+    unit_amount: Math.round(c.budget * 100),
+    recurring: { interval: 'month' },
+    product_data: { name: `KWIGZ ad slot — ${category.label} at ${machine.name}`, metadata: { campaignId: c.id } },
+    metadata: { campaignId: c.id },
+  });
+  const link = await stripe('POST', '/payment_links', {
+    line_items: [{ price: price.id, quantity: 1 }],
+    metadata: { campaignId: c.id, business: c.business },
+    subscription_data: {
+      description: `${c.units}x rotation · ${ADS.bannerSeconds}s banner · ${machine.name}${machine.city ? `, ${machine.city}` : ''}`,
+      metadata: { campaignId: c.id, business: c.business },
+    },
+    restrictions: { completed_sessions: { limit: 1 } },
+    after_completion: { type: 'redirect', redirect: { url: `${SITE_URL}/payment-complete.html?session_id={CHECKOUT_SESSION_ID}` } },
+    custom_text: { submit: { message: `Billed monthly. Your banner goes live within about ${ADS.approvalDays} business days of payment and creative approval.` } },
+  });
+  return { price, link };
+}
+
+async function deactivatePaymentLink(c) {
+  if (!c.stripePaymentLinkId) return;
+  try { await stripe('POST', `/payment_links/${c.stripePaymentLinkId}`, { active: false }); } catch (err) { console.error('Unable to deactivate payment link', err.message); }
+}
+
+async function handlePaymentLink(res, id) {
+  if (!STRIPE_SECRET_KEY) return sendJson(res, 503, { ok: false, error: 'Stripe is not configured on the server (set STRIPE_SECRET_KEY).' });
+  const campaigns = readCampaigns();
+  const c = campaigns.find((x) => x.id === id);
+  if (!c) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
+  if (!isValidEmail(c.email)) return sendJson(res, 400, { ok: false, error: "Add the advertiser's email to the campaign first." });
+  if (c.paymentStatus === 'paid' && c.stripeSubscriptionId) return sendJson(res, 400, { ok: false, error: 'This campaign is already paid and billing is active.' });
+  try {
+    const stale = !c.paymentUrl || c.stripeMode !== STRIPE_MODE || c.paymentLinkBudget !== c.budget;
+    if (stale) {
+      if (c.paymentUrl) await deactivatePaymentLink(c);
+      const { price, link } = await createPaymentLink(c);
+      Object.assign(c, { stripePriceId: price.id, stripePaymentLinkId: link.id, paymentUrl: link.url, paymentLinkBudget: c.budget, stripeMode: STRIPE_MODE, updatedAt: new Date().toISOString() });
+      writeJson(CAMPAIGNS_FILE, campaigns);
+    }
+    const url = paymentUrlFor(c);
+    sendJson(res, 200, { ok: true, url, mode: STRIPE_MODE, email: paymentEmail(c, url), campaign: c });
+  } catch (err) {
+    sendJson(res, 502, { ok: false, error: err.message });
+  }
+}
+
+async function stopBilling(c, { immediately = false } = {}) {
+  if (!c.stripeSubscriptionId || ['canceled', 'incomplete_expired'].includes(c.subscriptionStatus)) return;
+  if (!immediately && c.billingEndsAt) return;
+  const sub = immediately
+    ? await stripe('DELETE', `/subscriptions/${c.stripeSubscriptionId}`)
+    : await stripe('POST', `/subscriptions/${c.stripeSubscriptionId}`, { cancel_at_period_end: true });
+  c.subscriptionStatus = sub.status;
+  c.billingEndsAt = sub.status === 'canceled' ? todayISO() : unixToISODate(subscriptionPeriodEnd(sub));
+}
+
+async function handleStopBilling(req, res, id) {
+  try {
+    const body = await readJsonBody(req).catch(() => ({}));
+    const campaigns = readCampaigns();
+    const c = campaigns.find((x) => x.id === id);
+    if (!c) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
+    if (!c.stripeSubscriptionId) return sendJson(res, 400, { ok: false, error: 'No Stripe subscription is attached to this campaign.' });
+    await stopBilling(c, { immediately: body.immediately === true });
+    c.updatedAt = new Date().toISOString();
+    writeJson(CAMPAIGNS_FILE, campaigns);
+    sendJson(res, 200, { ok: true, campaign: c });
+  } catch (err) {
+    sendJson(res, 502, { ok: false, error: err.message });
+  }
+}
+
+function verifyStripeSignature(rawBody, header) {
+  if (!STRIPE_WEBHOOK_SECRET) throw new Error('STRIPE_WEBHOOK_SECRET is not set');
+  let timestamp = '';
+  const signatures = [];
+  for (const part of String(header || '').split(',')) {
+    const i = part.indexOf('=');
+    if (i === -1) continue;
+    const k = part.slice(0, i).trim(), v = part.slice(i + 1).trim();
+    if (k === 't') timestamp = v; else if (k === 'v1') signatures.push(v);
+  }
+  if (!timestamp || !signatures.length) throw new Error('Malformed Stripe-Signature header');
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) throw new Error('Stripe signature timestamp is outside the 5-minute tolerance');
+  const expected = crypto.createHmac('sha256', STRIPE_WEBHOOK_SECRET).update(`${timestamp}.`).update(rawBody).digest('hex');
+  if (!signatures.some((s) => safeEqual(s, expected))) throw new Error('Stripe signature mismatch');
+}
+
+async function handleStripeWebhook(req, res) {
+  let event;
+  try {
+    const raw = await readBody(req);
+    verifyStripeSignature(raw, req.headers['stripe-signature']);
+    event = JSON.parse(raw.toString('utf8'));
+  } catch (err) {
+    return sendJson(res, 400, { ok: false, error: err.message });
+  }
+  const obj = event.data?.object || {};
+  const campaigns = readCampaigns();
+  const now = new Date().toISOString();
+  const byId = (id) => (id ? campaigns.find((c) => c.id === id) : undefined);
+  const bySubscription = (subId) => (subId ? campaigns.find((c) => c.stripeSubscriptionId === subId) : undefined);
+  let c;
+
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      c = byId(obj.client_reference_id) || byId(obj.metadata?.campaignId) || (obj.payment_link && campaigns.find((x) => x.stripePaymentLinkId === obj.payment_link));
+      if (!c) break;
+      c.paymentStatus = 'paid';
+      c.paidAt = c.paidAt || now;
+      c.subscriptionStatus = 'active';
+      if (obj.customer) c.stripeCustomerId = typeof obj.customer === 'string' ? obj.customer : obj.customer.id;
+      if (obj.subscription) c.stripeSubscriptionId = typeof obj.subscription === 'string' ? obj.subscription : obj.subscription.id;
+      if (!c.email && isValidEmail(obj.customer_details?.email)) c.email = obj.customer_details.email.toLowerCase();
+      break;
+    }
+    case 'invoice.paid': {
+      const subId = invoiceSubscriptionId(obj);
+      c = bySubscription(subId) || byId(invoiceMetadata(obj).campaignId);
+      if (!c || c.lastInvoiceId === obj.id) break;
+      c.lastInvoiceId = obj.id;
+      c.lastInvoiceAt = now;
+      c.paymentStatus = 'paid';
+      c.subscriptionStatus = 'active';
+      if (subId) c.stripeSubscriptionId = subId;
+      if (obj.billing_reason === 'subscription_cycle') {
+        // Monthly renewal: keep the slot for another campaign period.
+        const from = c.end >= todayISO() ? c.end : todayISO();
+        c.end = addDaysISO(from, ADS.campaignDays);
+        if (c.status === 'ended') c.status = 'active';
+      }
+      break;
+    }
+    case 'invoice.payment_failed': {
+      c = bySubscription(invoiceSubscriptionId(obj)) || byId(invoiceMetadata(obj).campaignId);
+      if (!c || c.paymentStatus === 'refunded') break;
+      c.paymentStatus = 'past-due';
+      c.subscriptionStatus = 'past_due';
+      break;
+    }
+    case 'customer.subscription.updated': {
+      c = bySubscription(obj.id) || byId(obj.metadata?.campaignId);
+      if (!c) break;
+      c.stripeSubscriptionId = obj.id;
+      c.subscriptionStatus = obj.status;
+      c.billingEndsAt = obj.cancel_at_period_end ? unixToISODate(subscriptionPeriodEnd(obj)) : (obj.cancel_at ? unixToISODate(obj.cancel_at) : '');
+      break;
+    }
+    case 'customer.subscription.deleted': {
+      c = bySubscription(obj.id) || byId(obj.metadata?.campaignId);
+      if (!c) break;
+      c.subscriptionStatus = 'canceled';
+      c.billingEndsAt = '';
+      if (c.paymentStatus !== 'paid' && ['pending', 'active'].includes(c.status)) c.status = 'cancelled';
+      break;
+    }
+    default:
+      break;
+  }
+
+  if (c) {
+    c.updatedAt = now;
+    writeJson(CAMPAIGNS_FILE, campaigns);
+    console.log(`[stripe] ${event.type} → ${c.id} (${c.paymentStatus}, ${c.subscriptionStatus || 'no subscription'})`);
+  } else {
+    console.log(`[stripe] ${event.type} — no matching campaign`);
+  }
+  sendJson(res, 200, { received: true, campaign: c ? c.id : null });
 }
 
 function serveStatic(req, res) {
@@ -447,6 +720,7 @@ async function route(req, res) {
   if (p === '/healthz') return sendJson(res, 200, { ok: true, uptime: process.uptime() });
   if (p === '/api/leads' && req.method === 'POST') return handleLeadPost(req, res).catch((e) => sendJson(res, 500, { ok: false, error: e.message }));
   if (p === '/api/availability' && req.method === 'GET') return sendJson(res, 200, { ok: true, machines: availability() });
+  if (p === '/api/stripe/webhook' && req.method === 'POST') return handleStripeWebhook(req, res);
 
   // --- admin ---
   if (p === '/admin' || p === '/admin/' || p === '/admin.html') {
@@ -489,11 +763,17 @@ async function route(req, res) {
     const leadMatch = p.match(/^\/api\/leads\/([^/]+)$/);
     if (leadMatch && req.method === 'PATCH') return handleLeadPatch(req, res, decodeURIComponent(leadMatch[1]));
 
-    if (p === '/api/campaigns' && req.method === 'GET') return sendJson(res, 200, { ok: true, campaigns: readCampaigns() });
+    if (p === '/api/campaigns' && req.method === 'GET') {
+      return sendJson(res, 200, { ok: true, campaigns: readCampaigns(), stripe: { enabled: Boolean(STRIPE_SECRET_KEY), mode: STRIPE_MODE, webhook: Boolean(STRIPE_WEBHOOK_SECRET) } });
+    }
     if (p === '/api/campaigns' && req.method === 'POST') return handleCampaignPost(req, res);
     const campMatch = p.match(/^\/api\/campaigns\/([^/]+)$/);
     if (campMatch && req.method === 'PATCH') return handleCampaignPatch(req, res, campMatch[1]);
     if (campMatch && req.method === 'DELETE') return handleCampaignDelete(res, campMatch[1]);
+    const campActionMatch = p.match(/^\/api\/campaigns\/([^/]+)\/(payment-link|stop-billing)$/);
+    if (campActionMatch && req.method === 'POST') {
+      return campActionMatch[2] === 'payment-link' ? handlePaymentLink(res, campActionMatch[1]) : handleStopBilling(req, res, campActionMatch[1]);
+    }
 
     if (p.startsWith('/api/uploads/')) return sendFile(res, path.join(UPLOADS_DIR, path.basename(p)), { 'Cache-Control': 'no-store' });
 
@@ -520,4 +800,5 @@ server.listen(PORT, () => {
   console.log(`KWIGZ site + lead collector running at http://localhost:${port}`);
   console.log(`Admin dashboard: http://localhost:${port}/admin ${ADMIN_PASSWORD ? '(password protected)' : '(no ADMIN_PASSWORD set — localhost only)'}`);
   console.log(`Data directory: ${DATA_DIR}`);
+  console.log(`Stripe: ${STRIPE_SECRET_KEY ? `${STRIPE_MODE} mode${STRIPE_WEBHOOK_SECRET ? '' : ' (no STRIPE_WEBHOOK_SECRET — payments will not auto-confirm)'}` : 'not configured'}`);
 });

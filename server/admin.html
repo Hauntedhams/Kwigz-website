@@ -180,7 +180,8 @@
     .field label { display: block; font-size: 0.75rem; font-weight: 700; color: #374151; margin-bottom: 5px; }
     .field input, .field select, .field textarea { width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 10px; outline: none; background: #fff; font-size: 0.88rem; }
     .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--red); }
-    .field .hint { color: var(--muted); font-size: 0.74rem; margin-top: 4px; }
+    .field .hint, .modal .hint { color: var(--muted); font-size: 0.74rem; margin-top: 4px; }
+    .modal p.hint { margin: -8px 0 16px; }
     .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; align-items: center; }
     .modal-error { color: var(--red); font-size: 0.82rem; font-weight: 600; margin-right: auto; }
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 50; }
@@ -315,7 +316,7 @@
       <div class="field"><label>Start date</label><input name="start" id="cfStart" type="date" required /></div>
       <div class="field"><label>End date</label><input name="end" id="cfEnd" type="date" required /><div class="hint">Defaults to 30 days.</div></div>
       <div class="field"><label>Campaign status</label><select name="status"><option value="pending">Pending (reserves slot)</option><option value="active">Active (live on screen)</option><option value="ended">Ended</option><option value="cancelled">Cancelled</option></select></div>
-      <div class="field"><label>Payment</label><select name="paymentStatus"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="refunded">Refunded</option></select></div>
+      <div class="field"><label>Payment</label><select name="paymentStatus"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="past-due">Past due (card failed)</option><option value="refunded">Refunded</option></select></div>
       <div class="field"><label>Creative</label><select name="creativeStatus"><option value="pending">Pending review</option><option value="approved">Approved</option><option value="needs-changes">Needs changes</option></select></div>
       <div class="field"><label>Banner file</label><input name="bannerFile" placeholder="from upload, optional" /></div>
       <div class="field full"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
@@ -330,6 +331,27 @@
   </form>
 </dialog>
 
+<!-- PAYMENT LINK MODAL -->
+<dialog id="payLinkModal">
+  <div class="modal">
+    <h3 id="plTitle">Payment link</h3>
+    <p class="hint" id="plMode" hidden style="color:#b45309;font-weight:700;">TEST MODE — no real money moves. Use card 4242 4242 4242 4242, any future date, any CVC.</p>
+    <div class="form-grid">
+      <div class="field full"><label>Stripe payment link <span class="hint" style="display:inline;">(single use · prefilled with their email · sets up monthly billing)</span></label><input id="plUrl" readonly onfocus="this.select()" /></div>
+      <div class="field full"><label>To</label><div id="plTo" style="font-weight:600;"></div></div>
+      <div class="field full"><label>Subject</label><input id="plSubject" /></div>
+      <div class="field full"><label>Email</label><textarea id="plBody" rows="11" style="font-family:inherit;"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <span class="hint" style="flex:1;">Stripe emails them a receipt and monthly invoices automatically. The dashboard flips to <b>paid</b> the moment they pay.</span>
+      <button type="button" class="btn" id="plCopyUrl">Copy link</button>
+      <button type="button" class="btn" id="plCopyEmail">Copy email</button>
+      <button type="button" class="btn" id="plClose">Close</button>
+      <button type="button" class="btn btn-primary" id="plOpenMail">Open in Mail</button>
+    </div>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
 <script src="/ads-config.js"></script>
@@ -340,7 +362,7 @@
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const TOKEN_KEY = 'kwigz_admin_token';
   let token = sessionStorage.getItem(TOKEN_KEY) || '';
-  let leads = [], campaigns = [];
+  let leads = [], campaigns = [], stripe = { enabled: false, mode: 'test', webhook: false };
   let leadType = '', leadStatus = '', leadQuery = '', openLeadId = null;
   let calMonth = new Date(); calMonth.setDate(1);
 
@@ -372,11 +394,29 @@
   const plays = (machine, units, totalUnits) => 3600 / (ADS.bannerSeconds * Math.max(totalUnits, units)) * machine.adHoursPerDay * ADS.campaignDays * units;
   const quotedPlays = (machine, units) => plays(machine, units, ADS.maxUnits);
   const activeUnits = (machineId) => campaigns.filter((c) => c.machineId === machineId && c.status === 'active' && c.start <= todayISO && c.end >= todayISO).reduce((s, c) => s + (Number(c.units) || 0), 0);
+  const billingActive = (c) => Boolean(c.stripeSubscriptionId) && !['canceled', 'incomplete_expired'].includes(c.subscriptionStatus || '');
+  // Buttons for collecting / managing payment on a campaign.
+  const payButtons = (c, { primary = false } = {}) => {
+    const b = [];
+    if (['unpaid', 'past-due'].includes(c.paymentStatus)) {
+      if (stripe.enabled && c.paymentStatus === 'unpaid') b.push(`<button class="btn btn-sm ${primary ? 'btn-primary' : ''}" data-payment-link="${c.id}">${c.paymentUrl ? 'Resend' : 'Send'} payment link</button>`);
+      b.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"paymentStatus":"paid"}'>Mark paid</button>`);
+    }
+    if (billingActive(c) && !c.billingEndsAt) b.push(`<button class="btn btn-sm" data-stop-billing="${c.id}">Stop billing</button>`);
+    return b;
+  };
+  const billingNote = (c) => {
+    if (c.billingEndsAt) return `billing stops ${fmtDate(c.billingEndsAt)}`;
+    if (billingActive(c)) return c.subscriptionStatus === 'past_due' ? 'card failed — Stripe retrying' : 'renews monthly via Stripe';
+    if (c.subscriptionStatus === 'canceled') return 'billing cancelled';
+    if (c.paymentUrl && c.paymentStatus === 'unpaid') return `payment link sent${c.stripeMode === 'test' ? ' (TEST mode)' : ''}`;
+    return '';
+  };
 
   const TYPE_LABEL = { business: ['Venue', 'green'], 'advertiser-application': ['Advertiser', 'purple'], 'advertiser-waitlist': ['Ad waitlist', 'blue'], 'business-not-qualified': ['Not qualified', 'amber'], contact: ['Contact', ''] };
   const typeBadge = (t) => { const [l, c] = TYPE_LABEL[t] || [t, '']; return `<span class="badge ${c}">${esc(l)}</span>`; };
   const STATUS_COLOR = { new: 'red', contacted: 'blue', won: 'green', lost: '' };
-  const PAY_COLOR = { unpaid: 'amber', paid: 'green', refunded: '' };
+  const PAY_COLOR = { unpaid: 'amber', paid: 'green', 'past-due': 'red', refunded: '' };
   const CREATIVE_COLOR = { pending: 'amber', approved: 'green', 'needs-changes': 'red' };
   const CAMP_COLOR = { pending: 'amber', active: 'green', ended: '', cancelled: '' };
 
@@ -447,6 +487,7 @@
       const [l, c] = await Promise.all([api('/api/leads'), api('/api/campaigns')]);
       leads = l.leads.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
       campaigns = c.campaigns;
+      stripe = c.stripe || stripe;
       renderAll();
     } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
   }
@@ -487,7 +528,8 @@
     const items = [];
     leads.filter((l) => l.type === 'advertiser-application' && ['new', 'contacted'].includes(l.status) && !campaignForLead(l))
       .forEach((l) => items.push({ badge: ['Review application', 'purple'], text: `<b>${esc(l.businessName || l.email)}</b> wants ${esc(l.category || 'a slot')} at ${esc(l.machine || 'a machine')} · ${money(l.budget)}/mo`, action: `<button class="btn btn-sm btn-primary" data-campaign-from-lead="${esc(l.id)}">Create campaign</button>` }));
-    live.filter((c) => c.paymentStatus === 'unpaid').forEach((c) => items.push({ badge: ['Unpaid', 'amber'], text: `<b>${esc(c.business)}</b> · ${money(c.budget)} · ${catById(c.categoryId).label} at ${esc(machineById(c.machineId).name)}`, action: `<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"paymentStatus":"paid"}'>Mark paid</button>` }));
+    live.filter((c) => c.paymentStatus === 'unpaid').forEach((c) => items.push({ badge: ['Unpaid', 'amber'], text: `<b>${esc(c.business)}</b> · ${money(c.budget)}/mo · ${catById(c.categoryId).label} at ${esc(machineById(c.machineId).name)}${c.paymentUrl ? ` · <span class="t">${esc(billingNote(c))}</span>` : ''}`, action: payButtons(c, { primary: true }).join(' ') }));
+    live.filter((c) => c.paymentStatus === 'past-due').forEach((c) => items.push({ badge: ['Payment failed', 'red'], text: `<b>${esc(c.business)}</b> · ${money(c.budget)}/mo card declined — Stripe is retrying and emailing them`, action: `<a class="btn btn-sm" href="mailto:${esc(c.email)}">Email</a> ${payButtons(c).join(' ')}` }));
     live.filter((c) => c.creativeStatus === 'pending').forEach((c) => items.push({ badge: ['Creative review', 'amber'], text: `<b>${esc(c.business)}</b> banner awaiting approval`, action: `<button class="btn btn-sm" data-edit-campaign="${c.id}">Review</button>` }));
     live.filter((c) => c.status === 'pending' && c.paymentStatus === 'paid' && c.creativeStatus === 'approved').forEach((c) => items.push({ badge: ['Ready to go live', 'green'], text: `<b>${esc(c.business)}</b> is paid &amp; approved — assign it in VapeTM, then activate`, action: `<button class="btn btn-sm btn-primary" data-camp-patch="${c.id}" data-patch='{"status":"active"}'>Activate</button>` }));
     live.filter((c) => c.status === 'active' && c.end <= addDays(todayISO, 7)).forEach((c) => items.push({ badge: ['Renewal due', 'blue'], text: `<b>${esc(c.business)}</b> ends ${fmtDate(c.end)} — reach out to renew`, action: `<button class="btn btn-sm" data-renew-campaign="${c.id}">Renew +30d</button>` }));
@@ -597,8 +639,7 @@
     const current = c.status === 'active' && c.start <= todayISO
       ? plays(m, Number(c.units) || 0, Math.max(actUnits, Number(c.units) || 0)) : null;
     const quoted = c.estPlays || quotedPlays(m, Number(c.units) || 0);
-    const next = [];
-    if (c.paymentStatus === 'unpaid') next.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"paymentStatus":"paid"}'>Mark paid</button>`);
+    const next = payButtons(c);
     if (c.creativeStatus !== 'approved') next.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"creativeStatus":"approved"}'>Approve creative</button>`);
     if (c.status === 'pending') next.push(`<button class="btn btn-sm btn-primary" data-camp-patch="${c.id}" data-patch='{"status":"active"}'>Activate</button>`);
     if (c.status === 'active') next.push(`<button class="btn btn-sm" data-camp-patch="${c.id}" data-patch='{"status":"ended"}'>End</button>`);
@@ -607,7 +648,7 @@
       <div class="slot-cat">${icon(cat.icon)} ${esc(cat.label)}</div>
       <div class="biz">${esc(c.business)}</div>
       <div class="meta"><b>${money(c.budget)}/mo</b> · ${c.units}× rotation<br/>Quoted ~${fmtN(quoted)}${current === null ? ' · not live yet' : ` · at live rotation ~${fmtN(current)} plays/mo`}<br/>${fmtDate(c.start)} – ${fmtDateYear(c.end)}${c.status === 'active' ? ` · <b>${Math.max(0, Math.ceil((parseISO(c.end) - parseISO(todayISO)) / 86400000))}d left</b>` : ''}</div>
-      <div class="badges"><span class="badge ${CAMP_COLOR[c.status]} dot">${c.status}</span><span class="badge ${PAY_COLOR[c.paymentStatus]}">${c.paymentStatus}</span><span class="badge ${CREATIVE_COLOR[c.creativeStatus]}">creative: ${c.creativeStatus}</span></div>
+      <div class="badges"><span class="badge ${CAMP_COLOR[c.status]} dot">${c.status}</span><span class="badge ${PAY_COLOR[c.paymentStatus] || ''}">${c.paymentStatus}</span><span class="badge ${CREATIVE_COLOR[c.creativeStatus]}">creative: ${c.creativeStatus}</span>${billingNote(c) ? `<span class="badge ${c.billingEndsAt || c.subscriptionStatus === 'past_due' ? 'amber' : billingActive(c) ? 'green' : ''}">${esc(billingNote(c))}</span>` : ''}</div>
       <div class="slot-actions">${next.join('')}</div>
     </div>`;
   }
@@ -705,6 +746,25 @@
     try { await api(`/api/campaigns/${id}`, { method: 'DELETE' }); modal.close(); toast('Campaign deleted'); await load(); } catch (err) { $('#campaignError').textContent = err.message; }
   });
 
+  // ---------- payment link modal ----------
+  function openPayLinkModal(d) {
+    const c = d.campaign;
+    $('#plTitle').textContent = `Payment link — ${c.business}`;
+    $('#plMode').hidden = d.mode !== 'test';
+    $('#plUrl').value = d.url;
+    $('#plSubject').value = d.email.subject;
+    $('#plBody').value = d.email.body;
+    $('#plTo').textContent = c.email;
+    $('#payLinkModal').showModal();
+  }
+  const copyText = async (text, msg) => { try { await navigator.clipboard.writeText(text); toast(msg); } catch { toast('Copy failed — select the text and copy manually'); } };
+  $('#plCopyUrl').addEventListener('click', () => copyText($('#plUrl').value, 'Payment link copied'));
+  $('#plCopyEmail').addEventListener('click', () => copyText(`Subject: ${$('#plSubject').value}\n\n${$('#plBody').value}`, 'Email text copied'));
+  $('#plOpenMail').addEventListener('click', () => {
+    window.location.href = `mailto:${encodeURIComponent($('#plTo').textContent)}?subject=${encodeURIComponent($('#plSubject').value)}&body=${encodeURIComponent($('#plBody').value)}`;
+  });
+  $('#plClose').addEventListener('click', () => $('#payLinkModal').close());
+
   function campaignFromLead(l) {
     const machineId = l.machineId || ADS.machines.find((m) => (l.machine || '').startsWith(m.name))?.id || ADS.machines[0]?.id;
     const categoryId = l.categoryId || ADS.categories.find((c) => c.label === l.category)?.id || 'other';
@@ -714,7 +774,7 @@
 
   // ---------- delegated events ----------
   document.addEventListener('click', async (e) => {
-    const t = e.target.closest('[data-lead], [data-goto-lead], [data-campaign-from-lead], [data-edit-campaign], [data-camp-patch], [data-renew-campaign], [data-open-campaign]');
+    const t = e.target.closest('[data-lead], [data-goto-lead], [data-campaign-from-lead], [data-edit-campaign], [data-camp-patch], [data-renew-campaign], [data-open-campaign], [data-payment-link], [data-stop-billing]');
     if (!t) return;
     if (t.matches('select, textarea, a[href^="mailto"], a[href^="tel"]') || e.target.closest('select, textarea, a[href^="mailto"], a[href^="tel"]')) return;
 
@@ -726,6 +786,18 @@
     if (t.dataset.campPatch) {
       t.disabled = true;
       try { await api(`/api/campaigns/${t.dataset.campPatch}`, { method: 'PATCH', body: JSON.stringify(JSON.parse(t.dataset.patch)) }); toast('Updated'); await load(); } catch (err) { toast(err.message); t.disabled = false; }
+      return;
+    }
+    if (t.dataset.paymentLink) {
+      t.disabled = true;
+      try { const d = await api(`/api/campaigns/${t.dataset.paymentLink}/payment-link`, { method: 'POST' }); openPayLinkModal(d); await load(); } catch (err) { toast(err.message); t.disabled = false; }
+      return;
+    }
+    if (t.dataset.stopBilling) {
+      const c = campaigns.find((x) => x.id === t.dataset.stopBilling); if (!c) return;
+      if (!confirm(`Stop billing ${c.business}? They keep what they've paid for; Stripe simply won't charge them again.`)) return;
+      t.disabled = true;
+      try { await api(`/api/campaigns/${c.id}/stop-billing`, { method: 'POST', body: '{}' }); toast('Billing will stop at the end of the current period'); await load(); } catch (err) { toast(err.message); t.disabled = false; }
       return;
     }
     if (t.dataset.renewCampaign) {

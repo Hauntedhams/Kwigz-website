@@ -84,7 +84,8 @@ Password-protected, single-page, no build step.
   Export CSV.
 - **Advertisers** — per-machine slot board (10 categories), live revenue, actual
   rotation length, quoted vs. live play estimates, and buttons for
-  *Mark paid → Approve creative → Activate → End*. *+ Book* on any open slot.
+  *Send payment link / Mark paid → Approve creative → Activate → End*, plus
+  *Stop billing* on Stripe-billed campaigns. *+ Book* on any open slot.
 - **Calendar** — month timeline of all campaigns (click a bar to edit), plus key
   dates: starts, renewals, expirations. *Renew +30d* clones a campaign.
 
@@ -94,13 +95,80 @@ Password-protected, single-page, no build step.
 2. **Create campaign** (prefilled from the application). Status `pending`
    immediately **reserves the category** on that machine — the public site
    pulls `/api/availability` and shows it as taken.
-3. Collect payment → **Mark paid**. Check the banner → **Approve creative**.
+3. Collect payment → **Send payment link** (Stripe, see below) or **Mark paid**
+   for cash/check. Check the banner → **Approve creative**.
 4. Assign the banner in VapeTM, then **Activate**. The dashboard tracks dates;
    campaigns auto-flip to `ended` the day after their end date, which frees
    the slot again.
 5. Two campaigns can't hold the same category on the same machine for
    overlapping dates — the server rejects the conflicting booking. End or cancel
    the old campaign or choose non-overlapping dates.
+
+## Payments & recurring billing (Stripe)
+
+Advertisers pay through a Stripe **Payment Link** that sets up a monthly
+subscription. The server creates one link per campaign (single use, never
+expires, prefilled with the advertiser's email) and Stripe webhooks keep the
+dashboard in sync — no manual "Mark paid" needed. Stripe sends receipts,
+monthly invoices, and failed-card emails itself. Zero npm dependencies: the
+server calls Stripe's REST API directly.
+
+### One-time setup
+
+1. **Finish Stripe's account review** (Dashboard banner: "Review in progress").
+   Until it's done you can only use *test mode* — which is exactly right for
+   your first self-test.
+2. **API key** → Stripe Dashboard → Developers → API keys. Copy the **Secret
+   key** (`sk_test_…` for now). In Render → your service → Environment, set
+   `STRIPE_SECRET_KEY`.
+3. **Webhook** → Developers → Webhooks → *Add endpoint*:
+   - URL: `https://kwigz.com/api/stripe/webhook` (or your `onrender.com` URL
+     until DNS is switched)
+   - Events: `checkout.session.completed`, `invoice.paid`,
+     `invoice.payment_failed`, `customer.subscription.updated`,
+     `customer.subscription.deleted`
+   - Copy the **Signing secret** (`whsec_…`) → Render env `STRIPE_WEBHOOK_SECRET`.
+4. **Customer emails** → Settings → Business → Customer emails: turn on
+   *Successful payments* and *Refunds*. Settings → Billing → Subscriptions and
+   emails: turn on *Smart Retries* and the failed-payment / card-expiring emails.
+5. **Branding** → Settings → Business → Branding: upload the KWIGZ logo and set
+   the brand color so the checkout page looks like you.
+6. Redeploy (Render restarts automatically when env vars change). The startup
+   log prints `Stripe: test mode` / `live mode`.
+
+### Everyday flow
+
+1. Create the campaign (needs the advertiser's **email**).
+2. In *Needs attention* or on the slot card click **Send payment link**. A
+   dialog shows the link plus a ready-to-send email — **Open in Mail** opens it
+   in your mail app prefilled; edit and send. Links are reused on *Resend*.
+3. Advertiser pays on Stripe's hosted page → lands on `payment-complete.html`
+   → the webhook flips the campaign to **paid** and attaches the subscription.
+   Approve creative, load the banner in VapeTM, **Activate**.
+4. Each month Stripe charges the card and the campaign's **end date extends
+   30 days** automatically (`invoice.paid`). A declined card marks it
+   **past-due** and surfaces a *Payment failed* item while Stripe retries.
+5. **Stop billing** on a slot card cancels the subscription at the end of the
+   paid period (they keep what they paid for). Setting a campaign to
+   *Ended*/*Cancelled* does the same automatically, and deactivates an unused
+   payment link so nobody pays for a dead slot.
+
+### Test run, then go live
+
+- Test mode: create a campaign for yourself, send the link, pay with card
+  `4242 4242 4242 4242` (any future expiry, any CVC). Watch the dashboard flip
+  to paid, then click **Stop billing** to exercise cancellation. In Stripe →
+  Developers → Webhooks you can see each delivery and its response.
+- Go live once the review completes: switch `STRIPE_SECRET_KEY` to `sk_live_…`,
+  create a **second webhook endpoint in live mode** (same URL + events) and
+  set its `whsec_…` as `STRIPE_WEBHOOK_SECRET`. Existing test-mode links are
+  automatically regenerated as live links the next time you click *Resend*.
+- Don't run your self-test in live mode: Stripe keeps its processing fee when
+  you refund a real charge.
+
+Campaign records gain `paymentUrl`, `stripeCustomerId`, `stripeSubscriptionId`,
+`subscriptionStatus`, `billingEndsAt`, `paidAt`, `lastInvoiceAt`. Only webhooks
+and the billing endpoints write these; the admin form can't.
 
 ## Advertising config
 
@@ -125,10 +193,13 @@ promised; the dashboard shows both the quoted and the live-rotation figure.
 
 ## API
 
-Public: `POST /api/leads` · `GET /api/availability` · `GET /healthz`
+Public: `POST /api/leads` · `GET /api/availability` · `GET /healthz` ·
+`POST /api/stripe/webhook` (Stripe-signed)
 Admin (`Authorization: Bearer <ADMIN_PASSWORD>`): `GET /api/leads` ·
 `PATCH /api/leads/:id` · `GET /api/leads.csv` · `GET|POST /api/campaigns` ·
-`PATCH|DELETE /api/campaigns/:id` · `GET /api/uploads/<file>`
+`PATCH|DELETE /api/campaigns/:id` · `POST /api/campaigns/:id/payment-link` ·
+`POST /api/campaigns/:id/stop-billing` (`{"immediately":true}` to cancel now) ·
+`GET /api/uploads/<file>`
 
 ## Icons
 
