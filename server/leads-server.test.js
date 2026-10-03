@@ -111,9 +111,12 @@ function startMockStripe() {
       const reply = (obj) => { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
       if (req.url === '/prices') return reply({ id: 'price_mock', unit_amount: Number(params.unit_amount) });
       if (req.url === '/payment_links') {
-        if (Object.keys(params).some((key) => key.startsWith('custom_text['))) {
+        if (params['managed_payments[enabled]'] !== 'false') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: { message: 'custom_text cannot be used with Managed Payments' } }));
+          const message = Object.keys(params).some((key) => key.startsWith('custom_text['))
+            ? 'custom_text cannot be used with Managed Payments'
+            : 'Invalid line_items[0]: the product tax code is missing. Product tax code is required for Managed Payments.';
+          return res.end(JSON.stringify({ error: { message } }));
         }
         return reply({ id: 'plink_mock', url: 'https://buy.stripe.com/test_mock', active: true });
       }
@@ -171,6 +174,7 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     assert.equal(priceCall.params.unit_amount, '15000');
     assert.equal(priceCall.params['recurring[interval]'], 'month');
     const linkCall = mock.calls.find((x) => x.path === '/payment_links');
+    assert.equal(linkCall.params['managed_payments[enabled]'], 'false');
     assert.ok(!Object.keys(linkCall.params).some((key) => key.startsWith('custom_text[')));
     assert.equal(linkCall.params['line_items[0][price]'], 'price_mock');
     assert.equal(linkCall.params['restrictions[completed_sessions][limit]'], '1');

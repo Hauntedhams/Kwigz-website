@@ -527,6 +527,7 @@ async function createPaymentLink(c) {
     metadata: { campaignId: c.id },
   });
   const link = await stripe('POST', '/payment_links', {
+    managed_payments: { enabled: false },
     line_items: [{ price: price.id, quantity: 1 }],
     metadata: { campaignId: c.id, business: c.business },
     subscription_data: {

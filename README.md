@@ -113,10 +113,14 @@ dashboard in sync — no manual "Mark paid" needed. Stripe sends receipts,
 monthly invoices, and failed-card emails itself. Zero npm dependencies: the
 server calls Stripe's REST API directly.
 
-Payment-link requests omit optional checkout `custom_text`, which Stripe rejects
-when Managed Payments is enabled. Billing and creative-approval details remain
-in the editable payment-link email; the integration does not change your
-account's Managed Payments setting.
+Payment-link requests explicitly set `managed_payments[enabled]=false` to use
+standard Stripe Payments for advertising subscriptions. Managed Payments is a
+separate merchant-of-record offering for eligible digital products; Stripe lists
+marketing/professional services as unsupported. This override applies to these
+links only and does not change the account-wide setting. KWIGZ remains responsible
+for applicable taxes and customer obligations; this integration does not configure
+tax calculation or collection. Billing and creative-approval details remain in
+the editable payment-link email.
 
 ### One-time setup
 
