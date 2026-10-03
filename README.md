@@ -189,7 +189,8 @@ Machines, categories, budgets and the play formula live in
 
 - `machines[]` — add a machine with its `adHoursPerDay`. (`takenCategories` is a
   static fallback; live availability now comes from campaigns in `/admin`.)
-- `budgets[]` — budget → rotation units (`$100 = 1×`, `$150 = 1.5×`, `$200 = 2×`, `$300 = 3×`).
+- `budgets[]` — budget → rotation units at $100/unit (`$200 = 2×`, `$300 = 3×`, `$400 = 4×`).
+  The second-to-last tier is marked "Most popular" on the site.
 - `bannerSeconds` (15), `maxUnits` (10), `campaignDays` (30), `approvalDays` (3), `bannerSize` (1080 × 441).
 
 Estimated scheduled plays shown to advertisers:
@@ -199,7 +200,8 @@ adHoursPerDay × 3600 / (bannerSeconds × max(maxUnits, units)) × units × camp
 ```
 
 With 15-second banners, 16 ad hours/day and a fully booked 10-unit rotation,
-1 unit ≈ **11,520 plays/month** ($100) and 3 units ≈ 34,560 ($300). The quote
+1 unit ≈ 11,520 plays/month, so the $200 tier ≈ **23,040 plays/month** and
+$400 ≈ 46,080. The quote
 assumes a full rotation, so a lighter rotation only ever means more plays than
 promised; the dashboard shows both the quoted and the live-rotation figure.
 

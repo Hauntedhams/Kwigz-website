@@ -507,7 +507,7 @@ function paymentEmail(c, url) {
       '',
       `- $${c.budget}/month, ${c.units}x rotation, ${ADS.bannerSeconds}-second banner, about ${Math.round(c.estPlays).toLocaleString('en-US')} scheduled plays per month`,
       `- First run ${fmtLongDate(c.start)} to ${fmtLongDate(c.end)}, then renews automatically each month. Cancel anytime by replying to this email.`,
-      `- Your banner goes live within about ${ADS.approvalDays} business days of payment and creative approval.`,
+      '- Your banner goes live ASAP once payment and creative approval are in.',
       '',
       'Thanks,',
       'KWIGZ',

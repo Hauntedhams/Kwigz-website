@@ -40,7 +40,7 @@ test('campaign modal clears hidden identity for add, booking, applications, and 
       reset: () => Object.values(fields).forEach((field) => field.reset()),
     },
     $: (selector) => (nodes[selector] ||= {}),
-    ADS: { machines: [{ id: 'machine' }], categories: [{ id: 'category' }], budgets: [{ amount: 100 }], approvalDays: 3, campaignDays: 30 },
+    ADS: { machines: [{ id: 'machine' }], categories: [{ id: 'category' }], budgets: [{ amount: 200 }], approvalDays: 3, campaignDays: 30 },
     todayISO: '2099-01-01',
     addDays: (date) => date,
     recalcModal: () => {},
@@ -130,7 +130,7 @@ test('production API protects private files and persists valid leads and campaig
       budget: 200, units: 999, start: '2099-01-01', end: '2099-01-30',
       status: 'pending', paymentStatus: 'unpaid', creativeStatus: 'pending',
     };
-    for (const changes of [{ start: '2099-02-30' }, { budget: 1 }, { machineId: 'unknown' }, { categoryId: 'unknown' }]) {
+    for (const changes of [{ start: '2099-02-30' }, { budget: 1 }, { budget: 100 }, { budget: 150 }, { machineId: 'unknown' }, { categoryId: 'unknown' }]) {
       assert.equal((await request('/api/campaigns', { method: 'POST', auth: true, data: { ...campaign, ...changes } })).status, 400);
     }
     const created = await request('/api/campaigns', { method: 'POST', auth: true, data: campaign });
@@ -210,7 +210,7 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     const info = await (await request('/api/campaigns', { auth: true })).json();
     assert.deepEqual(info.stripe, { enabled: true, mode: 'test', webhook: true });
 
-    const base = { machineId: 'chopper-johns-phoenix', business: 'Desert Ink', contactName: 'Sam', budget: 150, start: '2099-01-01', end: '2099-01-30' };
+    const base = { machineId: 'chopper-johns-phoenix', business: 'Desert Ink', contactName: 'Sam', budget: 300, start: '2099-01-01', end: '2099-01-30' };
     const noEmail = (await (await request('/api/campaigns', { method: 'POST', auth: true, data: { ...base, categoryId: 'tattoo' } })).json()).campaign;
     assert.equal((await request(`/api/campaigns/${noEmail.id}/payment-link`, { method: 'POST', auth: true })).status, 400);
     assert.equal((await request(`/api/campaigns/${noEmail.id}/payment-link`, { method: 'POST' })).status, 401);
@@ -222,10 +222,11 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     assert.equal(link.mode, 'test');
     assert.equal(link.url, `https://buy.stripe.com/test_mock?client_reference_id=${c.id}&prefilled_email=sam%40example.com`);
     assert.match(link.email.subject, /HVAC at Chopper John's/);
-    assert.ok(link.email.body.includes(link.url) && link.email.body.includes('$150/month') && link.email.body.includes('Hi Sam'));
+    assert.ok(link.email.body.includes(link.url) && link.email.body.includes('$300/month') && link.email.body.includes('Hi Sam'));
+    assert.ok(link.email.body.includes('ASAP') && !/business days/.test(link.email.body));
     const priceCall = mock.calls.find((x) => x.path === '/prices');
     assert.equal(priceCall.auth, 'Bearer sk_test_mock');
-    assert.equal(priceCall.params.unit_amount, '15000');
+    assert.equal(priceCall.params.unit_amount, '30000');
     assert.equal(priceCall.params['recurring[interval]'], 'month');
     const linkCall = mock.calls.find((x) => x.path === '/payment_links');
     assert.equal(linkCall.params['managed_payments[enabled]'], 'false');
