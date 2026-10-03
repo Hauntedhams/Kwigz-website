@@ -721,6 +721,9 @@
     const defaults = { machineId: ADS.machines[0]?.id, categoryId: ADS.categories[0]?.id, budget: ADS.budgets[0]?.amount, start, end: data.end || addDays(start, ADS.campaignDays - 1), status: 'pending', paymentStatus: 'unpaid', creativeStatus: data.bannerFile ? 'pending' : 'pending' };
     const vals = { ...defaults, ...data };
     for (const [k, v] of Object.entries(vals)) { if (form.elements[k] && v != null) form.elements[k].value = v; }
+    // Hidden inputs retain assigned values across reset; only edit mode may target an existing campaign.
+    form.elements.namedItem('id').value = isEdit ? data.id || '' : '';
+    form.elements.namedItem('leadId').value = data.leadId || '';
     if (data.estPlays) form.estPlays.dataset.manual = '1';
     recalcModal();
     modal.showModal();

@@ -6,9 +6,63 @@ const { tmpdir } = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const crypto = require('node:crypto');
+const vm = require('node:vm');
 
 const password = 'integration-test-password-only-123456';
 const serverFile = path.join(__dirname, 'leads-server.js');
+
+test('campaign modal clears hidden identity for add, booking, applications, and renewals', () => {
+  const html = readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
+  const start = html.indexOf('  function openCampaignModal(');
+  const end = html.indexOf("  $('#campaignCancel').addEventListener", start);
+  assert.ok(start >= 0 && end > start);
+  const fields = {};
+  for (const name of ['id', 'leadId', 'business', 'start', 'end', 'estPlays']) {
+    let value = '';
+    let defaultValue = '';
+    const hidden = ['id', 'leadId'].includes(name);
+    fields[name] = {
+      dataset: {},
+      get value() { return value; },
+      set value(next) {
+        value = String(next);
+        // Hidden inputs use the default value mode: setting value changes the reset value.
+        if (hidden) defaultValue = value;
+      },
+      reset() { value = defaultValue; },
+    };
+  }
+  const elements = { ...fields, namedItem: (name) => fields[name] };
+  const nodes = {};
+  const context = {
+    form: {
+      ...fields, elements,
+      reset: () => Object.values(fields).forEach((field) => field.reset()),
+    },
+    $: (selector) => (nodes[selector] ||= {}),
+    ADS: { machines: [{ id: 'machine' }], categories: [{ id: 'category' }], budgets: [{ amount: 100 }], approvalDays: 3, campaignDays: 30 },
+    todayISO: '2099-01-01',
+    addDays: (date) => date,
+    recalcModal: () => {},
+    modal: { showModal: () => {} },
+  };
+  vm.createContext(context);
+  vm.runInContext(html.slice(start, end), context);
+  const open = context.openCampaignModal;
+  const existing = { id: 'C-existing', leadId: 'L-existing', business: 'Existing' };
+  open(existing, { isEdit: true });
+  assert.equal(fields.id.value, 'C-existing');
+  assert.equal(fields.leadId.value, 'L-existing');
+  for (const data of [{}, { categoryId: 'category' }, { leadId: 'L-new' }, { ...existing, id: undefined }]) {
+    open(existing, { isEdit: true });
+    open(data);
+    assert.equal(fields.id.value, '', 'new campaign must POST, never PATCH the previously edited campaign');
+    assert.equal(fields.leadId.value, data.leadId || '', 'lead identity must come from the new campaign');
+  }
+  open(existing, { isEdit: true });
+  open(existing);
+  assert.equal(fields.id.value, '', 'only explicit edit mode may retain a campaign ID');
+});
 
 async function start(dataDir, extraEnv = {}) {
   const child = spawn(process.execPath, [serverFile], {

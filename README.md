@@ -95,6 +95,9 @@ Password-protected, single-page, no build step.
 2. **Create campaign** (prefilled from the application). Status `pending`
    immediately **reserves the category** on that machine — the public site
    pulls `/api/availability` and shows it as taken.
+   **+ Add campaign**, **+ Book**, and **Renew** create separate records, even
+   after editing another campaign. Only **Edit** updates an existing record;
+   new records do not inherit another campaign's payment link or subscription.
 3. Collect payment → **Send payment link** (Stripe, see below) or **Mark paid**
    for cash/check. Check the banner → **Approve creative**.
 4. Assign the banner in VapeTM, then **Activate**. The dashboard tracks dates;
