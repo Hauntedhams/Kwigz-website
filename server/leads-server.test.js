@@ -626,3 +626,84 @@ test('without GEMINI_API_KEY art generation reports as not configured', async ()
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/art work, outreach boxes toggle', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-import-'));
+  const fake = await startFakeClay();
+  let instance;
+  try {
+    instance = await start(dataDir, { CLAY_API_KEY: '', GEMINI_API_KEY: 'test-gemini-key', GEMINI_API_BASE: `${fake.base}/v1beta`, SITE_URL: 'https://kwigz.test' });
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
+    const call = async (method, p, body) => { const res = await fetch(`${instance.base}${p}`, { method, headers: auth, body: body ? JSON.stringify(body) : undefined }); return { status: res.status, data: await res.json() }; };
+
+    const raw = 'Name\tPhone\tWebsite\tAddress\tRating\nSuzuki Law Offices\t(602) 682-5270\tsuzukilawoffices.com\t2929 E Camelback Rd, Phoenix, AZ 85016\t4.9\n';
+    const rows = [
+      { business: 'Suzuki Law Offices', phone: '(602) 682-5270', website: 'suzukilawoffices.com', address: '2929 E Camelback Rd, Phoenix, AZ 85016', rating: '4.9', reviews: '212', lat: '33.5093', lng: '-112.0127', contactName: 'Richard Suzuki', email: 'RJ@suzukilawoffices.com', linkedinUrl: 'https://www.linkedin.com/in/richard-suzuki/' },
+      { business: 'Nova Law Group', website: 'https://www.novalawaz.com/', address: '4455 E Camelback Rd, Phoenix, AZ 85018' },
+      { business: '' },
+      { business: 'suzuki law offices', website: 'suzukilawoffices.com' },
+    ];
+    assert.equal((await call('POST', '/api/prospecting/imports', { categoryId: 'dui', machineId: 'nope', rows })).status, 400);
+    const imp = await call('POST', '/api/prospecting/imports', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', rows, raw, filename: 'maps export.tsv', findPhones: false });
+    assert.equal(imp.status, 200, JSON.stringify(imp.data));
+    assert.deepEqual({ imported: imp.data.import.imported, duplicates: imp.data.import.duplicates, skipped: imp.data.import.skipped }, { imported: 2, duplicates: 1, skipped: 1 });
+    const suzuki = imp.data.prospects.find((p) => p.domain === 'suzukilawoffices.com');
+    assert.equal(suzuki.source, 'import');
+    assert.equal(suzuki.phone, '(602) 682-5270');
+    assert.equal(suzuki.phoneE164, '+16026825270');
+    assert.equal(suzuki.city, 'Phoenix');
+    assert.equal(suzuki.distanceMiles, 1.3);
+    assert.equal(suzuki.contacts[0].name, 'Richard Suzuki');
+    assert.equal(suzuki.contacts[0].firstName, 'Richard');
+    assert.equal(suzuki.contacts[0].email, 'rj@suzukilawoffices.com');
+    assert.match(suzuki.logoUrl, /faviconV2.*suzukilawoffices\.com/, 'logo falls back to the site favicon');
+    assert.ok(suzuki.score > imp.data.prospects.find((p) => p.domain === 'novalawaz.com').score, 'rating + distance + phone score higher');
+    const nova = imp.data.prospects.find((p) => p.domain === 'novalawaz.com');
+    assert.equal(nova.website, 'https://www.novalawaz.com/');
+    assert.equal(nova.contacts.length, 0);
+
+    // Import record + file are viewable; status lists imports.
+    const list = await call('GET', '/api/prospecting/imports');
+    assert.equal(list.data.imports[0].filename, 'maps export.tsv');
+    const file = await fetch(`${instance.base}/api/prospecting/imports/${imp.data.import.id}/file`, { headers: auth });
+    assert.equal(file.status, 200);
+    assert.equal(await file.text(), raw);
+    assert.equal((await call('GET', '/api/prospecting/status')).data.imports[0].id, imp.data.import.id);
+
+    // Same pipeline as Clay leads: drafts, preview, art — with Clay not configured at all.
+    const gen = await call('POST', '/api/prospects/generate', { ids: [suzuki.id] });
+    assert.equal(gen.data.count, 1);
+    const { prospects } = (await call('GET', '/api/prospects')).data;
+    const s2 = prospects.find((p) => p.id === suzuki.id);
+    assert.match(s2.drafts.email.body, /^Hi Richard,/);
+    assert.equal(s2.mockup.phone, '(602) 682-5270');
+    assert.equal(s2.mockup.tagline, 'DUI & Criminal Defense', 'imports use the category tagline, not a Maps category string');
+    const token = s2.previewUrl.split('/').pop();
+    assert.equal((await fetch(`${instance.base}/api/preview/${token}`)).status, 200);
+    const art = await call('POST', `/api/prospects/${suzuki.id}/art`, {});
+    assert.equal(art.status, 200, JSON.stringify(art.data));
+    assert.match(art.data.prospect.art.prompt, /"Suzuki Law Offices" in Phoenix/);
+
+    // Outreach tab checkboxes: tick → logged, follow-up flag explicit, untick → removed and status rolls back.
+    const email = await call('POST', `/api/prospects/${suzuki.id}/outreach`, { channel: 'email', note: 'Marked done' });
+    assert.equal(email.data.prospect.status, 'contacted');
+    assert.equal(email.data.prospect.outreach[0].followUp, false);
+    const fu = await call('POST', `/api/prospects/${suzuki.id}/outreach`, { channel: 'other', note: 'Follow-up', followUp: true });
+    assert.equal(fu.data.prospect.outreach[1].followUp, true);
+    const un1 = await call('DELETE', `/api/prospects/${suzuki.id}/outreach?channel=follow-up`);
+    assert.equal(un1.data.prospect.outreach.length, 1);
+    assert.equal(un1.data.prospect.status, 'contacted');
+    const un2 = await call('DELETE', `/api/prospects/${suzuki.id}/outreach?channel=email`);
+    assert.equal(un2.data.prospect.outreach.length, 0);
+    assert.equal(un2.data.prospect.status, 'drafted', 'no touches left → back to drafted');
+    assert.equal(un2.data.prospect.nextFollowUpAt, '');
+
+    assert.equal((await call('DELETE', `/api/prospecting/imports/${imp.data.import.id}`)).status, 200);
+    assert.equal((await fetch(`${instance.base}/api/prospecting/imports/${imp.data.import.id}/file`, { headers: auth })).status, 404);
+    assert.equal((await call('GET', '/api/prospects')).data.count, 2, 'deleting the import record keeps the leads');
+  } finally {
+    if (instance) await stop(instance.child);
+    await fake.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});

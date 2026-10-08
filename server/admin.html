@@ -221,6 +221,32 @@
     .art-thumb .art-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.7rem; line-height: 18px; cursor: pointer; padding: 0; }
     .art-gen { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
     .art-gen input { flex: 1; min-width: 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.82rem; }
+    .import-box { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
+    .import-box h3 { font-size: 0.95rem; margin: 0 0 6px; }
+    .import-box h3 .sub { font-weight: 500; color: var(--muted); font-size: 0.8rem; margin-left: 6px; }
+    .import-inputs { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+    .file-btn { cursor: pointer; }
+    #importText { width: 100%; min-height: 90px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; background: #fff; }
+    .map-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; margin: 10px 0; }
+    .map-grid .mp { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; background: #fff; font-size: 0.78rem; }
+    .map-grid .mp b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .map-grid .mp .ex { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; margin: 2px 0 6px; }
+    .map-grid .mp select { width: 100%; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; font-size: 0.76rem; }
+    .map-grid .mp.ok { border-color: rgba(22,163,74,0.5); }
+    .import-list { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+    .import-item { display: flex; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; background: #fff; font-size: 0.8rem; flex-wrap: wrap; }
+    .import-item .t { color: var(--muted); }
+    .import-item .sp { flex: 1; }
+    .outreach-tbl th.c, .outreach-tbl td.c { text-align: center; width: 84px; white-space: nowrap; }
+    .outreach-tbl td.c label { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
+    .outreach-tbl input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--green); cursor: pointer; }
+    .outreach-tbl .go { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 0.9rem; padding: 2px 4px; border-radius: 6px; }
+    .outreach-tbl .go:hover { background: var(--bg); color: var(--ink); }
+    .outreach-tbl .go:disabled { opacity: 0.3; cursor: default; }
+    .outreach-tbl .cnt { font-size: 0.68rem; color: var(--muted); display: block; margin-top: 1px; }
+    .outreach-tbl tr.is-due td { background: rgba(245,158,11,0.06); }
+    .outreach-tbl td.who button { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; text-align: left; }
+    .outreach-tbl td.who button:hover { color: var(--red); }
     .contact-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; font-size: 0.84rem; }
     .contact-card + .contact-card { margin-top: 8px; }
     .contact-card .ttl { color: var(--muted); font-size: 0.76rem; }
@@ -274,6 +300,7 @@
     <button class="nav-btn" data-tab="advertisers"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Advertisers <span class="count" id="navCampCount">0</span></button>
     <button class="nav-btn" data-tab="calendar"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg> Calendar</button>
     <button class="nav-btn" data-tab="prospecting"><svg class="site-icon"><use href="/icons.svg#sparkles"/></svg> Prospecting <span class="count" id="navProspectCount">0</span></button>
+    <button class="nav-btn" data-tab="outreach"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Outreach <span class="count" id="navOutreachCount">0</span></button>
     <div class="side-foot">
       <button class="nav-btn" id="refreshBtn"><svg class="site-icon"><use href="/icons.svg#refresh"/></svg> Refresh</button>
       <a class="nav-btn" href="/" target="_blank" rel="noopener" style="text-decoration:none;"><svg class="site-icon"><use href="/icons.svg#store"/></svg> View site</a>
@@ -368,6 +395,19 @@
         <label class="check"><input type="checkbox" id="genEmails" checked /> Also find the owner's work email <span class="hint" id="genCostHint" style="margin:0;"></span></label>
         <div class="progress" id="genProgress" hidden></div>
         <div class="run-list" id="runList"></div>
+
+        <div class="import-box">
+          <h3>Or import your own list <span class="sub">free — paste from Google Maps / a spreadsheet, or drop a CSV</span></h3>
+          <p class="hint" style="margin:0 0 10px;">Uses the Category and Machine picked above. Any columns work: business name, phone, website, address, email, owner, LinkedIn, lat/lng, rating… We'll auto-match them and you can fix the mapping before importing. Missing phones are read off their websites afterwards; logos come from their site.</p>
+          <div class="import-inputs">
+            <label class="btn file-btn">Choose CSV / TSV file<input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden /></label>
+            <span class="hint" style="margin:0;">or paste below (tab- or comma-separated, first row = headers, or one business per line)</span>
+          </div>
+          <textarea id="importText" placeholder="Name	Phone	Website	Address&#10;Suzuki Law Offices	(602) 682-5270	suzukilawoffices.com	2929 E Camelback Rd, Phoenix, AZ 85016"></textarea>
+          <div id="importPreview" hidden></div>
+          <div class="row-actions" style="margin-top:8px;"><button class="btn btn-primary" id="importBtn" disabled>Import</button><span class="hint" id="importHint" style="color:var(--muted);font-size:0.78rem;"></span></div>
+          <div id="importList" class="import-list"></div>
+        </div>
       </div>
 
       <div class="card">
@@ -382,6 +422,7 @@
           <button class="chip" data-pstatus="won">Won</button>
           <button class="chip" data-pstatus="lost">Lost / skipped</button>
           <select class="inline" id="prospectCategory"><option value="">All categories</option></select>
+          <select class="inline" id="prospectSource"><option value="">Clay + imports</option><option value="clay">Found with Clay</option><option value="import">Imported</option></select>
           <input class="inline search" id="prospectSearch" type="search" placeholder="Search business, contact, city…" />
         </div>
         <div class="row-actions" style="margin-bottom:12px;"><button class="btn btn-primary" id="draftBtn">Generate outreach</button><span class="hint" id="draftHint" style="color:var(--muted);font-size:0.78rem;"></span></div>
@@ -392,6 +433,35 @@
           </table>
         </div>
         <div class="empty" id="prospectEmpty" hidden>No prospects yet — pick a category above and click <b>Generate leads</b>.</div>
+      </div>
+    </section>
+
+    <!-- OUTREACH -->
+    <section data-panel="outreach" hidden>
+      <div class="page-head">
+        <div><h1>Outreach</h1><p>One row per business. Tick a box when you've done it — or hit ↗ to open the email / text / LinkedIn with the draft filled in, which ticks it for you.</p></div>
+        <div class="head-actions"><button class="btn" id="outreachExport">Export CSV</button></div>
+      </div>
+      <div class="stats" id="outreachStats"></div>
+      <div class="card">
+        <div class="chips" id="outreachChips">
+          <button class="chip active" data-ostatus="todo">To contact</button>
+          <button class="chip" data-ostatus="due">Follow-up due</button>
+          <button class="chip" data-ostatus="contacted">In progress</button>
+          <button class="chip" data-ostatus="replied">Replied</button>
+          <button class="chip" data-ostatus="won">Won</button>
+          <button class="chip" data-ostatus="">Everything</button>
+          <select class="inline" id="outreachCategory"><option value="">All categories</option></select>
+          <select class="inline" id="outreachMachine"><option value="">All machines</option></select>
+          <input class="inline search" id="outreachSearch" type="search" placeholder="Search…" />
+        </div>
+        <div class="tbl-wrap">
+          <table class="outreach-tbl">
+            <thead><tr><th>Business</th><th class="c">Email</th><th class="c">Text</th><th class="c">LinkedIn</th><th class="c">Call</th><th class="c">Follow-up</th><th>Next</th><th>Status</th></tr></thead>
+            <tbody id="outreachRows"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="outreachEmpty" hidden></div>
       </div>
     </section>
 
@@ -465,7 +535,8 @@
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
   let leads = [], campaigns = [], stripe = { enabled: false, mode: 'test', webhook: false };
   let prospects = [], prospecting = { clay: { configured: false }, gemini: { configured: false }, categories: [], machines: [], defaults: { limit: 15, maxLimit: 20, radiusMiles: 20, followUpDays: 2 }, creditEstimates: {}, activeRun: null, recentRuns: [] };
-  let pStatus = '', pCategory = '', pQuery = '', openProspectId = null, draftTab = 'email', runPollTimer = null;
+  let pStatus = '', pCategory = '', pQuery = '', pSource = '', pImport = '', openProspectId = null, draftTab = 'email', runPollTimer = null;
+  let oStatus = 'todo', oCategory = '', oMachine = '', oQuery = '';
   let leadType = '', leadStatus = '', leadQuery = '', openLeadId = null;
   let calMonth = new Date(); calMonth.setDate(1);
 
@@ -604,7 +675,7 @@
     $('#navLeadCount').textContent = leads.filter((l) => l.status === 'new').length;
     $('#navCampCount').textContent = campaigns.filter(isLive).length;
     $('#navProspectCount').textContent = prospects.filter((p) => ['new', 'drafted'].includes(p.status) || followUpDue(p)).length;
-    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting();
+    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting(); renderOutreach();
   }
 
   // ---------- tabs ----------
@@ -972,6 +1043,8 @@
   }
   $('#genLimit').addEventListener('change', updateCostHint);
   $('#genEmails').addEventListener('change', updateCostHint);
+  $('#genCategory').addEventListener('change', () => { if (importParsed) renderImportPreview(); });
+  $('#genMachine').addEventListener('change', () => { if (importParsed) renderImportPreview(); });
 
   async function loadCredits() {
     try { const c = await api('/api/prospecting/credits'); if (c.configured) { prospecting.credits = c; renderProspectingControls(); } } catch {}
@@ -1026,6 +1099,9 @@
       else if (pStatus === 'lost') { if (!['lost', 'skipped'].includes(p.status)) return false; }
       else if (pStatus && p.status !== pStatus) return false;
       if (pCategory && p.categoryId !== pCategory) return false;
+      if (pImport) { if (p.importId !== pImport) return false; }
+      else if (pSource === 'import' && p.source !== 'import') return false;
+      else if (pSource === 'clay' && p.source === 'import') return false;
       if (pQuery && !`${p.business} ${p.city} ${p.domain} ${(p.contacts || []).map((c) => `${c.name} ${c.title} ${c.email}`).join(' ')}`.toLowerCase().includes(pQuery)) return false;
       return true;
     });
@@ -1035,6 +1111,7 @@
     renderProspectingControls();
     renderRun(prospecting.activeRun);
     renderRunList();
+    renderImportList();
     const rows = filteredProspects();
     const newCount = rows.filter((p) => p.status === 'new').length;
     const newAll = prospects.filter((p) => p.status === 'new').length;
@@ -1048,7 +1125,7 @@
       const due = followUpDue(p);
       const email = c?.email || '';
       return `<tr class="p-row ${due ? 'is-due' : p.status === 'new' ? 'is-new' : ''}" data-pid="${esc(p.id)}" data-pa="toggle">
-        <td class="who"><strong>${esc(p.business)}</strong><span>${esc(catById(p.categoryId).label)}${p.city ? ` · ${esc(p.city)}` : ''}${p.distanceMiles != null ? ` · ${p.distanceMiles} mi` : ''}</span></td>
+        <td class="who"><strong>${esc(p.business)}</strong><span>${p.source === 'import' ? '<span class="badge" style="font-size:0.6rem;padding:1px 6px;margin-right:4px;">Imported</span>' : ''}${esc(catById(p.categoryId).label)}${p.city ? ` · ${esc(p.city)}` : ''}${p.distanceMiles != null ? ` · ${p.distanceMiles} mi` : ''}${p.rating ? ` · ${p.rating}★` : ''}</span></td>
         <td class="who">${c ? `<strong style="font-weight:600;">${esc(c.name)}</strong><span>${esc(c.title)}</span>` : '<span>No decision-maker found</span>'}</td>
         <td class="contact">${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : '<span>no email</span>'}${p.phone ? `<a href="tel:${esc(p.phoneE164 || p.phone)}">${esc(p.phone)}</a>` : '<span>no phone</span>'}</td>
         <td><span class="score ${p.score >= 70 ? 'hi' : p.score >= 50 ? 'mid' : ''}" title="${esc((p.scoreNotes || []).join(' · '))}">${p.score ?? '—'}</span></td>
@@ -1202,7 +1279,212 @@
   });
   $$('#prospectChips .chip').forEach((b) => b.addEventListener('click', () => { pStatus = b.dataset.pstatus; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x === b)); renderProspecting(); }));
   $('#prospectCategory').addEventListener('change', (e) => { pCategory = e.target.value; renderProspecting(); });
+  $('#prospectSource').addEventListener('change', (e) => { pSource = e.target.value; pImport = ''; renderProspecting(); });
   $('#prospectSearch').addEventListener('input', (e) => { pQuery = e.target.value.trim().toLowerCase(); renderProspecting(); });
+
+  // ---------- import your own list ----------
+  const IMPORT_LABELS = { '': '— skip —', business: 'Business name', phone: 'Phone', website: 'Website', email: 'Email', address: 'Address', city: 'City', contactName: 'Owner / contact name', contactTitle: 'Contact title', linkedinUrl: 'Contact LinkedIn', companyLinkedin: 'Company LinkedIn', lat: 'Latitude', lng: 'Longitude', rating: 'Google rating', reviews: 'Review count', category: 'Category / type', notes: 'Notes', logoUrl: 'Logo URL', mapsUrl: 'Google Maps URL' };
+  const IMPORT_GUESS = [
+    [/^(business|company|firm|name|title|place|business ?name|company ?name)$/i, 'business'], [/^(phone|tel|telephone|phone ?number|mobile|number)$/i, 'phone'],
+    [/^(website|web|site|url|domain|homepage|website ?url)$/i, 'website'], [/^(e-?mail|email ?address)$/i, 'email'], [/^(address|street|full ?address|location|formatted ?address)$/i, 'address'],
+    [/^(city|town|locality)$/i, 'city'], [/^(owner|contact|contact ?name|person|decision ?maker|owner ?name|first ?name|full ?name)$/i, 'contactName'], [/^(contact ?title|job ?title|role|position)$/i, 'contactTitle'],
+    [/^(linkedin|contact ?linkedin|linkedin ?url|profile)$/i, 'linkedinUrl'], [/^(company ?linkedin|linkedin ?company)$/i, 'companyLinkedin'], [/^(lat|latitude)$/i, 'lat'], [/^(lng|lon|long|longitude)$/i, 'lng'],
+    [/^(rating|stars|google ?rating|score)$/i, 'rating'], [/^(reviews|review ?count|ratings|user ?ratings ?total|num ?reviews)$/i, 'reviews'], [/^(category|type|categories|main ?category|industry|query)$/i, 'category'],
+    [/^(notes?|note|description|comment)$/i, 'notes'], [/^(logo|logo ?url|image|photo)$/i, 'logoUrl'], [/^(maps? ?url|google ?maps? ?url|maps ?link|place ?url|link)$/i, 'mapsUrl'],
+  ];
+  let importParsed = null; // { headers, rows (array of arrays), mapping [], raw, filename, hasHeader }
+
+  // RFC-4180-ish parser: handles quotes, escaped quotes, CR/LF, and tab/comma/semicolon delimiters.
+  function parseDelimited(text) {
+    const first = text.split(/\r?\n/).find((l) => l.trim()) || '';
+    const delim = [['\t', (first.match(/\t/g) || []).length], [',', (first.match(/,/g) || []).length], [';', (first.match(/;/g) || []).length]].sort((a, b) => b[1] - a[1])[0];
+    const d = delim[1] ? delim[0] : '\t';
+    const rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += ch; continue; }
+      if (ch === '"') { q = true; continue; }
+      if (ch === d) { row.push(cell); cell = ''; continue; }
+      if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cell); cell = ''; if (row.some((c) => c.trim())) rows.push(row); row = []; continue; }
+      cell += ch;
+    }
+    row.push(cell); if (row.some((c) => c.trim())) rows.push(row);
+    return rows.map((r) => r.map((c) => c.trim()));
+  }
+  const guessField = (h) => (IMPORT_GUESS.find(([re]) => re.test(h.trim().replace(/[_-]+/g, ' ')) ) || [])[1] || '';
+  // Content-based guess for header-less pastes (one business per line from Google Maps, etc.).
+  const guessFromValues = (vals) => {
+    const v = vals.filter(Boolean);
+    if (!v.length) return '';
+    if (v.every((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x))) return 'email';
+    if (v.every((x) => x.replace(/\D/g, '').length >= 10 && x.replace(/\D/g, '').length <= 11 && /^[\d\s().+-]+$/.test(x))) return 'phone';
+    if (v.every((x) => /linkedin\.com\/in\//.test(x))) return 'linkedinUrl';
+    if (v.every((x) => /maps\.google|google\.com\/maps|goo\.gl\/maps/.test(x))) return 'mapsUrl';
+    if (v.every((x) => /^(https?:\/\/)?[\w.-]+\.[a-z]{2,}(\/\S*)?$/i.test(x))) return 'website';
+    if (v.every((x) => /^\d(\.\d)?$/.test(x) && Number(x) <= 5)) return 'rating';
+    if (v.every((x) => /\d+\s+\w+.*,\s*\w+/.test(x) || /\b(st|rd|ave|blvd|dr|ln|way|suite|ste)\b/i.test(x))) return 'address';
+    return '';
+  };
+
+  function prepareImport(text, filename = '') {
+    const box = $('#importPreview');
+    importParsed = null; $('#importBtn').disabled = true; $('#importHint').textContent = '';
+    if (!text.trim()) { box.hidden = true; return; }
+    let rows = parseDelimited(text);
+    if (!rows.length) { box.hidden = true; return; }
+    const width = Math.max(...rows.map((r) => r.length));
+    rows = rows.map((r) => [...r, ...Array(width - r.length).fill('')]);
+    const headerGuess = rows[0].map(guessField);
+    const hasHeader = rows.length > 1 && headerGuess.filter(Boolean).length >= Math.max(1, Math.ceil(width / 3)) && !rows[0].some((c) => /\d{3}.*\d{4}|@/.test(c));
+    const headers = hasHeader ? rows[0] : rows[0].map((_, i) => `Column ${i + 1}`);
+    const body = hasHeader ? rows.slice(1) : rows;
+    const mapping = headers.map((h, i) => (hasHeader && headerGuess[i]) || guessFromValues(body.slice(0, 20).map((r) => r[i])));
+    if (!mapping.includes('business')) { const idx = mapping.findIndex((m) => !m); if (idx !== -1) mapping[idx] = 'business'; }
+    importParsed = { headers, rows: body, mapping, raw: text, filename, hasHeader };
+    renderImportPreview();
+  }
+  function renderImportPreview() {
+    const box = $('#importPreview');
+    const { headers, rows, mapping } = importParsed;
+    const used = new Set();
+    box.hidden = false;
+    box.innerHTML = `<div class="hint" style="margin:10px 0 0;color:var(--muted);font-size:0.78rem;">${rows.length} row${rows.length === 1 ? '' : 's'} · ${importParsed.hasHeader ? 'first row used as headers' : 'no header row detected — matched by content'}. Check each column:</div>
+      <div class="map-grid">${headers.map((h, i) => { const ex = rows.slice(0, 3).map((r) => r[i]).filter(Boolean).join(' · '); return `<div class="mp ${mapping[i] ? 'ok' : ''}"><b title="${esc(h)}">${esc(h)}</b><span class="ex" title="${esc(ex)}">${esc(ex) || '<i>empty</i>'}</span><select data-map-col="${i}">${Object.entries(IMPORT_LABELS).map(([k, l]) => `<option value="${k}" ${mapping[i] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`; }).join('')}</div>`;
+    const ok = mapping.includes('business');
+    $('#importBtn').disabled = !ok;
+    const cat = catById($('#genCategory').value), m = machineById($('#genMachine').value);
+    $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name}. Duplicates (same website or name) are skipped.` : 'Pick which column is the business name.';
+    $('#importBtn').textContent = ok ? `Import ${rows.length} business${rows.length === 1 ? '' : 'es'}` : 'Import';
+  }
+  $('#importText').addEventListener('input', (e) => prepareImport(e.target.value));
+  $('#importFile').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const text = await f.text();
+    $('#importText').value = text.length > 200000 ? `${text.slice(0, 200000)}\n` : text;
+    prepareImport(text, f.name);
+    e.target.value = '';
+  });
+  document.addEventListener('change', (e) => {
+    const sel = e.target.closest('select[data-map-col]');
+    if (!sel || !importParsed) return;
+    const i = Number(sel.dataset.mapCol);
+    if (sel.value && sel.value !== 'notes') importParsed.mapping = importParsed.mapping.map((m, j) => (j !== i && m === sel.value ? '' : m)); // one column per field
+    importParsed.mapping[i] = sel.value;
+    renderImportPreview();
+  });
+  $('#importBtn').addEventListener('click', async () => {
+    if (!importParsed) return;
+    const { rows, mapping, raw, filename } = importParsed;
+    const objs = rows.map((r) => { const o = {}; mapping.forEach((f, i) => { if (!f) return; o[f] = o[f] ? `${o[f]} ${r[i]}` : r[i]; }); return o; }).filter((o) => o.business);
+    $('#importBtn').disabled = true; $('#importBtn').textContent = 'Importing…';
+    try {
+      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ categoryId: $('#genCategory').value, machineId: $('#genMachine').value, rows: objs, raw, filename }) });
+      toast(`${r.import.imported} imported${r.import.duplicates ? ` · ${r.import.duplicates} already in list` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
+      $('#importText').value = ''; $('#importPreview').hidden = true; importParsed = null; $('#importBtn').textContent = 'Import'; $('#importHint').textContent = '';
+      pStatus = 'new'; pSource = ''; pImport = r.import.id; pCategory = ''; $('#prospectCategory').value = ''; $('#prospectSource').value = '';
+      $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'new'));
+      const ps = await api('/api/prospecting/status').catch(() => null); if (ps) prospecting = { ...ps, credits: prospecting.credits };
+      await refreshProspects();
+    } catch (err) { toast(err.message); $('#importBtn').disabled = false; $('#importBtn').textContent = 'Import'; }
+  });
+  function renderImportList() {
+    const list = prospecting.imports || [];
+    $('#importList').innerHTML = list.slice(0, 8).map((im) => `<div class="import-item">
+        <span class="badge ${pImport === im.id ? 'purple' : ''}">${esc(catById(im.categoryId).label)}</span>
+        <span class="sp"><b>${esc(im.filename)}</b> <span class="t">· ${im.imported} imported${im.duplicates ? `, ${im.duplicates} dup` : ''}${im.phonesLookedUp ? `, ${im.phonesLookedUp} phones found` : ''} · ${esc(machineById(im.machineId).name)} · ${timeAgo(im.importedAt)}</span></span>
+        <button class="btn btn-sm ${pImport === im.id ? 'btn-primary' : ''}" data-import="${esc(im.id)}" data-ia="view">${pImport === im.id ? 'Showing' : 'View leads'}</button>
+        ${im.file ? `<button class="btn btn-sm" data-import="${esc(im.id)}" data-ia="file">Open file</button>` : ''}
+        <button class="btn btn-sm btn-danger" data-import="${esc(im.id)}" data-ia="delete" title="Removes the import record and file. Leads stay.">×</button>
+      </div>`).join('');
+  }
+  document.addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-import]'); if (!t) return;
+    const id = t.dataset.import, ia = t.dataset.ia;
+    try {
+      if (ia === 'view') { pImport = pImport === id ? '' : id; pStatus = ''; pSource = ''; $('#prospectSource').value = ''; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === '')); renderProspecting(); $('#prospectRows')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      if (ia === 'file') { const r = await fetch(`/api/prospecting/imports/${encodeURIComponent(id)}/file`, { headers: authHeaders() }); if (!r.ok) return toast('File not found'); const url = URL.createObjectURL(await r.blob()); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000); }
+      if (ia === 'delete') { if (!confirm('Remove this import record and its file? The leads stay in your list.')) return; await api(`/api/prospecting/imports/${encodeURIComponent(id)}`, { method: 'DELETE' }); prospecting.imports = (prospecting.imports || []).filter((x) => x.id !== id); if (pImport === id) pImport = ''; renderProspecting(); toast('Import removed'); }
+    } catch (err) { toast(err.message); }
+  });
+
+  // ---------- outreach tab ----------
+  const touched = (p, ch) => p.outreach.filter((o) => (ch === 'follow-up' ? o.followUp : o.channel === ch)).length;
+  function filteredOutreach() {
+    return prospects.filter((p) => {
+      if (oStatus === 'todo') { if (!['new', 'drafted'].includes(p.status) && !followUpDue(p)) return false; }
+      else if (oStatus === 'due') { if (!followUpDue(p)) return false; }
+      else if (oStatus && p.status !== oStatus) return false;
+      if (oCategory && p.categoryId !== oCategory) return false;
+      if (oMachine && p.machineId !== oMachine) return false;
+      if (oQuery && !`${p.business} ${p.city} ${(p.contacts || []).map((c) => c.name).join(' ')}`.toLowerCase().includes(oQuery)) return false;
+      return true;
+    }).sort((a, b) => (followUpDue(b) - followUpDue(a)) || (a.nextFollowUpAt || '9').localeCompare(b.nextFollowUpAt || '9') || b.createdAt.localeCompare(a.createdAt));
+  }
+  function renderOutreach() {
+    if (!$('#outreachCategory').options.length || $('#outreachCategory').options.length === 1) {
+      $('#outreachCategory').innerHTML = `<option value="">All categories</option>${ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}`;
+      $('#outreachMachine').innerHTML = `<option value="">All machines</option>${ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join('')}`;
+    }
+    const due = prospects.filter(followUpDue).length;
+    const todo = prospects.filter((p) => ['new', 'drafted'].includes(p.status)).length;
+    const contacted = prospects.filter((p) => p.status === 'contacted').length;
+    $('#navOutreachCount').textContent = todo + due;
+    $('#outreachStats').innerHTML = [
+      ['To contact', todo, 'never reached out', todo ? 'accent' : ''],
+      ['Follow-ups due', due, due ? 'overdue or due today' : 'nothing due'],
+      ['In progress', contacted, 'contacted, waiting'],
+      ['Replied', prospects.filter((p) => p.status === 'replied').length, 'conversations open'],
+      ['Won', prospects.filter((p) => p.status === 'won').length, `of ${prospects.length} prospects`],
+    ].map(([label, value, hint, cls = '']) => `<div class="stat ${cls}"><div class="label">${label}</div><div class="value">${value}</div><div class="hint">${hint}</div></div>`).join('');
+    const rows = filteredOutreach();
+    $('#outreachEmpty').hidden = rows.length > 0;
+    $('#outreachEmpty').textContent = prospects.length ? 'Nothing in this view.' : 'No prospects yet — generate or import some in Prospecting.';
+    const box = (p, ch, { can = true, title = '' } = {}) => { const n = touched(p, ch); return `<td class="c" title="${esc(title)}"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${n ? 'checked' : ''} />${ch !== 'call' && ch !== 'follow-up' ? `<button class="go" data-pa="send" data-pid="${esc(p.id)}" data-channel="${ch}" title="Open with the draft filled in, then log it" ${can && p.drafts ? '' : 'disabled'}>↗</button>` : ''}${n > 1 ? `<span class="cnt">×${n}</span>` : ''}</td>`; };
+    $('#outreachRows').innerHTML = rows.map((p) => {
+      const c = primaryContact(p);
+      const isDue = followUpDue(p);
+      return `<tr class="${isDue ? 'is-due' : ''}">
+        <td class="who"><button data-pa="goto" data-pid="${esc(p.id)}" title="Open in Prospecting">${esc(p.business)}</button><span>${esc(catById(p.categoryId).label)}${c ? ` · ${esc(c.name)}` : ''}${p.phone ? ` · ${esc(p.phone)}` : ''}${c?.email ? ` · ${esc(c.email)}` : ''}${p.drafts ? '' : ' · <i>no drafts yet</i>'}</span></td>
+        ${box(p, 'email', { can: Boolean(c?.email), title: c?.email || 'no email' })}
+        ${box(p, 'sms', { can: Boolean(p.phone || c?.mobile), title: p.phone || c?.mobile || 'no phone' })}
+        ${box(p, 'linkedin', { title: c?.linkedinUrl || 'LinkedIn search' })}
+        ${box(p, 'call', { title: p.phone || 'no phone' })}
+        ${box(p, 'follow-up', { title: 'Any touch after the first counts as a follow-up' })}
+        <td style="white-space:nowrap;">${isDue ? `<span class="badge amber dot">Due ${fmtDate(p.nextFollowUpAt)}</span>` : p.nextFollowUpAt && p.status === 'contacted' ? fmtDate(p.nextFollowUpAt) : '—'}</td>
+        <td><select class="inline" data-ostatus-set="${esc(p.id)}">${['new', 'drafted', 'contacted', 'replied', 'won', 'lost', 'skipped'].map((s) => `<option value="${s}" ${p.status === s ? 'selected' : ''}>${P_STATUS_LABEL[s]}</option>`).join('')}</select></td>
+      </tr>`;
+    }).join('');
+  }
+  $$('#outreachChips .chip').forEach((b) => b.addEventListener('click', () => { oStatus = b.dataset.ostatus; $$('#outreachChips .chip').forEach((x) => x.classList.toggle('active', x === b)); renderOutreach(); }));
+  $('#outreachCategory').addEventListener('change', (e) => { oCategory = e.target.value; renderOutreach(); });
+  $('#outreachMachine').addEventListener('change', (e) => { oMachine = e.target.value; renderOutreach(); });
+  $('#outreachSearch').addEventListener('input', (e) => { oQuery = e.target.value.trim().toLowerCase(); renderOutreach(); });
+  document.addEventListener('change', async (e) => {
+    const cb = e.target.closest('input[data-ocheck]');
+    const st = e.target.closest('select[data-ostatus-set]');
+    try {
+      if (cb) {
+        const id = cb.dataset.pid, ch = cb.dataset.ocheck;
+        cb.disabled = true;
+        const r = cb.checked
+          ? await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify(ch === 'follow-up' ? { channel: 'other', note: 'Follow-up', followUp: true } : { channel: ch, note: 'Marked done' }) })
+          : await api(`/api/prospects/${encodeURIComponent(id)}/outreach?channel=${encodeURIComponent(ch)}`, { method: 'DELETE' });
+        const i = prospects.findIndex((x) => x.id === id); if (i !== -1) prospects[i] = { ...prospects[i], ...r.prospect };
+        toast(cb.checked ? `Logged · follow up ${fmtDate(r.prospect.nextFollowUpAt)}` : 'Unlogged');
+        renderAll();
+      }
+      if (st) { await patchProspect(st.dataset.ostatusSet, { status: st.value }, 'Status saved'); renderAll(); }
+    } catch (err) { toast(err.message); renderOutreach(); }
+  });
+  $('#outreachExport').addEventListener('click', () => {
+    const rows = filteredOutreach();
+    const cols = ['Business', 'Category', 'Machine', 'Contact', 'Title', 'Email', 'Phone', 'LinkedIn', 'Website', 'Address', 'Status', 'Email sent', 'Texts', 'LinkedIn msgs', 'Calls', 'Follow-ups', 'Next follow-up', 'Preview link', 'Notes'];
+    const csv = [cols, ...rows.map((p) => { const c = primaryContact(p) || {}; return [p.business, catById(p.categoryId).label, machineById(p.machineId).name, c.name || '', c.title || '', c.email || '', p.phone || c.mobile || '', c.linkedinUrl || '', p.website || '', p.address || '', P_STATUS_LABEL[p.status] || p.status, touched(p, 'email'), touched(p, 'sms'), touched(p, 'linkedin'), touched(p, 'call'), touched(p, 'follow-up'), p.nextFollowUpAt || '', p.previewUrl || '', p.notes || '']; })]
+      .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    Object.assign(document.createElement('a'), { href: url, download: `kwigz-outreach-${todayISO}.csv` }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
 
   document.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-pa]');
@@ -1210,7 +1492,7 @@
     if (t.matches('input, textarea, select') || (t.dataset.pa === 'toggle' && e.target.closest('a, button, input, select, textarea'))) return;
     const pa = t.dataset.pa;
     if (pa === 'goto' || pa === 'goto-status') {
-      switchTab('prospecting'); pStatus = pa === 'goto' ? '' : t.dataset.pstatus; pCategory = ''; pQuery = ''; $('#prospectSearch').value = ''; $('#prospectCategory').value = '';
+      switchTab('prospecting'); pStatus = pa === 'goto' ? '' : t.dataset.pstatus; pCategory = ''; pQuery = ''; pSource = ''; pImport = ''; $('#prospectSearch').value = ''; $('#prospectCategory').value = ''; $('#prospectSource').value = '';
       $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === pStatus));
       if (pa === 'goto') { openProspectId = t.dataset.pid; const p = prospects.find((x) => x.id === openProspectId); draftTab = p && p.outreach.length ? p.outreach[p.outreach.length - 1].channel : 'email'; if (draftTab === 'other') draftTab = 'email'; }
       renderProspecting(); $(`tr[data-pid="${CSS.escape(openProspectId || '')}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); return;

@@ -111,8 +111,11 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   const EXCLUDED_FILE = path.join(dataDir, 'prospect-excluded.json'); // enriched once, ruled out (e.g. outside radius) — never pay for them again
   const LOGO_DIR = path.join(dataDir, 'logos');
   const ART_DIR = path.join(dataDir, 'art'); // Gemini banner backgrounds, <variantId>.png
+  const IMPORTS_FILE = path.join(dataDir, 'prospect-imports.json'); // manual list imports (Google Maps etc.)
+  const IMPORT_DIR = path.join(dataDir, 'imports'); // the raw files as uploaded, <importId>.<ext>
   fs.mkdirSync(LOGO_DIR, { recursive: true });
   fs.mkdirSync(ART_DIR, { recursive: true });
+  fs.mkdirSync(IMPORT_DIR, { recursive: true });
 
   const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) { if (err.code === 'ENOENT') return fallback; throw err; } };
   const writeJson = (file, data) => { fs.writeFileSync(`${file}.tmp`, JSON.stringify(data, null, 2)); fs.renameSync(`${file}.tmp`, file); };
@@ -120,6 +123,8 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   const writeProspects = (list) => writeJson(PROSPECTS_FILE, list);
   const readRuns = () => readJson(RUNS_FILE, []);
   const readExcluded = () => readJson(EXCLUDED_FILE, {});
+  const readImports = () => readJson(IMPORTS_FILE, []);
+  const writeImports = (list) => writeJson(IMPORTS_FILE, list);
   const writeRuns = (runs) => writeJson(RUNS_FILE, runs.slice(-50));
   const newId = (prefix) => `${prefix}-${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
 
@@ -152,6 +157,8 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       machines: ads.machines.map((m) => ({ id: m.id, name: m.name, city: m.city, geo: Number.isFinite(m.lat) && Number.isFinite(m.lng) })),
       activeRun: runs.find((r) => r.id === activeRunId) || null,
       recentRuns: runs.slice(-10).reverse(),
+      imports: readImports().slice(-30).reverse(),
+      importFields: IMPORT_FIELDS,
     };
   }
 
@@ -230,7 +237,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   function pickSpecialty(p) {
     const cat = catConfig(p.categoryId) || config.categories.other;
     const kws = (cat.keywords || []).map((k) => k.toLowerCase());
-    return p.specialties.find((s) => kws.some((k) => s.toLowerCase().includes(k))) || p.specialties[0] || '';
+    return p.specialties.find((s) => kws.some((k) => s.toLowerCase().includes(k))) || (p.source === 'import' ? '' : p.specialties[0]) || '';
   }
 
   // ---------- the run ----------
@@ -383,6 +390,115 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     }
   }
 
+  // ---------- manual imports (Google Maps lists, spreadsheets) ----------
+
+  // Free alternative to Clay: the admin pastes/uploads a list; rows become prospects with
+  // source:'import' and flow through the same drafts → mockup → AI art → outreach pipeline.
+  const IMPORT_FIELDS = ['business', 'phone', 'website', 'email', 'address', 'city', 'contactName', 'contactTitle', 'linkedinUrl', 'companyLinkedin', 'lat', 'lng', 'rating', 'reviews', 'category', 'notes', 'logoUrl', 'mapsUrl'];
+  const faviconFor = (domain) => `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=256`;
+
+  function importProspects({ categoryId, machineId, rows, filename = '', raw = '', findPhones = true } = {}) {
+    const machine = machineById(clean(machineId, 80));
+    if (!machine) throw new Error('Unknown machine');
+    const category = categoryById(clean(categoryId, 40));
+    if (!category) throw new Error('Unknown category');
+    if (!Array.isArray(rows) || !rows.length) throw new Error('No rows to import');
+    if (rows.length > 500) throw new Error('Import at most 500 businesses at a time');
+    const hasGeo = Number.isFinite(machine.lat) && Number.isFinite(machine.lng);
+    const prospects = readProspects();
+    const knownDomains = new Set(prospects.map((p) => p.domain).filter(Boolean));
+    const knownNames = new Set(prospects.filter((p) => p.machineId === machine.id).map((p) => `${p.business}`.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()));
+    const ts = nowISO();
+    const importId = newId('I');
+    const added = [];
+    let skipped = 0, duplicates = 0;
+    for (const r of rows) {
+      const row = {}; for (const k of IMPORT_FIELDS) row[k] = clean(r?.[k], k === 'notes' ? 1000 : 300);
+      if (!row.business) { skipped++; continue; }
+      const domain = normalizeDomain(row.website);
+      const nameKey = row.business.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      if ((domain && knownDomains.has(domain)) || knownNames.has(nameKey)) { duplicates++; continue; }
+      if (domain) knownDomains.add(domain); knownNames.add(nameKey);
+      const ph = normalizePhone(row.phone);
+      const lat = Number(row.lat), lng = Number(row.lng);
+      const geo = Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0;
+      const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email) ? row.email.toLowerCase() : '';
+      const contactName = row.contactName || '';
+      const contacts = contactName || email || row.linkedinUrl ? [{ name: contactName || row.business, firstName: contactName ? firstNameOf(contactName) : '', title: row.contactTitle || (contactName ? '' : 'Business'), linkedinUrl: /linkedin\.com\/in\//.test(row.linkedinUrl) ? row.linkedinUrl : '', city: row.city, email, emailSource: email ? 'import' : '', mobile: '' }] : [];
+      const city = row.city || (row.address.match(/,\s*([A-Za-z .'-]+),\s*[A-Z]{2}\b/) || [])[1] || machine.city || '';
+      const p = {
+        id: newId('P'), source: 'import', importId, clayCompanyId: null,
+        business: row.business, domain, website: domain ? (/^https?:\/\//.test(row.website) ? row.website : `https://${domain}`) : '',
+        linkedinUrl: /linkedin\.com\/company\//.test(row.companyLinkedin) ? row.companyLinkedin : '',
+        industry: row.category, size: '', revenue: '', description: row.notes, city: clean(city, 80), state: '', postalCode: '', address: row.address,
+        lat: geo ? lat : null, lng: geo ? lng : null, specialties: row.category ? [row.category] : [],
+        logoUrl: /^https?:\/\//.test(row.logoUrl) ? row.logoUrl : (domain ? faviconFor(domain) : ''),
+        rating: Number(row.rating) || null, reviews: Number(String(row.reviews).replace(/[^\d]/g, '')) || null, mapsUrl: /^https?:\/\//.test(row.mapsUrl) ? row.mapsUrl : '',
+        contacts, phone: ph ? ph.display : row.phone, phoneE164: ph ? ph.e164 : '', phoneSource: row.phone ? 'import' : '',
+        runId: '', categoryId: category.id, machineId: machine.id, status: 'new', drafts: null, previewToken: '', outreach: [], nextFollowUpAt: '', notes: '', createdAt: ts, updatedAt: ts,
+      };
+      p.distanceMiles = hasGeo && geo ? Math.round(haversineMiles(machine.lat, machine.lng, lat, lng) * 10) / 10 : null;
+      const sc = score(p, category.id, config.defaults.radiusMiles);
+      if (p.rating) { sc.score += Math.round(Math.min(10, (p.rating - 3.5) * 8)); sc.scoreNotes.push(`${p.rating}★${p.reviews ? ` (${p.reviews})` : ''}`); }
+      p.score = sc.score; p.scoreNotes = sc.scoreNotes;
+      added.push(p);
+    }
+    if (!added.length) throw new Error(duplicates ? `All ${duplicates} businesses are already in your prospect list.` : 'No usable rows — each row needs at least a business name.');
+    prospects.push(...added);
+    writeProspects(prospects);
+    const safeName = clean(filename, 120).replace(/[^\w.\- ()]+/g, '_') || `paste-${ts.slice(0, 10)}.csv`;
+    let file = '';
+    if (typeof raw === 'string' && raw.length && raw.length <= 4 * 1024 * 1024) {
+      const ext = (safeName.match(/\.(csv|tsv|txt|json)$/i) || [, 'csv'])[1].toLowerCase();
+      file = `${importId}.${ext}`;
+      fs.writeFileSync(path.join(IMPORT_DIR, file), raw);
+    }
+    const record = { id: importId, filename: safeName, file, importedAt: ts, categoryId: category.id, machineId: machine.id, rows: rows.length, imported: added.length, duplicates, skipped, prospectIds: added.map((p) => p.id), phonesLookedUp: 0 };
+    const imports = readImports(); imports.push(record); writeImports(imports.slice(-100));
+    log(`[prospecting] import ${importId}: ${added.length} ${category.id} leads from ${safeName} (${duplicates} dup, ${skipped} skipped)`);
+    // Fill in missing phones from their websites in the background — free, but slow.
+    if (findPhones) fillImportedPhones(importId, added.filter((p) => !p.phone && p.website).map((p) => p.id)).catch((err) => log(`[prospecting] import phone lookup failed: ${err.message}`));
+    return { import: record, prospects: added };
+  }
+
+  async function fillImportedPhones(importId, ids) {
+    if (!ids.length) return;
+    const queue = [...ids];
+    let found = 0;
+    await Promise.all(Array.from({ length: 3 }, async () => {
+      while (queue.length) {
+        const id = queue.shift();
+        const p = readProspects().find((x) => x.id === id);
+        if (!p || p.phone) continue;
+        const phone = await findWebsitePhone(p.website, { timeoutMs: config.defaults.websitePhoneTimeoutMs, fetchImpl });
+        if (!phone) continue;
+        const prospects = readProspects();
+        const cur = prospects.find((x) => x.id === id);
+        if (cur && !cur.phone) { cur.phone = phone.display; cur.phoneE164 = phone.e164; cur.phoneSource = phone.source; cur.updatedAt = nowISO(); writeProspects(prospects); found++; }
+      }
+    }));
+    const imports = readImports();
+    const rec = imports.find((i) => i.id === importId);
+    if (rec) { rec.phonesLookedUp = found; writeImports(imports); }
+  }
+
+  function importFile(id) {
+    const rec = readImports().find((i) => i.id === id);
+    if (!rec?.file) return null;
+    const file = path.join(IMPORT_DIR, rec.file);
+    return fs.existsSync(file) ? { file, filename: rec.filename, type: /\.json$/i.test(rec.file) ? 'application/json' : 'text/plain; charset=utf-8' } : null;
+  }
+
+  // Removes the import record + raw file; the prospects stay (delete them individually).
+  function deleteImport(id) {
+    const imports = readImports();
+    const rec = imports.find((i) => i.id === id);
+    if (!rec) return false;
+    if (rec.file) fs.rmSync(path.join(IMPORT_DIR, rec.file), { force: true });
+    writeImports(imports.filter((i) => i.id !== id));
+    return true;
+  }
+
   // ---------- drafts / mockup ----------
 
   function previewUrl(p) { return `${siteUrl}/preview/${p.previewToken}`; }
@@ -466,12 +582,32 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     const p = prospects.find((x) => x.id === id);
     if (!p) return null;
     const ts = nowISO();
-    p.outreach.push({ channel, at: ts, note: clean(body.note, 500), followUp: p.outreach.length > 0 });
+    p.outreach.push({ channel, at: ts, note: clean(body.note, 500), followUp: body.followUp === true || p.outreach.length > 0 });
     if (['new', 'drafted', 'contacted'].includes(p.status)) p.status = 'contacted';
     const days = Math.max(1, Math.min(30, Math.round(Number(body.followUpDays) || config.defaults.followUpDays)));
     const due = new Date(); due.setDate(due.getDate() + days);
     p.nextFollowUpAt = due.toISOString().slice(0, 10);
     p.updatedAt = ts;
+    writeProspects(prospects);
+    return p;
+  }
+
+  // Undo a touch (the admin unticked a box in the Outreach tab). Removes the most recent entry
+  // for that channel — or the most recent follow-up when channel is 'follow-up'.
+  function unlogOutreach(id, channel) {
+    const prospects = readProspects();
+    const p = prospects.find((x) => x.id === id);
+    if (!p) return null;
+    let idx = -1;
+    for (let i = p.outreach.length - 1; i >= 0; i--) {
+      const o = p.outreach[i];
+      if (channel === 'follow-up' ? o.followUp : o.channel === channel) { idx = i; break; }
+    }
+    if (idx === -1) return p;
+    p.outreach.splice(idx, 1);
+    if (p.outreach.length === 0 && p.status === 'contacted') { p.status = p.drafts ? 'drafted' : 'new'; p.nextFollowUpAt = ''; }
+    else if (p.status === 'contacted') { const last = new Date(p.outreach.at(-1).at); last.setDate(last.getDate() + config.defaults.followUpDays); p.nextFollowUpAt = last.toISOString().slice(0, 10); }
+    p.updatedAt = nowISO();
     writeProspects(prospects);
     return p;
   }
@@ -612,8 +748,9 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   }
 
   return {
-    status, startRun, readRuns, readProspects, patchProspect, deleteProspect, generateDrafts, logOutreach, findMobile, mockupSpec, previewByToken, logoFor, previewUrl,
+    status, startRun, readRuns, readProspects, patchProspect, deleteProspect, generateDrafts, logOutreach, unlogOutreach, findMobile, mockupSpec, previewByToken, logoFor, previewUrl,
     generateArt, deleteArt, artFile, artPrompt,
+    importProspects, readImports, importFile, deleteImport, IMPORT_FIELDS,
     PROSPECT_STATUSES, OUTREACH_CHANNELS,
   };
 }

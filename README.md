@@ -65,6 +65,7 @@ the contact page) POSTs to `/api/leads`. Each lead is appended to:
 | `DATA_DIR/uploads/` | advertiser banner images |
 | `DATA_DIR/prospects.json` | outbound prospects found with Clay (see *Prospecting*) |
 | `DATA_DIR/prospect-runs.json`, `prospect-excluded.json`, `logos/`, `art/` | lead-search history, businesses ruled out, cached logos, AI banner art |
+| `DATA_DIR/prospect-imports.json`, `imports/` | manual list imports and the original uploaded files |
 
 `DATA_DIR` defaults to `server/data/` locally and `/data` on Render.
 
@@ -91,7 +92,8 @@ Password-protected, single-page, no build step.
   *Stop billing* on Stripe-billed campaigns. *+ Book* on any open slot.
 - **Calendar** — month timeline of all campaigns (click a bar to edit), plus key
   dates: starts, renewals, expirations. *Renew +30d* clones a campaign.
-- **Prospecting** — outbound lead generation powered by Clay. See below.
+- **Prospecting** — outbound lead generation: Clay search or a free import of your own Google Maps list. See below.
+- **Outreach** — per-business checklist of email / text / LinkedIn / call / follow-up touches. See below.
 
 ### Campaign workflow
 
@@ -151,6 +153,34 @@ Typical cost: ~2.5–4 credits per saved lead. The run's progress and credit use
 show live in the tab; businesses already saved or ruled out are never paid for
 twice. Clay's search filters by city, not radius, so the metro list in the config
 should cover every city inside the radius you use.
+
+### Step 1 (free) · Import your own list
+
+Below the Clay controls, **Or import your own list** takes a CSV/TSV file or a
+paste from Google Maps / a spreadsheet — any columns, with or without a header row.
+Columns are auto-matched (business name, phone, website, address, email, owner,
+contact title, LinkedIn, lat/lng, rating, reviews, category, notes, logo URL, Maps
+URL) and you can fix the mapping in the preview before clicking **Import**. Rows
+become prospects (badged *Imported*) for the category/machine selected above and
+flow through exactly the same Step 2: drafts, preview page, AI art, Outreach tab.
+Duplicates (same website or name) are skipped; distance is computed when lat/lng
+are present; missing phones are read off their websites in the background; the
+logo is pulled from the business's site. Every import is kept as a record with the
+original file (`DATA_DIR/imports/`) — **View leads** filters the table to that
+import, **Open file** shows the raw upload, × removes the record (leads stay).
+API: `POST /api/prospecting/imports {categoryId, machineId, rows:[{business,…}], raw, filename}`.
+
+### Outreach tab
+
+**Outreach** is the day-to-day checklist: one row per business with tick-boxes for
+**Email · Text · LinkedIn · Call · Follow-up**, the next follow-up date and a status
+dropdown. Tick a box to log that touch (sets the follow-up reminder); untick to
+undo it (`DELETE /api/prospects/:id/outreach?channel=…`). The ↗ next to Email /
+Text / LinkedIn opens your mail app / Messages / their profile with the draft
+filled in and ticks the box for you. Any touch after the first counts as a
+follow-up. Filters: To contact · Follow-up due · In progress · Replied · Won ·
+Everything, plus category, machine and search. **Export CSV** downloads the
+current view with all tick counts.
 
 ### Step 2 · Generate outreach & send
 

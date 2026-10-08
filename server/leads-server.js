@@ -27,6 +27,8 @@
 //          GET /api/prospects   POST /api/prospects/generate   PATCH/DELETE /api/prospects/:id
 //          POST /api/prospects/:id/outreach|find-mobile        GET /api/prospects/:id/logo
 //          POST /api/prospects/:id/art   GET/DELETE /api/prospects/:id/art/:variantId
+//          GET/POST /api/prospecting/imports   GET /api/prospecting/imports/:id/file   DELETE /api/prospecting/imports/:id
+//          DELETE /api/prospects/:id/outreach?channel=   (undo a logged touch)
 
 const http = require('http');
 const fs = require('fs');
@@ -722,6 +724,20 @@ async function handleProspectingRoute(req, res, p) {
   if (p === '/api/prospecting/runs' && req.method === 'POST') {
     try { const run = prospecting.startRun(await readJsonBody(req)); return sendJson(res, 202, { ok: true, run }); } catch (err) { return prospectingError(res, err); }
   }
+  if (p === '/api/prospecting/imports' && req.method === 'GET') return sendJson(res, 200, { ok: true, imports: prospecting.readImports().slice().reverse() });
+  if (p === '/api/prospecting/imports' && req.method === 'POST') {
+    try { const result = prospecting.importProspects(await readJsonBody(req)); return sendJson(res, 200, { ok: true, ...result }); } catch (err) { return prospectingError(res, err); }
+  }
+  const importMatch = p.match(/^\/api\/prospecting\/imports\/([^/]+)(?:\/(file))?$/);
+  if (importMatch) {
+    const id = decodeURIComponent(importMatch[1]);
+    if (importMatch[2] === 'file' && req.method === 'GET') {
+      const f = prospecting.importFile(id);
+      if (!f) { res.writeHead(404); return res.end('No file'); }
+      return sendFile(res, f.file, { 'Cache-Control': 'private, no-store', 'Content-Type': f.type, 'Content-Disposition': `inline; filename="${f.filename.replace(/"/g, '')}"` });
+    }
+    if (!importMatch[2] && req.method === 'DELETE') return prospecting.deleteImport(id) ? sendJson(res, 200, { ok: true }) : sendJson(res, 404, { ok: false, error: 'Import not found' });
+  }
   const runMatch = p.match(/^\/api\/prospecting\/runs\/([^/]+)$/);
   if (runMatch && req.method === 'GET') {
     const run = prospecting.readRuns().find((r) => r.id === runMatch[1]);
@@ -752,6 +768,11 @@ async function handleProspectingRoute(req, res, p) {
     if (!action && req.method === 'DELETE') return prospecting.deleteProspect(id) ? sendJson(res, 200, { ok: true }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
     if (action === 'outreach' && req.method === 'POST') {
       const updated = prospecting.logOutreach(id, await readJsonBody(req));
+      return updated ? sendJson(res, 200, { ok: true, prospect: updated }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
+    }
+    if (action === 'outreach' && req.method === 'DELETE') {
+      const channel = clean(new URL(req.url, 'http://localhost').searchParams.get('channel'), 20);
+      const updated = prospecting.unlogOutreach(id, channel);
       return updated ? sendJson(res, 200, { ok: true, prospect: updated }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
     }
     if (action === 'find-mobile' && req.method === 'POST') {
