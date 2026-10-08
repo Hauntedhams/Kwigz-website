@@ -44,5 +44,16 @@ window.KWIGZ_ADS = {
       // Category ids currently occupied by an active campaign:
       takenCategories: [],
     },
+    {
+      id: 'cousins-wappapello',
+      name: 'Cousins Bar & Grill',
+      city: 'Wappapello, MO',
+      venueType: 'lakeside bar & grill',
+      address: '38 Wayne 521A, Wappapello, MO 63966',
+      lat: 36.927,
+      lng: -90.285,
+      adHoursPerDay: 14,          // 11 AM – 1 AM (estimate — adjust to the bar's hours)
+      takenCategories: [],
+    },
   ],
 };

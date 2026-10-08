@@ -163,7 +163,13 @@ contact title, LinkedIn, lat/lng, rating, reviews, category, notes, logo URL, Ma
 URL) and you can fix the mapping in the preview before clicking **Import**. Rows
 become prospects (badged *Imported*) for the category/machine selected above and
 flow through exactly the same Step 2: drafts, preview page, AI art, Outreach tab.
-Duplicates (same website or name) are skipped; distance is computed when lat/lng
+Businesses already in your list (matched by website domain, or by name ignoring
+"LLC / PLLC / The / Law Firm"…) are **merged, not duplicated**: every blank on the
+existing lead is filled from the new row — phone, website, address, lat/lng,
+rating, logo, company LinkedIn — and the contact's email / LinkedIn / title are
+filled or a new contact is added. Existing values are never overwritten. The
+import record reports `imported` (new), `merged` (filled in) and what was filled
+(`mergedFields`). Distance is computed when lat/lng
 are present; missing phones are read off their websites in the background; the
 logo is pulled from the business's site. Every import is kept as a record with the
 original file (`DATA_DIR/imports/`) — **View leads** filters the table to that
@@ -181,6 +187,20 @@ filled in and ticks the box for you. Any touch after the first counts as a
 follow-up. Filters: To contact · Follow-up due · In progress · Replied · Won ·
 Everything, plus category, machine and search. **Export CSV** downloads the
 current view with all tick counts.
+
+### Machines tab (drag & drop booking)
+
+**Machines** shows every machine in `ads-config.js` as a card: revenue/month
+(live + booked), units sold of `maxUnits`, what's playing now vs. booked-not-live,
+the rotation loop, and which categories are still open. On the right is the pile of
+**leads ready to place** (Replied / Won prospects not yet on a machine; switch to
+*All leads* to place anyone). **Drag a lead onto a machine** → a campaign is created
+at the budget chosen in the header (start = today + `approvalDays`, 30 days), the
+prospect is marked Won and linked (`campaign.prospectId` / `prospect.campaignId`).
+The card refuses a drop if that category is already taken on that machine or the
+units don't fit. **Drag a booked advertiser** onto another machine to move it, or
+onto the *remove* zone to cancel it (Stripe billing is stopped; the prospect goes
+back to Replied and reappears in the pile). **Edit** opens the normal campaign form.
 
 ### Step 2 · Generate outreach & send
 

@@ -350,7 +350,7 @@ function handleLeadPatch(req, res, id) {
 function normalizeCampaign(input, existing = {}) {
   const c = { ...existing };
   const str = (k, max = 200) => { if (input[k] !== undefined) c[k] = clean(input[k], max); };
-  ['machineId', 'categoryId', 'business', 'contactName', 'email', 'phone', 'website', 'bannerFile', 'leadId'].forEach((k) => str(k));
+  ['machineId', 'categoryId', 'business', 'contactName', 'email', 'phone', 'website', 'bannerFile', 'leadId', 'prospectId'].forEach((k) => str(k));
   str('notes', 2000);
   if (input.budget !== undefined) c.budget = Number(input.budget) || 0;
   if (input.units !== undefined) c.units = Number(input.units) || 0;
@@ -418,6 +418,7 @@ async function handleCampaignPost(req, res) {
       meta[c.leadId] = { ...(meta[c.leadId] || {}), status: 'won', updatedAt: c.createdAt };
       writeJson(LEAD_META_FILE, meta);
     }
+    if (c.prospectId) prospecting.linkCampaign(c.prospectId, c.id);
     sendJson(res, 201, { ok: true, campaign: c });
   } catch (err) {
     sendJson(res, 400, { ok: false, error: err.message });
@@ -448,6 +449,9 @@ async function handleCampaignPatch(req, res, id) {
     }
     campaigns[idx] = c;
     writeJson(CAMPAIGNS_FILE, campaigns);
+    // Dragged off the machine board (cancelled) → the prospect goes back to "replied" so it can be re-placed.
+    if (c.prospectId && c.status === 'cancelled' && closing) prospecting.unlinkCampaign(c.prospectId, c.id);
+    else if (c.prospectId && ['pending', 'active'].includes(c.status)) prospecting.linkCampaign(c.prospectId, c.id);
     sendJson(res, 200, { ok: true, campaign: c });
   } catch (err) {
     sendJson(res, 400, { ok: false, error: err.message });
@@ -456,9 +460,10 @@ async function handleCampaignPatch(req, res, id) {
 
 function handleCampaignDelete(res, id) {
   const campaigns = readCampaigns();
-  const next = campaigns.filter((c) => c.id !== id);
-  if (next.length === campaigns.length) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
-  writeJson(CAMPAIGNS_FILE, next);
+  const gone = campaigns.find((c) => c.id === id);
+  if (!gone) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
+  writeJson(CAMPAIGNS_FILE, campaigns.filter((c) => c.id !== id));
+  if (gone.prospectId) prospecting.unlinkCampaign(gone.prospectId, id);
   sendJson(res, 200, { ok: true });
 }
 

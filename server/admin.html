@@ -247,6 +247,45 @@
     .outreach-tbl tr.is-due td { background: rgba(245,158,11,0.06); }
     .outreach-tbl td.who button { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; text-align: left; }
     .outreach-tbl td.who button:hover { color: var(--red); }
+    /* machine board */
+    .board { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start; }
+    .board-machines { display: grid; gap: 20px; }
+    .machine-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; transition: box-shadow .15s, border-color .15s; }
+    .machine-card.over { border-color: var(--green); box-shadow: 0 0 0 3px rgba(21,128,61,0.18); }
+    .machine-card.over.bad { border-color: var(--red); box-shadow: 0 0 0 3px rgba(220,38,38,0.18); }
+    .machine-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+    .machine-head h2 { margin: 0; font-size: 1.05rem; }
+    .machine-head .t { color: var(--muted); font-size: 0.8rem; }
+    .machine-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin: 14px 0; }
+    .machine-stats .ms { background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+    .machine-stats .ms .l { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 800; }
+    .machine-stats .ms .v { font-size: 1.15rem; font-weight: 800; }
+    .machine-stats .ms .h { font-size: 0.7rem; color: var(--muted); }
+    .slot-bar { height: 10px; border-radius: 5px; background: var(--bg); overflow: hidden; display: flex; margin: 4px 0 12px; }
+    .slot-bar span { height: 100%; }
+    .slot-bar .live { background: var(--green); }
+    .slot-bar .pend { background: #f59e0b; }
+    .rotation { display: grid; gap: 8px; }
+    .rotation h4 { margin: 0; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); font-weight: 800; }
+    .adv-chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; background: #fff; cursor: grab; font-size: 0.82rem; }
+    .adv-chip:active { cursor: grabbing; }
+    .adv-chip.dragging { opacity: 0.4; }
+    .adv-chip .ico { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--bg); flex: none; }
+    .adv-chip .ico svg { width: 16px; height: 16px; }
+    .adv-chip .meta { flex: 1; min-width: 0; }
+    .adv-chip .meta b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .adv-chip .meta span { color: var(--muted); font-size: 0.74rem; }
+    .adv-chip .amt { font-weight: 800; white-space: nowrap; }
+    .empty-slot { border: 1px dashed var(--line); border-radius: 12px; padding: 12px; color: var(--muted); font-size: 0.8rem; text-align: center; }
+    .lead-pile { display: grid; gap: 8px; max-height: 70vh; overflow: auto; }
+    .lead-card { border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; background: #fff; cursor: grab; font-size: 0.82rem; }
+    .lead-card:active { cursor: grabbing; }
+    .lead-card.dragging { opacity: 0.4; }
+    .lead-card b { display: block; }
+    .lead-card span { color: var(--muted); font-size: 0.74rem; }
+    .drop-remove { margin-top: 14px; border: 2px dashed var(--line); border-radius: 14px; padding: 18px; text-align: center; color: var(--muted); font-size: 0.8rem; transition: all .15s; }
+    .drop-remove.over { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+    @media (max-width: 1100px) { .board { grid-template-columns: 1fr; } }
     .contact-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; font-size: 0.84rem; }
     .contact-card + .contact-card { margin-top: 8px; }
     .contact-card .ttl { color: var(--muted); font-size: 0.76rem; }
@@ -301,6 +340,7 @@
     <button class="nav-btn" data-tab="calendar"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg> Calendar</button>
     <button class="nav-btn" data-tab="prospecting"><svg class="site-icon"><use href="/icons.svg#sparkles"/></svg> Prospecting <span class="count" id="navProspectCount">0</span></button>
     <button class="nav-btn" data-tab="outreach"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Outreach <span class="count" id="navOutreachCount">0</span></button>
+    <button class="nav-btn" data-tab="machines"><svg class="site-icon"><use href="/icons.svg#store"/></svg> Machines <span class="count" id="navMachineCount">0</span></button>
     <div class="side-foot">
       <button class="nav-btn" id="refreshBtn"><svg class="site-icon"><use href="/icons.svg#refresh"/></svg> Refresh</button>
       <a class="nav-btn" href="/" target="_blank" rel="noopener" style="text-decoration:none;"><svg class="site-icon"><use href="/icons.svg#store"/></svg> View site</a>
@@ -462,6 +502,30 @@
           </table>
         </div>
         <div class="empty" id="outreachEmpty" hidden></div>
+      </div>
+    </section>
+
+    <!-- MACHINES -->
+    <section data-panel="machines" hidden>
+      <div class="page-head">
+        <div><h1>Machines</h1><p>Drag a lead onto a machine to book their slot. Drag a booked advertiser off (or onto another machine) to move it. Numbers update live.</p></div>
+        <div class="head-actions"><label class="check" style="margin:0;">New placements at <select class="inline" id="placeBudget"></select></label></div>
+      </div>
+      <div class="board">
+        <div class="board-machines" id="machineBoard"></div>
+        <aside class="board-side">
+          <div class="card">
+            <h2>Leads ready to place <span class="sub">drag onto a machine</span></h2>
+            <div class="chips" style="margin-bottom:10px;">
+              <button class="chip active" data-bfilter="yes">Said yes</button>
+              <button class="chip" data-bfilter="all">All leads</button>
+              <select class="inline" id="boardCategory"><option value="">All categories</option></select>
+              <input class="inline search" id="boardSearch" type="search" placeholder="Search…" />
+            </div>
+            <div id="boardLeads" class="lead-pile"></div>
+          </div>
+          <div class="drop-remove" id="dropRemove">Drop a booked advertiser here to take them off the machine</div>
+        </aside>
       </div>
     </section>
 
@@ -675,7 +739,7 @@
     $('#navLeadCount').textContent = leads.filter((l) => l.status === 'new').length;
     $('#navCampCount').textContent = campaigns.filter(isLive).length;
     $('#navProspectCount').textContent = prospects.filter((p) => ['new', 'drafted'].includes(p.status) || followUpDue(p)).length;
-    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting(); renderOutreach();
+    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting(); renderOutreach(); renderMachines();
   }
 
   // ---------- tabs ----------
@@ -1099,7 +1163,7 @@
       else if (pStatus === 'lost') { if (!['lost', 'skipped'].includes(p.status)) return false; }
       else if (pStatus && p.status !== pStatus) return false;
       if (pCategory && p.categoryId !== pCategory) return false;
-      if (pImport) { if (p.importId !== pImport) return false; }
+      if (pImport) { const im = (prospecting.imports || []).find((x) => x.id === pImport); if (p.importId !== pImport && !(im?.mergedIds || []).includes(p.id)) return false; }
       else if (pSource === 'import' && p.source !== 'import') return false;
       else if (pSource === 'clay' && p.source === 'import') return false;
       if (pQuery && !`${p.business} ${p.city} ${p.domain} ${(p.contacts || []).map((c) => `${c.name} ${c.title} ${c.email}`).join(' ')}`.toLowerCase().includes(pQuery)) return false;
@@ -1354,7 +1418,7 @@
     const ok = mapping.includes('business');
     $('#importBtn').disabled = !ok;
     const cat = catById($('#genCategory').value), m = machineById($('#genMachine').value);
-    $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name}. Duplicates (same website or name) are skipped.` : 'Pick which column is the business name.';
+    $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name}. Businesses already in your list (same website or name) aren't duplicated — their blanks get filled in from this file.` : 'Pick which column is the business name.';
     $('#importBtn').textContent = ok ? `Import ${rows.length} business${rows.length === 1 ? '' : 'es'}` : 'Import';
   }
   $('#importText').addEventListener('input', (e) => prepareImport(e.target.value));
@@ -1380,7 +1444,8 @@
     $('#importBtn').disabled = true; $('#importBtn').textContent = 'Importing…';
     try {
       const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ categoryId: $('#genCategory').value, machineId: $('#genMachine').value, rows: objs, raw, filename }) });
-      toast(`${r.import.imported} imported${r.import.duplicates ? ` · ${r.import.duplicates} already in list` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
+      const mf = r.import.mergedFields || {}; const mfTxt = Object.entries(mf).map(([k, v]) => `${v} ${k}`).slice(0, 4).join(', ');
+      toast(`${r.import.imported} new${r.import.merged ? ` · ${r.import.merged} existing lead${r.import.merged === 1 ? '' : 's'} filled in${mfTxt ? ` (${mfTxt})` : ''}` : ''}${r.import.duplicates ? ` · ${r.import.duplicates} already complete` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
       $('#importText').value = ''; $('#importPreview').hidden = true; importParsed = null; $('#importBtn').textContent = 'Import'; $('#importHint').textContent = '';
       pStatus = 'new'; pSource = ''; pImport = r.import.id; pCategory = ''; $('#prospectCategory').value = ''; $('#prospectSource').value = '';
       $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'new'));
@@ -1392,7 +1457,7 @@
     const list = prospecting.imports || [];
     $('#importList').innerHTML = list.slice(0, 8).map((im) => `<div class="import-item">
         <span class="badge ${pImport === im.id ? 'purple' : ''}">${esc(catById(im.categoryId).label)}</span>
-        <span class="sp"><b>${esc(im.filename)}</b> <span class="t">· ${im.imported} imported${im.duplicates ? `, ${im.duplicates} dup` : ''}${im.phonesLookedUp ? `, ${im.phonesLookedUp} phones found` : ''} · ${esc(machineById(im.machineId).name)} · ${timeAgo(im.importedAt)}</span></span>
+        <span class="sp"><b>${esc(im.filename)}</b> <span class="t">· ${im.imported} new${im.merged ? `, ${im.merged} filled in` : ''}${im.duplicates ? `, ${im.duplicates} dup` : ''}${im.phonesLookedUp ? `, ${im.phonesLookedUp} phones found` : ''} · ${esc(machineById(im.machineId).name)} · ${timeAgo(im.importedAt)}</span></span>
         <button class="btn btn-sm ${pImport === im.id ? 'btn-primary' : ''}" data-import="${esc(im.id)}" data-ia="view">${pImport === im.id ? 'Showing' : 'View leads'}</button>
         ${im.file ? `<button class="btn btn-sm" data-import="${esc(im.id)}" data-ia="file">Open file</button>` : ''}
         <button class="btn btn-sm btn-danger" data-import="${esc(im.id)}" data-ia="delete" title="Removes the import record and file. Leads stay.">×</button>
@@ -1485,6 +1550,126 @@
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     Object.assign(document.createElement('a'), { href: url, download: `kwigz-outreach-${todayISO}.csv` }).click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
+
+  // ---------- machines board (drag & drop) ----------
+  let bFilter = 'yes', bCategory = '', bQuery = '', dragPayload = null;
+  const campaignsOn = (m) => campaigns.filter((c) => c.machineId === m.id && isLive(c));
+  const liveNow = (c) => c.status === 'active' && c.start <= todayISO;
+  function renderMachines() {
+    if (!$('#placeBudget').options.length) {
+      $('#placeBudget').innerHTML = ADS.budgets.map((b) => `<option value="${b.amount}">${money(b.amount)}/mo · ${b.units} unit${b.units === 1 ? '' : 's'}</option>`).join('');
+      $('#boardCategory').innerHTML = `<option value="">All categories</option>${ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}`;
+    }
+    const openTotal = ADS.machines.reduce((s, m) => s + Math.max(0, ADS.maxUnits - campaignsOn(m).reduce((u, c) => u + (Number(c.units) || 0), 0)), 0);
+    $('#navMachineCount').textContent = openTotal;
+    $('#machineBoard').innerHTML = ADS.machines.map((m) => {
+      const live = campaignsOn(m);
+      const active = live.filter(liveNow), pending = live.filter((c) => !liveNow(c));
+      const units = (list) => list.reduce((s, c) => s + (Number(c.units) || 0), 0);
+      const used = units(live), open = Math.max(0, ADS.maxUnits - used);
+      const mrr = active.reduce((s, c) => s + (Number(c.budget) || 0), 0), booked = live.reduce((s, c) => s + (Number(c.budget) || 0), 0);
+      const taken = new Set(live.map((c) => c.categoryId));
+      const openCats = ADS.categories.filter((c) => c.id !== 'other' && !taken.has(c.id));
+      const loopSec = ADS.maxUnits * ADS.bannerSeconds;
+      const chip = (c) => `<div class="adv-chip" draggable="true" data-drag-campaign="${esc(c.id)}" title="Drag to another machine or to the remove zone">
+          <div class="ico"><svg class="site-icon"><use href="/icons.svg#${esc(catById(c.categoryId).icon)}"/></svg></div>
+          <div class="meta"><b>${esc(c.business)}</b><span>${esc(catById(c.categoryId).label)} · ${fmtN(c.estPlays || quotedPlays(m, c.units))} plays/mo · ${liveNow(c) ? `live until ${fmtDate(c.end)}` : `starts ${fmtDate(c.start)}`}${c.paymentStatus !== 'paid' ? ` · <span style="color:var(--amber);font-weight:700;">${esc(c.paymentStatus)}</span>` : ''}${c.creativeStatus !== 'approved' ? ` · creative ${esc(c.creativeStatus)}` : ''}</span></div>
+          <div class="amt">${money(c.budget)}<div style="font-size:0.66rem;color:var(--muted);font-weight:600;">${c.units}u</div></div>
+          <button class="btn btn-sm" data-edit-campaign="${esc(c.id)}">Edit</button>
+        </div>`;
+      return `<div class="machine-card" data-drop-machine="${esc(m.id)}">
+        <div class="machine-head"><div><h2>${esc(m.name)}</h2><div class="t">${esc(m.address || m.city)}${m.venueType ? ` · ${esc(m.venueType)}` : ''} · ads ${m.adHoursPerDay} h/day</div></div>
+          <span class="badge ${open > 0 ? 'green' : 'red'}">${open > 0 ? `${open} of ${ADS.maxUnits} units open` : 'Fully booked'}</span></div>
+        <div class="slot-bar"><span class="live" style="width:${units(active) / ADS.maxUnits * 100}%"></span><span class="pend" style="width:${units(pending) / ADS.maxUnits * 100}%"></span></div>
+        <div class="machine-stats">
+          <div class="ms"><div class="l">Revenue / mo</div><div class="v">${money(mrr)}</div><div class="h">${money(booked)} incl. pending</div></div>
+          <div class="ms"><div class="l">Slots</div><div class="v">${used} / ${ADS.maxUnits}</div><div class="h">${active.length} live · ${pending.length} starting</div></div>
+          <div class="ms"><div class="l">Rotation</div><div class="v">${active.length} ad${active.length === 1 ? '' : 's'}</div><div class="h">${ADS.bannerSeconds}s each · ${loopSec}s loop</div></div>
+          <div class="ms"><div class="l">Open categories</div><div class="v">${openCats.length}</div><div class="h" title="${esc(openCats.map((c) => c.label).join(', '))}">${esc(openCats.slice(0, 3).map((c) => c.label).join(', '))}${openCats.length > 3 ? '…' : ''}</div></div>
+        </div>
+        <div class="rotation">
+          ${active.length ? `<h4>Playing now</h4>${active.map(chip).join('')}` : ''}
+          ${pending.length ? `<h4>Booked · not live yet</h4>${pending.map(chip).join('')}` : ''}
+          ${open > 0 ? `<div class="empty-slot">Drop a lead here → books ${$('#placeBudget').selectedOptions[0]?.textContent || '$200/mo'} starting ${fmtDate(addDays(todayISO, ADS.approvalDays))}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+    const pile = prospects.filter((p) => {
+      if (p.campaignId && campaigns.some((c) => c.id === p.campaignId && isLive(c))) return false;
+      if (bFilter === 'yes' ? !['replied', 'won'].includes(p.status) : ['lost', 'skipped'].includes(p.status)) return false;
+      if (bCategory && p.categoryId !== bCategory) return false;
+      if (bQuery && !`${p.business} ${(p.contacts || []).map((c) => c.name).join(' ')}`.toLowerCase().includes(bQuery)) return false;
+      return true;
+    }).sort((a, b) => (b.status === 'won') - (a.status === 'won') || (b.status === 'replied') - (a.status === 'replied') || b.updatedAt.localeCompare(a.updatedAt));
+    $('#boardLeads').innerHTML = pile.length ? pile.map((p) => { const c = primaryContact(p); return `<div class="lead-card" draggable="true" data-drag-lead="${esc(p.id)}" data-pa="goto" data-pid="${esc(p.id)}" title="Drag onto a machine · click to open"><b>${esc(p.business)}</b><span><span class="badge ${P_STATUS_COLOR[p.status] || ''}" style="font-size:0.6rem;padding:1px 6px;">${P_STATUS_LABEL[p.status]}</span> ${esc(catById(p.categoryId).label)}${c ? ` · ${esc(c.name)}` : ''} · found for ${esc(machineById(p.machineId).name)}</span></div>`; }).join('')
+      : `<div class="empty">${bFilter === 'yes' ? 'No leads marked Replied or Won yet. Switch to “All leads” to place anyone.' : 'No leads match.'}</div>`;
+  }
+  $$('[data-bfilter]').forEach((b) => b.addEventListener('click', () => { bFilter = b.dataset.bfilter; $$('[data-bfilter]').forEach((x) => x.classList.toggle('active', x === b)); renderMachines(); }));
+  $('#boardCategory').addEventListener('change', (e) => { bCategory = e.target.value; renderMachines(); });
+  $('#boardSearch').addEventListener('input', (e) => { bQuery = e.target.value.trim().toLowerCase(); renderMachines(); });
+  $('#placeBudget').addEventListener('change', renderMachines);
+
+  document.addEventListener('dragstart', (e) => {
+    const lead = e.target.closest?.('[data-drag-lead]'), camp = e.target.closest?.('[data-drag-campaign]');
+    if (!lead && !camp) return;
+    dragPayload = lead ? { type: 'lead', id: lead.dataset.dragLead } : { type: 'campaign', id: camp.dataset.dragCampaign };
+    e.dataTransfer.setData('text/plain', JSON.stringify(dragPayload));
+    e.dataTransfer.effectAllowed = 'move';
+    (lead || camp).classList.add('dragging');
+  });
+  document.addEventListener('dragend', () => { dragPayload = null; $$('.dragging').forEach((x) => x.classList.remove('dragging')); $$('.over').forEach((x) => x.classList.remove('over', 'bad')); });
+  const conflictFor = (machineId, categoryId, exceptId) => campaigns.find((c) => c.machineId === machineId && c.categoryId === categoryId && c.id !== exceptId && isLive(c));
+  document.addEventListener('dragover', (e) => {
+    const zone = e.target.closest?.('[data-drop-machine], #dropRemove');
+    if (!zone || !dragPayload) return;
+    if (zone.id === 'dropRemove' && dragPayload.type !== 'campaign') return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    $$('.over').forEach((x) => x !== zone && x.classList.remove('over', 'bad'));
+    zone.classList.add('over');
+    if (zone.dataset.dropMachine) {
+      const cat = dragPayload.type === 'lead' ? prospects.find((p) => p.id === dragPayload.id)?.categoryId : campaigns.find((c) => c.id === dragPayload.id)?.categoryId;
+      zone.classList.toggle('bad', Boolean(conflictFor(zone.dataset.dropMachine, cat, dragPayload.type === 'campaign' ? dragPayload.id : null)));
+    }
+  });
+  document.addEventListener('dragleave', (e) => { const zone = e.target.closest?.('[data-drop-machine], #dropRemove'); if (zone && !zone.contains(e.relatedTarget)) zone.classList.remove('over', 'bad'); });
+  document.addEventListener('drop', async (e) => {
+    const zone = e.target.closest?.('[data-drop-machine], #dropRemove');
+    if (!zone) return;
+    e.preventDefault();
+    let payload = dragPayload; try { payload = payload || JSON.parse(e.dataTransfer.getData('text/plain')); } catch {}
+    $$('.over').forEach((x) => x.classList.remove('over', 'bad'));
+    if (!payload) return;
+    try {
+      if (zone.id === 'dropRemove') {
+        if (payload.type !== 'campaign') return;
+        const c = campaigns.find((x) => x.id === payload.id); if (!c) return;
+        if (c.paymentStatus === 'paid' && !confirm(`${c.business} has paid for this slot. Cancel the campaign and stop billing?`)) return;
+        await api(`/api/campaigns/${c.id}`, { method: 'PATCH', body: JSON.stringify({ status: 'cancelled' }) });
+        toast(`${c.business} removed from ${machineById(c.machineId).name}`);
+        await load(); return;
+      }
+      const machineId = zone.dataset.dropMachine; const m = machineById(machineId);
+      if (payload.type === 'campaign') {
+        const c = campaigns.find((x) => x.id === payload.id); if (!c || c.machineId === machineId) return;
+        if (conflictFor(machineId, c.categoryId, c.id)) return toast(`${m.name} already has a ${catById(c.categoryId).label} advertiser`);
+        await api(`/api/campaigns/${c.id}`, { method: 'PATCH', body: JSON.stringify({ machineId, estPlays: Math.round(quotedPlays(m, c.units)) }) });
+        toast(`${c.business} moved to ${m.name}`); await load(); return;
+      }
+      const p = prospects.find((x) => x.id === payload.id); if (!p) return;
+      const clash = conflictFor(machineId, p.categoryId, null);
+      if (clash) return toast(`${m.name} already has a ${catById(p.categoryId).label} advertiser (${clash.business}) — remove them first or pick another machine`);
+      const used = campaignsOn(m).reduce((s, c) => s + (Number(c.units) || 0), 0);
+      const budget = Number($('#placeBudget').value) || ADS.budgets[0].amount;
+      const b = budgetByAmount(budget) || ADS.budgets[0];
+      if (used + b.units > ADS.maxUnits) return toast(`${m.name} only has ${ADS.maxUnits - used} unit${ADS.maxUnits - used === 1 ? '' : 's'} open`);
+      const c = primaryContact(p);
+      const start = addDays(todayISO, ADS.approvalDays);
+      const { campaign } = await api('/api/campaigns', { method: 'POST', body: JSON.stringify({ machineId, categoryId: p.categoryId, business: p.business, contactName: c?.name || '', email: c?.email || '', phone: p.phone || c?.mobile || '', website: p.website || '', budget, start, end: addDays(start, ADS.campaignDays - 1), prospectId: p.id, notes: `Placed from the Machines board · ${p.id}` }) });
+      toast(`${p.business} booked on ${m.name} · ${money(campaign.budget)}/mo · starts ${fmtDate(campaign.start)}`);
+      await load();
+    } catch (err) { toast(err.message); }
   });
 
   document.addEventListener('click', async (e) => {

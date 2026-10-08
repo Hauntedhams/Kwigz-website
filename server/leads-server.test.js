@@ -522,7 +522,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
     assert.equal(art.data.prospect.art.selected, art.data.made[0]);
     assert.equal(art.data.prospect.art.variants[0].model, 'gemini-nano-banana-2.1', 'unavailable configured model falls back to the default');
     assert.match(art.data.prospect.art.prompt, /for a DUI \/ Criminal Defense business called "Nova Law Group" in Phoenix/);
-    assert.match(art.data.prospect.art.prompt, /Scene: a dim Phoenix city street/);
+    assert.match(art.data.prospect.art.prompt, /in Phoenix, AZ\.\nScene: a dim city street/);
     assert.match(art.data.prospect.art.prompt, /gold accents/);
     const geminiCall = clay.calls.find((c) => c.path === '/v1beta/interactions' && !/missing/.test(c.body.model));
     assert.equal(geminiCall.body.response_format.aspect_ratio, '21:9');
@@ -646,7 +646,7 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     assert.equal((await call('POST', '/api/prospecting/imports', { categoryId: 'dui', machineId: 'nope', rows })).status, 400);
     const imp = await call('POST', '/api/prospecting/imports', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', rows, raw, filename: 'maps export.tsv', findPhones: false });
     assert.equal(imp.status, 200, JSON.stringify(imp.data));
-    assert.deepEqual({ imported: imp.data.import.imported, duplicates: imp.data.import.duplicates, skipped: imp.data.import.skipped }, { imported: 2, duplicates: 1, skipped: 1 });
+    assert.deepEqual({ imported: imp.data.import.imported, merged: imp.data.import.merged, duplicates: imp.data.import.duplicates, skipped: imp.data.import.skipped }, { imported: 2, merged: 0, duplicates: 1, skipped: 1 }, 'same-file duplicate with nothing new is counted, not re-added');
     const suzuki = imp.data.prospects.find((p) => p.domain === 'suzukilawoffices.com');
     assert.equal(suzuki.source, 'import');
     assert.equal(suzuki.phone, '(602) 682-5270');
@@ -701,6 +701,44 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     assert.equal((await call('DELETE', `/api/prospecting/imports/${imp.data.import.id}`)).status, 200);
     assert.equal((await fetch(`${instance.base}/api/prospecting/imports/${imp.data.import.id}/file`, { headers: auth })).status, 404);
     assert.equal((await call('GET', '/api/prospects')).data.count, 2, 'deleting the import record keeps the leads');
+
+    // A later bulk list containing the same firms fills in blanks instead of duplicating them.
+    const bulk = await call('POST', '/api/prospecting/imports', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', findPhones: false, rows: [
+      { business: 'Nova Law Group, PLLC', phone: '602-555-0142', contactName: 'Ryan Tait', contactTitle: 'Founding Partner', linkedinUrl: 'https://www.linkedin.com/in/r-t-10789514/', rating: '4.7', lat: '33.508479', lng: '-111.98475' },
+      { business: 'SUZUKI LAW OFFICES', website: 'https://suzukilawoffices.com', phone: '(480) 000-0000', linkedinUrl: 'https://www.linkedin.com/in/richard-suzuki/', email: 'other@suzukilawoffices.com', companyLinkedin: 'https://www.linkedin.com/company/suzuki-law' },
+      { business: 'Brand New Firm', website: 'brandnew.example' },
+    ] });
+    assert.equal(bulk.status, 200, JSON.stringify(bulk.data));
+    assert.deepEqual({ imported: bulk.data.import.imported, merged: bulk.data.import.merged, duplicates: bulk.data.import.duplicates }, { imported: 1, merged: 2, duplicates: 0 });
+    assert.equal((await call('GET', '/api/prospects')).data.count, 3, 'no duplicates created');
+    const novaMerged = bulk.data.merged.find((p) => p.domain === 'novalawaz.com');
+    assert.equal(novaMerged.phone, '(602) 555-0142', 'blank phone filled');
+    assert.equal(novaMerged.contacts[0].name, 'Ryan Tait');
+    assert.equal(novaMerged.contacts[0].linkedinUrl, 'https://www.linkedin.com/in/r-t-10789514/');
+    assert.equal(novaMerged.rating, 4.7);
+    assert.equal(novaMerged.distanceMiles, 2.7, 'location filled → distance computed');
+    const suzMerged = bulk.data.merged.find((p) => p.domain === 'suzukilawoffices.com');
+    assert.equal(suzMerged.phone, '(602) 682-5270', 'existing phone is never overwritten');
+    assert.equal(suzMerged.contacts[0].email, 'rj@suzukilawoffices.com', 'existing email kept');
+    assert.equal(suzMerged.contacts[0].linkedinUrl, 'https://www.linkedin.com/in/richard-suzuki/', 'LinkedIn added to the existing contact (matched by LinkedIn URL)');
+    assert.equal(suzMerged.linkedinUrl, 'https://www.linkedin.com/company/suzuki-law');
+    assert.deepEqual(bulk.data.import.mergedFields, { phone: 1, rating: 1, location: 1, contact: 1, linkedin: 1, companyLinkedin: 1 });
+
+    // Machines board: dropping a lead on a machine books a campaign and marks the prospect won; dragging it off un-wins it.
+    const booked = await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: suzMerged.business, budget: 200, start: '2030-01-10', end: '2030-02-08', prospectId: suzMerged.id });
+    assert.equal(booked.status, 201, JSON.stringify(booked.data));
+    assert.equal(booked.data.campaign.prospectId, suzMerged.id);
+    let s3 = (await call('GET', '/api/prospects')).data.prospects.find((p) => p.id === suzMerged.id);
+    assert.equal(s3.status, 'won');
+    assert.equal(s3.campaignId, booked.data.campaign.id);
+    assert.equal((await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: 'Nova', budget: 200, start: '2030-01-20', end: '2030-02-01', prospectId: novaMerged.id })).status, 409, 'one advertiser per category per machine');
+    const moved = await call('PATCH', `/api/campaigns/${booked.data.campaign.id}`, { machineId: 'chopper-johns-phoenix' });
+    assert.equal(moved.status, 200);
+    const off = await call('PATCH', `/api/campaigns/${booked.data.campaign.id}`, { status: 'cancelled' });
+    assert.equal(off.status, 200);
+    s3 = (await call('GET', '/api/prospects')).data.prospects.find((p) => p.id === suzMerged.id);
+    assert.equal(s3.status, 'replied', 'dragged off the board → back to replied');
+    assert.equal(s3.campaignId, '');
   } finally {
     if (instance) await stop(instance.child);
     await fake.close();

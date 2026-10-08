@@ -42,7 +42,7 @@ module.exports = {
     imageSize: '1K',
     maxVariants: 6,        // per lead, oldest kept; extra generations replace nothing — admin deletes
     prompt: [
-      'Create a premium advertising background for a {{category}} business called "{{business}}" in {{city}}, Arizona.',
+      'Create a premium advertising background for a {{category}} business called "{{business}}" in {{city}}.',
       'Scene: {{scene}}',
       'Composition: wide cinematic 21:9 banner. Keep the LEFT 60% of the frame dark, simple and low-detail so white text stays readable there; put the visual interest on the right third.',
       'Style: photoreal, moody, high-end, shallow depth of field, rich contrast, no clutter.',
@@ -58,6 +58,10 @@ module.exports = {
     'chopper-johns-phoenix': {
       state: 'Arizona',
       cities: ['Phoenix', 'Scottsdale', 'Tempe', 'Mesa', 'Chandler', 'Gilbert', 'Glendale', 'Peoria', 'Paradise Valley', 'Avondale', 'Tolleson', 'Fountain Hills'],
+    },
+    'cousins-wappapello': {
+      state: 'Missouri',
+      cities: ['Wappapello', 'Poplar Bluff', 'Dexter', 'Piedmont', 'Greenville', 'Puxico', 'Bloomfield', 'Williamsville', 'Van Buren', 'Doniphan', 'Sikeston', 'Cape Girardeau', 'Jackson', 'Kennett', 'Malden'],
     },
   },
   defaultMetro: { state: 'Arizona', cities: ['Phoenix'] },
@@ -84,7 +88,7 @@ module.exports = {
         tagline: 'DUI & Criminal Defense',
         cta: 'Arrested? Call now.',
       },
-      art: 'a dim Phoenix city street at night after the bars close, wet asphalt reflecting red and blue police light in the far distance, a confident downtown law-office skyline, calm and authoritative',
+      art: 'a dim city street at night after the bars close, wet asphalt reflecting red and blue police light in the far distance, a confident downtown law-office skyline, calm and authoritative',
     },
     injury: {
       industries: ['Law Practice', 'Legal Services'],
@@ -97,7 +101,7 @@ module.exports = {
         tagline: 'Personal Injury Attorneys',
         cta: 'Injured? Free consultation.',
       },
-      art: 'a desert highway at dusk with a motorcycle and car headlights streaking past, Phoenix skyline glowing, a sense of protection and strength, deep navy and amber tones',
+      art: 'a desert highway at dusk with a motorcycle and car headlights streaking past, a small skyline glowing, a sense of protection and strength, deep navy and amber tones',
     },
     motorcycle: {
       industries: ['Motor Vehicle Manufacturing', 'Retail Motor Vehicles', 'Vehicle Repair and Maintenance', 'Retail', 'Automotive'],
@@ -121,7 +125,7 @@ module.exports = {
         tagline: '24/7 Bail Bonds',
         cta: 'Call anytime, day or night.',
       },
-      art: 'a quiet downtown Phoenix courthouse at night with warm lights on, a 24-hour open-sign glow (no readable text), reassuring and ready, deep green and gold tones',
+      art: 'a quiet downtown courthouse at night with warm lights on, a 24-hour open-sign glow (no readable text), reassuring and ready, deep green and gold tones',
     },
     tattoo: {
       industries: ['Consumer Services', 'Retail', 'Arts and Crafts', 'Personal Care Services'],
@@ -147,7 +151,7 @@ module.exports = {
         tagline: 'Auto · Motorcycle · Home Insurance',
         cta: 'Get a free quote.',
       },
-      art: 'a protected home and motorcycle in a Phoenix suburb at golden hour, calm sky, a feeling of security and trust, teal and navy palette',
+      art: 'a protected home and motorcycle in a quiet suburb at golden hour, calm sky, a feeling of security and trust, teal and navy palette',
     },
     hvac: {
       industries: ['Building Equipment Contractors', 'Construction', 'Consumer Services', 'Repair and Maintenance', 'Facilities Services'],
@@ -155,11 +159,11 @@ module.exports = {
       sizes: ['2-10', '11-50', '51-200'],
       pitch: {
         audience: 'homeowners within a few miles of your shop',
-        hook: 'Phoenix homeowners are in this bar every night — and in July, every one of them needs an AC guy.',
+        hook: 'Local homeowners are in this bar every night — and in summer, every one of them needs an AC guy.',
         tagline: 'Air Conditioning Repair & Install',
         cta: 'Same-day service.',
       },
-      art: 'a blazing Phoenix summer sky over desert rooftops with a modern AC condenser unit, cool blue air flowing from a vent into a dark comfortable room, relief from heat',
+      art: 'a blazing summer sky over rooftops with a modern AC condenser unit, cool blue air flowing from a vent into a dark comfortable room, relief from heat',
     },
     plumbing: {
       industries: ['Building Equipment Contractors', 'Construction', 'Consumer Services', 'Repair and Maintenance'],
@@ -205,10 +209,10 @@ module.exports = {
       pitch: {
         audience: 'a 21+ nightlife crowd',
         hook: 'We put one local business per category on the screen people use every time they buy.',
-        tagline: 'Proudly serving Phoenix',
+        tagline: 'Proudly serving the neighborhood',
         cta: 'Call today.',
       },
-      art: 'a stylish Phoenix nightlife scene at dusk, warm bar lights and a desert skyline, upscale and local',
+      art: 'a stylish local nightlife scene at dusk, warm bar lights and a skyline, upscale and local',
     },
   },
 };
