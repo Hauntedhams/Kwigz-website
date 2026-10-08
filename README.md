@@ -7,6 +7,7 @@ zero-dependency Node server that captures leads and powers the admin dashboard.
 
 ```bash
 ADMIN_PASSWORD=yourpassword node server/leads-server.js
+# or: copy .env.example → .env, fill it in, then `npm run dev` (loads .env)
 # site:   http://localhost:8000
 # admin:  http://localhost:8000/admin
 ```
@@ -62,6 +63,8 @@ the contact page) POSTs to `/api/leads`. Each lead is appended to:
 | `DATA_DIR/lead-meta.json` | status (new / contacted / won / lost) + your notes per lead |
 | `DATA_DIR/campaigns.json` | advertiser campaigns created in `/admin` |
 | `DATA_DIR/uploads/` | advertiser banner images |
+| `DATA_DIR/prospects.json` | outbound prospects found with Clay (see *Prospecting*) |
+| `DATA_DIR/prospect-runs.json`, `prospect-excluded.json`, `logos/` | lead-search history, businesses ruled out, cached logos |
 
 `DATA_DIR` defaults to `server/data/` locally and `/data` on Render.
 
@@ -88,6 +91,7 @@ Password-protected, single-page, no build step.
   *Stop billing* on Stripe-billed campaigns. *+ Book* on any open slot.
 - **Calendar** — month timeline of all campaigns (click a bar to edit), plus key
   dates: starts, renewals, expirations. *Renew +30d* clones a campaign.
+- **Prospecting** — outbound lead generation powered by Clay. See below.
 
 ### Campaign workflow
 
@@ -106,6 +110,74 @@ Password-protected, single-page, no build step.
 5. Two campaigns can't hold the same category on the same machine for
    overlapping dates — the server rejects the conflicting booking. End or cancel
    the old campaign or choose non-overlapping dates.
+
+## Prospecting — "Generate leads" (Clay)
+
+The **Prospecting** tab finds local businesses to sell ad slots to, writes the
+outreach, and reminds you to follow up. It talks to Clay's Public API
+(`api.clay.com/public/v0`) directly from the server — zero npm dependencies.
+
+### Setup (once)
+
+1. Get a Clay Public API key: with the Clay CLI, `clay api-keys create --name kwigz`
+   (the key prints once), or in Clay → Settings → Account → API keys.
+2. Set `CLAY_API_KEY` on Render (the Blueprint prompts for it) or in a local `.env`
+   (see `.env.example`; `npm run dev` loads it).
+3. Make sure each machine in `ads-config.js` has `lat`/`lng`/`address` — the radius
+   filter needs them. Chopper John's is already filled in.
+
+Everything the generator does per category — Clay industries, keywords, company
+sizes, which job titles count as decision-makers, the pitch line used in the
+templates, and the metro city list — lives in `server/prospecting-config.js`.
+Outreach copy lives in `server/outreach-templates.js`. Edit both freely.
+
+### Step 1 · Generate leads
+
+Pick a category, machine, how many leads (5–20) and a radius (10–35 mi), then click
+**Generate leads**. The server:
+
+1. Searches Clay's company database for businesses headquartered in the metro
+   city list matching the category's industries/keywords/sizes (free).
+2. Runs Clay's **Enrich Company** on each candidate (0.5 credit) → street address,
+   coordinates, logo, specialties, revenue.
+3. Drops anything outside the radius of the machine, scores the rest (distance,
+   local-sized, keyword matches, website, revenue) and keeps the best N.
+4. Finds owners / partners / managers via a Clay people search (free), ranked by
+   the category's title list — up to 2 per business.
+5. Looks up the primary contact's **Work Email** (1.1 credits; optional checkbox).
+6. Reads the business phone number off their website (homepage → /contact; free).
+
+Typical cost: ~2.5–4 credits per saved lead. The run's progress and credit use
+show live in the tab; businesses already saved or ruled out are never paid for
+twice. Clay's search filters by city, not radius, so the metro list in the config
+should cover every city inside the radius you use.
+
+### Step 2 · Generate outreach & send
+
+**Generate outreach** writes, for every new lead: an email, a text, a LinkedIn
+connection note + follow-up message, follow-up versions of each, and a public
+**mockup page** (`/preview/<token>`) showing their ad composited onto the real
+machine photo (banner auto-designed from their name, specialty, phone and logo).
+Open a lead to review/edit the drafts, download the mockup PNGs, then:
+
+- **Send email** opens your mail app with to/subject/body filled in.
+- **Send text** opens Messages with the text filled in (Mac/iPhone).
+- **Copy note & open LinkedIn** copies the connection note and opens their profile —
+  LinkedIn has no messaging API, so pasting is the one manual step.
+- **Log call** records a phone call.
+
+Each of those logs the touch, flips the lead to *Contacted*, and sets a follow-up
+date (`followUpDays`, default 2). Due follow-ups appear in **Overview → Needs
+attention** and under the *Follow-up due* filter; the drafts switch to their
+follow-up versions automatically. **Won → Book campaign** opens the normal campaign
+form prefilled. **Find mobile** runs Clay's mobile lookup (~10 credits) on demand.
+
+Nothing is sent automatically: there is no email/SMS provider wired up yet, so
+every message goes out from your own accounts. The public preview pages expose
+only the business name, tagline, phone and the machine — never contact details.
+
+To develop without spending credits: `npm run fake-clay` in one terminal, then
+`CLAY_API_KEY=test-clay-key CLAY_API_BASE=http://127.0.0.1:<port> npm run dev`.
 
 ## Payments & recurring billing (Stripe)
 

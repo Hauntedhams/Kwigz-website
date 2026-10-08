@@ -6,8 +6,9 @@
   "main": "server/leads-server.js",
   "scripts": {
     "start": "node server/leads-server.js",
-    "dev": "node server/leads-server.js",
-    "check": "node --check script.js && node --check ads-config.js && node --check server/leads-server.js",
+    "dev": "node --env-file-if-exists=.env server/leads-server.js",
+    "fake-clay": "node server/fake-clay.js",
+    "check": "node --check script.js && node --check ads-config.js && node --check mockup.js && node --check server/leads-server.js && node --check server/prospecting.js && node --check server/clay.js && node --check server/prospecting-config.js && node --check server/outreach-templates.js",
     "test": "node --test server/leads-server.test.js"
   },
   "engines": {

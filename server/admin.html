@@ -187,6 +187,51 @@
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; box-shadow: 0 10px 30px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 50; }
     .toast.show { opacity: 1; }
 
+    /* ---- prospecting ---- */
+    .gen-row { display: grid; grid-template-columns: 1.3fr 1.2fr 0.7fr 0.8fr auto; gap: 12px; align-items: end; }
+    .gen-row .field label { font-size: 0.72rem; }
+    .gen-row .btn-primary { padding: 11px 18px; }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: #374151; font-weight: 600; margin-top: 12px; }
+    .check input { width: 16px; height: 16px; accent-color: var(--red); }
+    .progress { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: #fafafa; }
+    .progress .bar { height: 8px; border-radius: 50px; background: #e5e7eb; overflow: hidden; margin: 8px 0 6px; }
+    .progress .bar span { display: block; height: 100%; background: var(--red); transition: width 0.4s; }
+    .progress .step { font-weight: 700; font-size: 0.88rem; display: flex; justify-content: space-between; gap: 12px; }
+    .progress .meta { color: var(--muted); font-size: 0.76rem; }
+    .progress.failed { border-color: var(--red-border); background: var(--red-soft); }
+    .progress.done { border-color: #86efac; background: #f0fdf4; }
+    .run-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .run-pill { font-size: 0.74rem; color: var(--muted); border: 1px solid var(--line); border-radius: 50px; padding: 4px 10px; background: #fff; }
+    tr.p-row { cursor: pointer; }
+    tr.p-row:hover td { background: #fafafa; }
+    tr.p-row.is-due td:first-child { box-shadow: inset 3px 0 0 var(--amber); }
+    tr.p-row.is-new td:first-child { box-shadow: inset 3px 0 0 var(--red); }
+    .score { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; padding: 3px 8px; border-radius: 8px; font-weight: 800; font-size: 0.78rem; background: var(--gray-soft); }
+    .score.hi { background: var(--green-soft); color: var(--green); } .score.mid { background: var(--amber-soft); color: var(--amber); }
+    .p-detail { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+    .p-detail h4 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); font-weight: 800; margin: 0 0 8px; }
+    .p-detail .block + .block { margin-top: 18px; }
+    .mock { background: #111; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+    .mock canvas { width: 100%; height: auto; display: block; }
+    .mock-sm { max-width: 420px; }
+    .contact-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; font-size: 0.84rem; }
+    .contact-card + .contact-card { margin-top: 8px; }
+    .contact-card .ttl { color: var(--muted); font-size: 0.76rem; }
+    .contact-card input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 0.8rem; width: 100%; }
+    .contact-card .cc-actions { display: flex; gap: 6px; flex-wrap: wrap; grid-column: 1 / -1; }
+    .draft-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .draft-tabs .chip { padding: 5px 12px; font-size: 0.76rem; }
+    .draft { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fff; }
+    .draft label { display: block; font-size: 0.72rem; font-weight: 700; color: #374151; margin: 8px 0 4px; }
+    .draft input, .draft textarea { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.84rem; background: #fff; resize: vertical; }
+    .draft textarea { min-height: 150px; line-height: 1.5; }
+    .draft .send-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    .draft .send-row .hint { flex: 1; min-width: 160px; }
+    .touch-log { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: #374151; }
+    .touch-log span { color: var(--muted); }
+    .p-status-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    @media (max-width: 1100px) { .gen-row { grid-template-columns: 1fr 1fr; } .p-detail { grid-template-columns: 1fr; } }
+
     @media (max-width: 900px) {
       .shell { grid-template-columns: 1fr; }
       .side { position: static; height: auto; flex-direction: row; flex-wrap: wrap; padding: 14px; }
@@ -221,6 +266,7 @@
     <button class="nav-btn" data-tab="leads"><svg class="site-icon"><use href="/icons.svg#document"/></svg> Leads <span class="count" id="navLeadCount">0</span></button>
     <button class="nav-btn" data-tab="advertisers"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Advertisers <span class="count" id="navCampCount">0</span></button>
     <button class="nav-btn" data-tab="calendar"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg> Calendar</button>
+    <button class="nav-btn" data-tab="prospecting"><svg class="site-icon"><use href="/icons.svg#sparkles"/></svg> Prospecting <span class="count" id="navProspectCount">0</span></button>
     <div class="side-foot">
       <button class="nav-btn" id="refreshBtn"><svg class="site-icon"><use href="/icons.svg#refresh"/></svg> Refresh</button>
       <a class="nav-btn" href="/" target="_blank" rel="noopener" style="text-decoration:none;"><svg class="site-icon"><use href="/icons.svg#store"/></svg> View site</a>
@@ -296,6 +342,52 @@
       <div class="card"><h2>Key dates this month <span class="sub">starts, renewals &amp; expirations</span></h2><div class="dates-list" id="keyDates"></div></div>
     </section>
 
+    <!-- PROSPECTING -->
+    <section data-panel="prospecting" hidden>
+      <div class="page-head">
+        <div><h1>Prospecting</h1><p>Find local advertisers with Clay, generate the outreach, send it, and get reminded to follow up.</p></div>
+        <div class="head-actions"><span class="badge" id="clayStatus">Checking Clay…</span></div>
+      </div>
+
+      <div class="card">
+        <h2>Step 1 · Generate leads <span class="sub">Clay finds businesses near the machine, their address, owners &amp; emails</span></h2>
+        <div class="gen-row">
+          <div class="field"><label>Category</label><select id="genCategory"></select></div>
+          <div class="field"><label>Machine</label><select id="genMachine"></select></div>
+          <div class="field"><label>How many</label><select id="genLimit"></select></div>
+          <div class="field"><label>Within</label><select id="genRadius"></select></div>
+          <button class="btn btn-primary" id="genBtn">Generate leads</button>
+        </div>
+        <label class="check"><input type="checkbox" id="genEmails" checked /> Also find the owner's work email <span class="hint" id="genCostHint" style="margin:0;"></span></label>
+        <div class="progress" id="genProgress" hidden></div>
+        <div class="run-list" id="runList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Step 2 · Generate outreach &amp; send <span class="sub">emails, texts, LinkedIn notes and a mockup of their ad on the machine</span></h2>
+        <div class="chips" id="prospectChips">
+          <button class="chip active" data-pstatus="">All</button>
+          <button class="chip" data-pstatus="new">New</button>
+          <button class="chip" data-pstatus="drafted">Ready to send</button>
+          <button class="chip" data-pstatus="due">Follow-up due</button>
+          <button class="chip" data-pstatus="contacted">Contacted</button>
+          <button class="chip" data-pstatus="replied">Replied</button>
+          <button class="chip" data-pstatus="won">Won</button>
+          <button class="chip" data-pstatus="lost">Lost / skipped</button>
+          <select class="inline" id="prospectCategory"><option value="">All categories</option></select>
+          <input class="inline search" id="prospectSearch" type="search" placeholder="Search business, contact, city…" />
+        </div>
+        <div class="row-actions" style="margin-bottom:12px;"><button class="btn btn-primary" id="draftBtn">Generate outreach</button><span class="hint" id="draftHint" style="color:var(--muted);font-size:0.78rem;"></span></div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Business</th><th>Decision-maker</th><th>Contact info</th><th>Fit</th><th>Status</th><th>Follow-up</th></tr></thead>
+            <tbody id="prospectRows"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="prospectEmpty" hidden>No prospects yet — pick a category above and click <b>Generate leads</b>.</div>
+      </div>
+    </section>
+
   </main>
 </div>
 
@@ -355,6 +447,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="/ads-config.js"></script>
+<script src="/mockup.js"></script>
 <script>
 (() => {
   const ADS = window.KWIGZ_ADS;
@@ -363,6 +456,8 @@
   const TOKEN_KEY = 'kwigz_admin_token';
   let token = sessionStorage.getItem(TOKEN_KEY) || '';
   let leads = [], campaigns = [], stripe = { enabled: false, mode: 'test', webhook: false };
+  let prospects = [], prospecting = { clay: { configured: false }, categories: [], machines: [], defaults: { limit: 15, maxLimit: 20, radiusMiles: 20, followUpDays: 2 }, creditEstimates: {}, activeRun: null, recentRuns: [] };
+  let pStatus = '', pCategory = '', pQuery = '', openProspectId = null, draftTab = 'email', runPollTimer = null;
   let leadType = '', leadStatus = '', leadQuery = '', openLeadId = null;
   let calMonth = new Date(); calMonth.setDate(1);
 
@@ -469,6 +564,7 @@
   async function enterApp() {
     $('#login').hidden = true; $('#app').hidden = false;
     await load();
+    loadCredits();
   }
 
   // Export link needs the token: fetch + blob so the header is sent.
@@ -484,11 +580,14 @@
   // ---------- data ----------
   async function load() {
     try {
-      const [l, c] = await Promise.all([api('/api/leads'), api('/api/campaigns')]);
+      const [l, c, p, ps] = await Promise.all([api('/api/leads'), api('/api/campaigns'), api('/api/prospects').catch(() => ({ prospects: [] })), api('/api/prospecting/status').catch(() => null)]);
       leads = l.leads.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
       campaigns = c.campaigns;
       stripe = c.stripe || stripe;
+      prospects = (p.prospects || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      if (ps) prospecting = ps;
       renderAll();
+      if (prospecting.activeRun) pollRun(prospecting.activeRun.id);
     } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
   }
   $('#refreshBtn').addEventListener('click', () => { load(); toast('Refreshed'); });
@@ -496,7 +595,8 @@
   function renderAll() {
     $('#navLeadCount').textContent = leads.filter((l) => l.status === 'new').length;
     $('#navCampCount').textContent = campaigns.filter(isLive).length;
-    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar();
+    $('#navProspectCount').textContent = prospects.filter((p) => ['new', 'drafted'].includes(p.status) || followUpDue(p)).length;
+    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting();
   }
 
   // ---------- tabs ----------
@@ -534,6 +634,9 @@
     live.filter((c) => c.status === 'pending' && c.paymentStatus === 'paid' && c.creativeStatus === 'approved').forEach((c) => items.push({ badge: ['Ready to go live', 'green'], text: `<b>${esc(c.business)}</b> is paid &amp; approved — assign it in VapeTM, then activate`, action: `<button class="btn btn-sm btn-primary" data-camp-patch="${c.id}" data-patch='{"status":"active"}'>Activate</button>` }));
     live.filter((c) => c.status === 'active' && c.end <= addDays(todayISO, 7)).forEach((c) => items.push({ badge: ['Renewal due', 'blue'], text: `<b>${esc(c.business)}</b> ends ${fmtDate(c.end)} — reach out to renew`, action: `<button class="btn btn-sm" data-renew-campaign="${c.id}">Renew +30d</button>` }));
     leads.filter((l) => l.type === 'business' && l.status === 'new').slice(0, 5).forEach((l) => items.push({ badge: ['Send offer', 'green'], text: `<b>${esc(l.venue || l.email)}</b> qualified (${esc(l.machineSize || 'medium')} machine) · ${timeAgo(l.receivedAt)}`, action: `<a class="btn btn-sm" href="mailto:${esc(l.email)}">Email</a>` }));
+    prospects.filter(followUpDue).sort((a, b) => a.nextFollowUpAt.localeCompare(b.nextFollowUpAt)).slice(0, 8).forEach((p) => items.push({ badge: ['Follow up', 'amber'], text: `<b>${esc(p.business)}</b> · ${esc(catById(p.categoryId).label)} · last touch ${p.outreach.length ? timeAgo(p.outreach[p.outreach.length - 1].at) : '—'} via ${esc(p.outreach[p.outreach.length - 1]?.channel || '—')}${p.nextFollowUpAt < todayISO ? ` · <span style="color:var(--red);font-weight:700;">overdue</span>` : ''}`, action: `<button class="btn btn-sm btn-primary" data-pa="goto" data-pid="${esc(p.id)}">Open</button>` }));
+    const readyToSend = prospects.filter((p) => p.status === 'drafted').length;
+    if (readyToSend) items.push({ badge: ['Outreach ready', 'purple'], text: `<b>${readyToSend}</b> prospect${readyToSend === 1 ? '' : 's'} with drafts waiting to be sent`, action: `<button class="btn btn-sm" data-pa="goto-status" data-pstatus="drafted">Open</button>` });
     $('#attention').innerHTML = items.length
       ? items.map((i) => `<div class="date-item" style="margin-bottom:8px;"><span class="badge ${i.badge[1]}">${i.badge[0]}</span><span style="flex:1;">${i.text}</span>${i.action}</div>`).join('')
       : '<div class="empty">All caught up.</div>';
@@ -824,6 +927,315 @@
     e.preventDefault();
     const res = await fetch(a.getAttribute('href'), { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     if (res.ok) window.open(URL.createObjectURL(await res.blob()), '_blank');
+  });
+
+  // ---------- prospecting ----------
+  const followUpDue = (p) => p.status === 'contacted' && p.nextFollowUpAt && p.nextFollowUpAt <= todayISO;
+  const P_STATUS_COLOR = { new: 'red', drafted: 'purple', contacted: 'blue', replied: 'green', won: 'green', lost: '', skipped: '' };
+  const P_STATUS_LABEL = { new: 'New', drafted: 'Ready to send', contacted: 'Contacted', replied: 'Replied', won: 'Won', lost: 'Lost', skipped: 'Skipped' };
+  const primaryContact = (p) => (p.contacts || [])[0] || null;
+  const smsHref = (p, body) => { const n = p.phoneE164 || primaryContact(p)?.mobileE164 || ''; return n ? `sms:${n}${/iPhone|iPad|Mac/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(body)}` : ''; };
+  const mailHref = (to, subject, body) => `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  const linkedinSearchUrl = (p) => `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(p.business)}`;
+
+  function renderProspectingControls() {
+    const sel = $('#genCategory');
+    const keep = sel.value;
+    sel.innerHTML = ADS.categories.map((c) => { const cfg = prospecting.categories.find((x) => x.id === c.id); return `<option value="${c.id}" ${cfg && !cfg.configured ? 'disabled' : ''}>${esc(c.label)}${cfg?.prospects ? ` (${cfg.prospects})` : ''}</option>`; }).join('');
+    if (keep) sel.value = keep;
+    if (!$('#genMachine').options.length) {
+      $('#genMachine').innerHTML = ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
+      $('#genLimit').innerHTML = [5, 10, 15, 20].filter((n) => n <= (prospecting.defaults.maxLimit || 20)).map((n) => `<option value="${n}" ${n === prospecting.defaults.limit ? 'selected' : ''}>${n} leads</option>`).join('');
+      $('#genRadius').innerHTML = [10, 15, 20, 25, 35].map((n) => `<option value="${n}" ${n === prospecting.defaults.radiusMiles ? 'selected' : ''}>${n} miles</option>`).join('');
+      $('#prospectCategory').innerHTML = `<option value="">All categories</option>${ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}`;
+    }
+    updateCostHint();
+    const st = $('#clayStatus');
+    if (!prospecting.clay?.configured) { st.textContent = 'Clay not connected — set CLAY_API_KEY on the server'; st.className = 'badge red'; $('#genBtn').disabled = true; }
+    else if (prospecting.credits) { st.textContent = `Clay · ${fmtN(prospecting.credits.balance)} credits left`; st.className = 'badge green'; }
+    else { st.textContent = 'Clay connected'; st.className = 'badge green'; }
+  }
+  function updateCostHint() {
+    const n = Number($('#genLimit').value) || 15;
+    const ce = prospecting.creditEstimates || {};
+    const enrich = Math.min(60, n * 3) * (ce.enrichCompany || 0.5);
+    const emails = $('#genEmails').checked ? n * (ce.workEmail || 1.1) : 0;
+    $('#genCostHint').textContent = `— about ${Math.round(enrich + emails)} Clay credits for this run`;
+  }
+  $('#genLimit').addEventListener('change', updateCostHint);
+  $('#genEmails').addEventListener('change', updateCostHint);
+
+  async function loadCredits() {
+    try { const c = await api('/api/prospecting/credits'); if (c.configured) { prospecting.credits = c; renderProspectingControls(); } } catch {}
+  }
+
+  function renderRun(run) {
+    const box = $('#genProgress');
+    if (!run) { box.hidden = true; return; }
+    box.hidden = false;
+    const active = !['done', 'failed'].includes(run.status);
+    box.className = `progress ${run.status === 'failed' ? 'failed' : run.status === 'done' ? 'done' : ''}`;
+    const steps = ['queued', 'searching', 'enriching', 'contacts', 'emails', 'phones', 'done'];
+    const idx = Math.max(0, steps.indexOf(run.status));
+    const frac = run.progress?.total ? run.progress.done / run.progress.total : 0;
+    const pct = run.status === 'done' ? 100 : run.status === 'failed' ? 100 : Math.round(((idx + frac) / (steps.length - 1)) * 100);
+    const c = run.counts || {};
+    box.innerHTML = `<div class="step"><span>${esc(run.step || run.status)}${active ? ' …' : ''}</span><span>${esc(catById(run.categoryId).label)} · ${esc(machineById(run.machineId).name)} · ${run.radiusMiles} mi</span></div>
+      <div class="bar"><span style="width:${pct}%;${run.status === 'failed' ? 'background:var(--red);' : run.status === 'done' ? 'background:var(--green);' : ''}"></span></div>
+      <div class="meta">${run.error ? `<b style="color:var(--red);">${esc(run.error)}</b> · ` : ''}${c.candidates ? `${c.candidates} found · ` : ''}${c.inRadius ? `${c.inRadius} within radius · ` : ''}${c.saved ? `<b>${c.saved} saved</b> · ${c.contacts} contacts · ${c.emailsFound} emails · ${c.phonesFound} phones · ` : ''}${run.creditsUsed ? `~${run.creditsUsed} credits used` : ''}${active && run.progress?.total ? ` · ${run.progress.done}/${run.progress.total}` : ''}</div>`;
+    $('#genBtn').disabled = active || !prospecting.clay?.configured;
+  }
+  function renderRunList() {
+    $('#runList').innerHTML = (prospecting.recentRuns || []).filter((r) => r.id !== prospecting.activeRun?.id).slice(0, 6).map((r) => `<span class="run-pill">${esc(catById(r.categoryId).label)} · ${r.status === 'done' ? `${r.counts?.saved ?? 0} leads` : esc(r.status)} · ${timeAgo(r.startedAt)}</span>`).join('');
+  }
+  async function pollRun(id) {
+    clearTimeout(runPollTimer);
+    try {
+      const { run } = await api(`/api/prospecting/runs/${encodeURIComponent(id)}`);
+      prospecting.activeRun = run;
+      renderRun(run);
+      if (!['done', 'failed'].includes(run.status)) { runPollTimer = setTimeout(() => pollRun(id), 2000); return; }
+      prospecting.activeRun = null;
+      toast(run.status === 'done' ? `${run.counts.saved} new ${catById(run.categoryId).label} leads` : `Lead search failed: ${run.error}`);
+      const ps = await api('/api/prospecting/status').catch(() => null);
+      if (ps) { prospecting = { ...ps, credits: prospecting.credits }; }
+      const p = await api('/api/prospects');
+      prospects = p.prospects.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      if (run.status === 'done') { pStatus = 'new'; pCategory = run.categoryId; $('#prospectCategory').value = pCategory; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'new')); }
+      renderAll(); renderRun(run); loadCredits();
+    } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
+  }
+  $('#genBtn').addEventListener('click', async () => {
+    const body = { categoryId: $('#genCategory').value, machineId: $('#genMachine').value, limit: Number($('#genLimit').value), radiusMiles: Number($('#genRadius').value), findEmails: $('#genEmails').checked };
+    $('#genBtn').disabled = true;
+    try { const { run } = await api('/api/prospecting/runs', { method: 'POST', body: JSON.stringify(body) }); prospecting.activeRun = run; renderRun(run); pollRun(run.id); }
+    catch (err) { toast(err.message); $('#genBtn').disabled = false; }
+  });
+
+  function filteredProspects() {
+    return prospects.filter((p) => {
+      if (pStatus === 'due') { if (!followUpDue(p)) return false; }
+      else if (pStatus === 'lost') { if (!['lost', 'skipped'].includes(p.status)) return false; }
+      else if (pStatus && p.status !== pStatus) return false;
+      if (pCategory && p.categoryId !== pCategory) return false;
+      if (pQuery && !`${p.business} ${p.city} ${p.domain} ${(p.contacts || []).map((c) => `${c.name} ${c.title} ${c.email}`).join(' ')}`.toLowerCase().includes(pQuery)) return false;
+      return true;
+    });
+  }
+
+  function renderProspecting() {
+    renderProspectingControls();
+    renderRun(prospecting.activeRun);
+    renderRunList();
+    const rows = filteredProspects();
+    const newCount = rows.filter((p) => p.status === 'new').length;
+    const newAll = prospects.filter((p) => p.status === 'new').length;
+    $('#draftBtn').disabled = !newCount && !newAll;
+    $('#draftBtn').textContent = newCount ? `Generate outreach for ${newCount} new lead${newCount === 1 ? '' : 's'}` : newAll ? `Generate outreach for ${newAll} new lead${newAll === 1 ? '' : 's'}` : 'Generate outreach';
+    $('#draftHint').textContent = newCount || newAll ? 'Writes the email, text and LinkedIn note for each lead and creates their mockup link. Free — no Clay credits.' : prospects.length ? 'Every lead has drafts. Open one below to send it.' : '';
+    $('#prospectEmpty').innerHTML = prospects.length ? 'No prospects match this filter.' : 'No prospects yet — pick a category above and click <b>Generate leads</b>.';
+    $('#prospectEmpty').hidden = rows.length > 0;
+    $('#prospectRows').innerHTML = rows.map((p) => {
+      const c = primaryContact(p);
+      const due = followUpDue(p);
+      const email = c?.email || '';
+      return `<tr class="p-row ${due ? 'is-due' : p.status === 'new' ? 'is-new' : ''}" data-pid="${esc(p.id)}" data-pa="toggle">
+        <td class="who"><strong>${esc(p.business)}</strong><span>${esc(catById(p.categoryId).label)}${p.city ? ` · ${esc(p.city)}` : ''}${p.distanceMiles != null ? ` · ${p.distanceMiles} mi` : ''}</span></td>
+        <td class="who">${c ? `<strong style="font-weight:600;">${esc(c.name)}</strong><span>${esc(c.title)}</span>` : '<span>No decision-maker found</span>'}</td>
+        <td class="contact">${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : '<span>no email</span>'}${p.phone ? `<a href="tel:${esc(p.phoneE164 || p.phone)}">${esc(p.phone)}</a>` : '<span>no phone</span>'}</td>
+        <td><span class="score ${p.score >= 70 ? 'hi' : p.score >= 50 ? 'mid' : ''}" title="${esc((p.scoreNotes || []).join(' · '))}">${p.score ?? '—'}</span></td>
+        <td><span class="badge ${P_STATUS_COLOR[p.status] || ''}">${P_STATUS_LABEL[p.status] || p.status}</span>${p.outreach?.length ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:3px;">${p.outreach.length} touch${p.outreach.length === 1 ? '' : 'es'}</div>` : ''}</td>
+        <td style="white-space:nowrap;">${due ? `<span class="badge amber dot">Due ${fmtDate(p.nextFollowUpAt)}</span>` : p.nextFollowUpAt && p.status === 'contacted' ? fmtDate(p.nextFollowUpAt) : '—'}</td>
+      </tr>${openProspectId === p.id ? `<tr class="detail"><td colspan="6">${prospectDetail(p)}</td></tr>` : ''}`;
+    }).join('');
+    if (openProspectId) { const p = prospects.find((x) => x.id === openProspectId); if (p) renderMockup(p); }
+  }
+
+  function prospectDetail(p) {
+    const c = primaryContact(p);
+    const d = p.drafts;
+    const followUp = p.outreach.length > 0;
+    const sent = (ch) => p.outreach.filter((o) => o.channel === ch).length;
+    const info = [
+      p.address ? ['Address', p.address] : null,
+      p.distanceMiles != null ? ['Distance', `${p.distanceMiles} miles from ${machineById(p.machineId).name}`] : null,
+      p.website ? ['Website', `<a href="${esc(/^https?:/.test(p.website) ? p.website : `https://${p.website}`)}" target="_blank" rel="noopener">${esc(p.domain || p.website)}</a>`] : null,
+      p.linkedinUrl ? ['LinkedIn', `<a href="${esc(p.linkedinUrl)}" target="_blank" rel="noopener">company page</a>`] : null,
+      p.size ? ['Size', `${p.size} employees${p.revenue ? ` · $${p.revenue} revenue` : ''}`] : null,
+      p.industry ? ['Industry', p.industry] : null,
+      p.specialties?.length ? ['Specialties', p.specialties.slice(0, 8).join(', ')] : null,
+      p.phoneSource && p.phoneSource !== 'manual' ? ['Phone from', `<a href="${esc(p.phoneSource)}" target="_blank" rel="noopener">their website</a>`] : null,
+    ].filter(Boolean).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+    const contacts = (p.contacts || []).map((ct, i) => `<div class="contact-card">
+        <div><b>${esc(ct.name)}</b>${ct.title ? ` <span class="ttl">· ${esc(ct.title)}</span>` : ''}${i === 0 ? ' <span class="badge purple" style="font-size:0.62rem;">primary</span>' : ''}</div>
+        <div>${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">LinkedIn</a>` : ''}</div>
+        <div><input type="email" placeholder="work email" value="${esc(ct.email)}" data-pa="contact-email" data-pid="${esc(p.id)}" data-idx="${i}" /></div>
+        <div>${ct.mobile ? `<a href="tel:${esc(ct.mobileE164 || ct.mobile)}">${esc(ct.mobile)}</a>` : `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}" title="Clay mobile lookup — about ${prospecting.creditEstimates?.mobilePhone || 10} credits" ${ct.linkedinUrl ? '' : 'disabled'}>Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>`}</div>
+      </div>`).join('') || '<div class="contact-card"><div>No decision-maker found — add one manually below or use the company phone.</div></div>';
+    const draftsHtml = !d ? `<div class="draft"><p style="color:var(--muted);font-size:0.85rem;">No drafts yet.</p><div class="send-row"><button class="btn btn-primary btn-sm" data-pa="draft-one" data-pid="${esc(p.id)}">Generate outreach for this lead</button></div></div>` : (() => {
+      const tabs = [['email', `Email${sent('email') ? ` ✓${sent('email')}` : ''}`], ['sms', `Text${sent('sms') ? ` ✓${sent('sms')}` : ''}`], ['linkedin', `LinkedIn${sent('linkedin') ? ` ✓${sent('linkedin')}` : ''}`], ['call', `Call${sent('call') ? ` ✓${sent('call')}` : ''}`]];
+      const tabBar = `<div class="draft-tabs">${tabs.map(([k, l]) => `<button class="chip ${draftTab === k ? 'active' : ''}" data-pa="tab" data-pid="${esc(p.id)}" data-tab="${k}">${l}</button>`).join('')}${followUp ? '<span class="hint" style="align-self:center;color:var(--muted);font-size:0.74rem;">Showing follow-up versions — already contacted</span>' : ''}</div>`;
+      const em = followUp ? d.followUpEmail : d.email;
+      const emKey = followUp ? 'followUpEmail' : 'email';
+      const to = c?.email || '';
+      let body = '';
+      if (draftTab === 'email') body = `<label>To</label><input value="${esc(to)}" placeholder="No email found — add one on the contact card" readonly /><label>Subject</label><input value="${esc(em.subject)}" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${emKey}.subject" /><label>Email</label><textarea data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${emKey}.body">${esc(em.body)}</textarea>
+        <div class="send-row"><span class="hint">Opens your mail app with everything filled in, then logs it and sets a follow-up for ${prospecting.defaults.followUpDays} days out. Attach the mockup PNG if you like.</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="email">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="email" ${to ? '' : 'disabled'}>Send email</button></div>`;
+      if (draftTab === 'sms') { const t = followUp ? d.followUpSms : d.sms; const key = followUp ? 'followUpSms' : 'sms'; const num = p.phone || c?.mobile || ''; body = `<label>To</label><input value="${esc(num)}" placeholder="No phone found — add one in the company info" readonly /><label>Text message</label><textarea style="min-height:110px;" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${key}">${esc(t)}</textarea>
+        <div class="send-row"><span class="hint">Opens Messages with the text filled in (works on Mac/iPhone), then logs it. ${p.phone ? 'This is the business line — a text may hit an office phone.' : ''}</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="sms">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="sms" ${num ? '' : 'disabled'}>Send text</button></div>`; }
+      if (draftTab === 'linkedin') body = `<label>Connection note <span style="font-weight:500;color:var(--muted);">(max 300 chars)</span></label><textarea style="min-height:80px;" maxlength="300" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="linkedin.note">${esc(d.linkedin.note)}</textarea><label>Message after they accept</label><textarea data-pa="draft-field" data-pid="${esc(p.id)}" data-key="linkedin.message">${esc(d.linkedin.message)}</textarea>
+        <div class="send-row"><span class="hint">LinkedIn has no messaging API, so this copies the note and opens ${c?.linkedinUrl ? `${esc(c.firstName || c.name)}'s profile` : 'a LinkedIn search'} — paste it into "Add a note", then it's logged.</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="linkedin-message">Copy message</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="linkedin">Copy note &amp; open LinkedIn</button></div>`;
+      if (draftTab === 'call') body = `<label>Call script</label><textarea style="min-height:120px;" readonly>${esc(`Hi${c?.firstName ? ` ${c.firstName}` : ''}, this is ${prospecting.sender?.name || 'Victor'} with KWIGZ — we run the vending machine screen inside ${machineById(p.machineId).name}${machineById(p.machineId).city ? ` in ${machineById(p.machineId).city}` : ''}. Quick one: we put one ${catById(p.categoryId).label.toLowerCase()} business on that screen and the slot's open. It's $${p.mockup?.price || 200} a month, no contract. I made a mockup of ${p.business} on it — can I text or email it to you?`)}</textarea>
+        <div class="send-row"><span class="hint">${p.phone ? `Business line ${esc(p.phone)}` : 'No phone on file'}${c?.mobile ? ` · ${esc(c.name)} mobile ${esc(c.mobile)}` : ''}</span>${p.phone ? `<a class="btn btn-sm" href="tel:${esc(p.phoneE164 || p.phone)}">Call</a>` : ''}<input class="inline" id="callNote" placeholder="Outcome (optional)" style="width:180px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="call">Log call</button></div>`;
+      return `${tabBar}<div class="draft">${body}</div>`;
+    })();
+    const log = p.outreach.length ? `<div class="touch-log">${p.outreach.slice().reverse().map((o) => `<div><b>${esc(o.channel)}</b> ${o.followUp ? 'follow-up ' : ''}<span>· ${new Date(o.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${o.note ? ` · ${esc(o.note)}` : ''}</span></div>`).join('')}</div>` : '<div class="touch-log"><span>No outreach yet.</span></div>';
+    return `<div class="p-detail">
+      <div>
+        <div class="block"><h4>Mockup — ${esc(p.business)} on ${esc(machineById(p.machineId).name)}</h4>
+          <div class="mock"><canvas id="mock-machine" width="900" height="1240"></canvas></div>
+          <div class="mock mock-sm" style="margin-top:10px;"><canvas id="mock-banner" width="1080" height="441"></canvas></div>
+          <div class="row-actions" style="margin-top:10px;"><button class="btn btn-sm" data-pa="dl-machine" data-pid="${esc(p.id)}">Download mockup PNG</button><button class="btn btn-sm" data-pa="dl-full" data-pid="${esc(p.id)}">Download full photo PNG</button><button class="btn btn-sm" data-pa="dl-banner" data-pid="${esc(p.id)}">Download banner PNG</button>${p.previewUrl ? `<button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="preview">Copy preview link</button><a class="btn btn-sm" href="${esc(p.previewUrl)}" target="_blank" rel="noopener">Open preview</a>` : ''}</div>
+          <p class="hint" style="color:var(--muted);font-size:0.74rem;margin-top:6px;">The email links to this preview page, so they see their ad on the machine without an attachment. Clay is the source of their logo when we have one.</p>
+        </div>
+        <div class="block"><h4>Company</h4><div class="kv">${info || '<div><span>—</span></div>'}</div>
+          <div class="kv"><div><span>Phone</span><b><input class="inline" style="width:170px;" value="${esc(p.phone)}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /></b></div></div></div>
+        <div class="block"><h4>Decision-makers</h4>${contacts}</div>
+        <div class="block"><h4>Notes</h4><textarea class="notes" data-pa="notes" data-pid="${esc(p.id)}" placeholder="Call notes, objections, who referred you…">${esc(p.notes)}</textarea></div>
+      </div>
+      <div>
+        <div class="block"><h4>Outreach</h4>${draftsHtml}</div>
+        <div class="block"><h4>History &amp; follow-up</h4>${log}
+          <div class="p-status-row" style="margin-top:12px;">
+            <label style="font-size:0.78rem;font-weight:700;">Next follow-up</label><input class="inline" type="date" value="${esc(p.nextFollowUpAt)}" data-pa="followup" data-pid="${esc(p.id)}" />
+            <span style="flex:1;"></span>
+            ${!['replied', 'won'].includes(p.status) ? `<button class="btn btn-sm" data-pa="status" data-pid="${esc(p.id)}" data-status="replied">Replied</button>` : ''}
+            ${p.status !== 'won' ? `<button class="btn btn-sm btn-primary" data-pa="book" data-pid="${esc(p.id)}">Won → Book campaign</button>` : `<button class="btn btn-sm" data-pa="book" data-pid="${esc(p.id)}">Book campaign</button>`}
+            ${!['lost', 'skipped'].includes(p.status) ? `<button class="btn btn-sm" data-pa="status" data-pid="${esc(p.id)}" data-status="lost">Lost</button><button class="btn btn-sm" data-pa="status" data-pid="${esc(p.id)}" data-status="skipped">Skip</button>` : `<button class="btn btn-sm" data-pa="status" data-pid="${esc(p.id)}" data-status="drafted">Reopen</button>`}
+            <button class="btn btn-sm btn-danger" data-pa="delete" data-pid="${esc(p.id)}">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  const mockupCache = new Map();
+  async function renderMockup(p) {
+    const machineEl = $('#mock-machine'), bannerEl = $('#mock-banner');
+    if (!machineEl || !bannerEl || !window.KWIGZ_MOCKUP) return;
+    const key = JSON.stringify([p.id, p.mockup, p.logoUrl]);
+    let rendered = mockupCache.get(key);
+    if (!rendered) {
+      let logoUrl = '';
+      if (p.logoUrl) { try { const r = await fetch(`/api/prospects/${encodeURIComponent(p.id)}/logo`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }); if (r.ok) logoUrl = URL.createObjectURL(await r.blob()); } catch {} }
+      try { rendered = await window.KWIGZ_MOCKUP.render(p.mockup, { logoUrl }); } catch (err) { console.error(err); return; }
+      mockupCache.clear(); mockupCache.set(key, rendered);
+    }
+    if (!document.body.contains(machineEl)) return;
+    machineEl.getContext('2d').drawImage(rendered.closeup, 0, 0);
+    bannerEl.getContext('2d').drawImage(rendered.banner, 0, 0);
+  }
+
+  async function patchProspect(id, body, msg) {
+    const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(body) });
+    const i = prospects.findIndex((x) => x.id === id);
+    if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+    if (msg) toast(msg);
+    return prospects[i];
+  }
+  async function refreshProspects() {
+    const p = await api('/api/prospects');
+    prospects = p.prospects.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    renderAll();
+  }
+  const getDraft = (p, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), p.drafts);
+
+  $('#draftBtn').addEventListener('click', async () => {
+    const visibleNew = filteredProspects().filter((p) => p.status === 'new').map((p) => p.id);
+    const ids = visibleNew.length ? visibleNew : prospects.filter((p) => p.status === 'new').map((p) => p.id);
+    if (!ids.length) return;
+    $('#draftBtn').disabled = true;
+    try { const r = await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids }) }); toast(`Outreach written for ${r.count} lead${r.count === 1 ? '' : 's'}`); pStatus = 'drafted'; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'drafted')); await refreshProspects(); }
+    catch (err) { toast(err.message); $('#draftBtn').disabled = false; }
+  });
+  $$('#prospectChips .chip').forEach((b) => b.addEventListener('click', () => { pStatus = b.dataset.pstatus; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x === b)); renderProspecting(); }));
+  $('#prospectCategory').addEventListener('change', (e) => { pCategory = e.target.value; renderProspecting(); });
+  $('#prospectSearch').addEventListener('input', (e) => { pQuery = e.target.value.trim().toLowerCase(); renderProspecting(); });
+
+  document.addEventListener('click', async (e) => {
+    const t = e.target.closest('[data-pa]');
+    if (!t) return;
+    if (t.matches('input, textarea, select') || (t.dataset.pa === 'toggle' && e.target.closest('a, button, input, select, textarea'))) return;
+    const pa = t.dataset.pa;
+    if (pa === 'goto' || pa === 'goto-status') {
+      switchTab('prospecting'); pStatus = pa === 'goto' ? '' : t.dataset.pstatus; pCategory = ''; pQuery = ''; $('#prospectSearch').value = ''; $('#prospectCategory').value = '';
+      $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === pStatus));
+      if (pa === 'goto') { openProspectId = t.dataset.pid; const p = prospects.find((x) => x.id === openProspectId); draftTab = p && p.outreach.length ? p.outreach[p.outreach.length - 1].channel : 'email'; if (draftTab === 'other') draftTab = 'email'; }
+      renderProspecting(); $(`tr[data-pid="${CSS.escape(openProspectId || '')}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); return;
+    }
+    const id = t.dataset.pid; const p = prospects.find((x) => x.id === id);
+    if (!p) return;
+    try {
+      if (pa === 'toggle') { openProspectId = openProspectId === id ? null : id; draftTab = p.contacts?.[0]?.email || !p.phone ? 'email' : 'sms'; renderProspecting(); return; }
+      if (pa === 'tab') { draftTab = t.dataset.tab; renderProspecting(); return; }
+      if (pa === 'draft-one') { t.disabled = true; await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids: [id], status: '' }) }); await refreshProspects(); toast('Drafts written'); return; }
+      if (pa === 'copy') {
+        const what = t.dataset.what; const fu = p.outreach.length > 0;
+        const text = what === 'preview' ? p.previewUrl : what === 'email' ? `Subject: ${(fu ? p.drafts.followUpEmail : p.drafts.email).subject}\n\n${(fu ? p.drafts.followUpEmail : p.drafts.email).body}` : what === 'sms' ? (fu ? p.drafts.followUpSms : p.drafts.sms) : what === 'linkedin-message' ? p.drafts.linkedin.message : '';
+        await copyText(text, 'Copied'); return;
+      }
+      if (pa === 'send') {
+        const ch = t.dataset.channel; const fu = p.outreach.length > 0; const c = primaryContact(p);
+        if (ch === 'email') { const em = fu ? p.drafts.followUpEmail : p.drafts.email; window.location.href = mailHref(c.email, em.subject, em.body); }
+        if (ch === 'sms') { const href = smsHref(p, fu ? p.drafts.followUpSms : p.drafts.sms); if (href) window.location.href = href; else await copyText(fu ? p.drafts.followUpSms : p.drafts.sms, 'Text copied — no phone number to open Messages'); }
+        if (ch === 'linkedin') { await copyText(p.drafts.linkedin.note, 'Connection note copied — paste it into "Add a note"'); window.open(c?.linkedinUrl || linkedinSearchUrl(p), '_blank', 'noopener'); }
+        const note = ch === 'call' ? ($('#callNote')?.value || '') : '';
+        const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify({ channel: ch, note }) });
+        const i = prospects.findIndex((x) => x.id === id); if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+        toast(`${ch === 'call' ? 'Call' : ch === 'sms' ? 'Text' : ch[0].toUpperCase() + ch.slice(1)} logged · follow up ${fmtDate(prospect.nextFollowUpAt)}`);
+        renderAll(); return;
+      }
+      if (pa === 'status') { await patchProspect(id, { status: t.dataset.status }, 'Status saved'); renderAll(); return; }
+      if (pa === 'delete') { if (!confirm(`Delete ${p.business} from prospects? (Use Skip to keep a record.)`)) return; await api(`/api/prospects/${encodeURIComponent(id)}`, { method: 'DELETE' }); prospects = prospects.filter((x) => x.id !== id); openProspectId = null; renderAll(); toast('Deleted'); return; }
+      if (pa === 'find-mobile') { if (!confirm(`Look up a mobile number with Clay? About ${prospecting.creditEstimates?.mobilePhone || 10} credits.`)) return; t.disabled = true; t.textContent = 'Searching…'; const r = await api(`/api/prospects/${encodeURIComponent(id)}/find-mobile`, { method: 'POST', body: JSON.stringify({ contact: Number(t.dataset.idx) }) }); const i = prospects.findIndex((x) => x.id === id); if (i !== -1) prospects[i] = { ...prospects[i], ...r.prospect }; toast(r.found ? 'Mobile number found' : 'No mobile number found'); renderProspecting(); loadCredits(); return; }
+      if (pa === 'book') {
+        if (p.status !== 'won') await patchProspect(id, { status: 'won' });
+        const c = primaryContact(p);
+        const start = addDays(todayISO, ADS.approvalDays);
+        openCampaignModal({ machineId: p.machineId, categoryId: p.categoryId, business: p.business, contactName: c?.name || '', email: c?.email || '', phone: p.phone || c?.mobile || '', website: p.website || '', budget: ADS.budgets[0].amount, start, end: addDays(start, ADS.campaignDays - 1), notes: `From prospecting · ${p.id}` }, { title: `New campaign — ${p.business}` });
+        renderAll(); return;
+      }
+      if (pa === 'dl-machine' || pa === 'dl-banner' || pa === 'dl-full') {
+        const slug = p.business.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+        const rendered = [...mockupCache.values()][0];
+        if (pa === 'dl-full' && rendered) return window.KWIGZ_MOCKUP.download(rendered.machine, `kwigz-machine-${slug}.png`);
+        const el = $(pa === 'dl-machine' ? '#mock-machine' : '#mock-banner'); if (el) window.KWIGZ_MOCKUP.download(el, `kwigz-${pa === 'dl-machine' ? 'mockup' : 'banner'}-${slug}.png`); return;
+      }
+    } catch (err) { toast(err.message); }
+  });
+  document.addEventListener('change', async (e) => {
+    const t = e.target.closest('[data-pa="followup"], [data-pa="contact-email"], [data-pa="phone"]');
+    if (!t) return;
+    const id = t.dataset.pid; const p = prospects.find((x) => x.id === id); if (!p) return;
+    try {
+      if (t.dataset.pa === 'followup') { await patchProspect(id, { nextFollowUpAt: t.value }, 'Follow-up date saved'); renderAll(); }
+      if (t.dataset.pa === 'phone') { await patchProspect(id, { phone: t.value }, 'Phone saved'); renderProspecting(); }
+      if (t.dataset.pa === 'contact-email') { const contacts = p.contacts.map((c, i) => (i === Number(t.dataset.idx) ? { ...c, email: t.value.trim(), emailSource: 'manual' } : c)); await patchProspect(id, { contacts }, 'Email saved'); renderProspecting(); }
+    } catch (err) { toast(err.message); }
+  });
+  document.addEventListener('focusout', async (e) => {
+    const t = e.target.closest('[data-pa="notes"], [data-pa="draft-field"]');
+    if (!t) return;
+    const id = t.dataset.pid; const p = prospects.find((x) => x.id === id); if (!p) return;
+    try {
+      if (t.dataset.pa === 'notes') { if (p.notes === t.value) return; await patchProspect(id, { notes: t.value }, 'Notes saved'); }
+      if (t.dataset.pa === 'draft-field') {
+        if (getDraft(p, t.dataset.key) === t.value) return;
+        const [root, sub] = t.dataset.key.split('.');
+        const drafts = sub ? { [root]: { ...p.drafts[root], [sub]: t.value } } : { [root]: t.value };
+        await patchProspect(id, { drafts }, 'Draft saved');
+      }
+    } catch (err) { toast(err.message); }
   });
 
   tryEnter();

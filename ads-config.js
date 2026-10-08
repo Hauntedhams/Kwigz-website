@@ -35,6 +35,11 @@ window.KWIGZ_ADS = {
       id: 'chopper-johns-phoenix',
       name: "Chopper John's",
       city: 'Phoenix, AZ',
+      venueType: 'biker bar',
+      address: '2547 E Indian School Rd, Phoenix, AZ 85016',
+      // Used by the admin's lead generator to keep prospects within a driving radius.
+      lat: 33.495,
+      lng: -112.0285,
       adHoursPerDay: 16,          // 10 AM – 2 AM
       // Category ids currently occupied by an active campaign:
       takenCategories: [],

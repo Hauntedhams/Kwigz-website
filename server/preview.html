@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Your ad on the KWIGZ screen</title>
+  <link rel="icon" type="image/png" href="/kwigz-logo-nobg.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --red: #dc2626; --ink: #0f0f0f; --muted: #6b7280; --line: #e5e7eb; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: #0b0b0e; color: #fff; min-height: 100vh; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
+    header img { height: 40px; filter: brightness(0) invert(1); }
+    header a { color: #bbb; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+    .eyebrow { color: var(--red); font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; font-size: 0.78rem; margin-bottom: 10px; }
+    h1 { font-size: clamp(1.6rem, 4vw, 2.6rem); font-weight: 900; letter-spacing: -0.5px; line-height: 1.1; margin-bottom: 10px; }
+    .sub { color: #a1a1aa; font-size: 1.05rem; max-width: 640px; margin-bottom: 28px; }
+    .grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 28px; align-items: start; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+    .frame { background: #15151a; border: 1px solid #26262c; border-radius: 20px; padding: 14px; }
+    .frame canvas, .frame img { width: 100%; height: auto; display: block; border-radius: 12px; }
+    .frame p { color: #8b8b94; font-size: 0.8rem; margin-top: 10px; text-align: center; }
+    .card { background: #15151a; border: 1px solid #26262c; border-radius: 20px; padding: 26px; }
+    .card h2 { font-size: 1.1rem; font-weight: 800; margin-bottom: 14px; }
+    .facts { display: grid; gap: 12px; margin-bottom: 22px; }
+    .fact { display: flex; gap: 12px; align-items: flex-start; color: #d4d4d8; font-size: 0.95rem; line-height: 1.45; }
+    .fact b { color: #fff; }
+    .fact::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--red); margin-top: 8px; }
+    .price { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 18px; }
+    .price strong { font-size: 2.4rem; font-weight: 900; letter-spacing: -1px; }
+    .price span { color: #a1a1aa; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 22px; border-radius: 12px; background: var(--red); color: #fff; font-weight: 800; text-decoration: none; font-size: 1rem; width: 100%; }
+    .btn:hover { background: #b91c1c; }
+    .fine { color: #71717a; font-size: 0.8rem; margin-top: 12px; line-height: 1.5; }
+    .state { text-align: center; color: #a1a1aa; padding: 80px 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <a href="/"><img src="/kwigz-logo-nobg.png" alt="KWIGZ" /></a>
+      <a href="/">kwigz.com</a>
+    </header>
+    <div id="state" class="state">Loading your mockup…</div>
+    <div id="content" hidden>
+      <p class="eyebrow">Ad preview</p>
+      <h1 id="title"></h1>
+      <p class="sub" id="sub"></p>
+      <div class="grid">
+        <div>
+          <div class="frame"><canvas id="closeup"></canvas><p id="machineCaption"></p></div>
+          <div class="frame" style="margin-top:16px;"><canvas id="banner"></canvas><p>Your banner at full size (1080 × 441). We can design it for you, or you send us your own.</p></div>
+          <div class="frame" style="margin-top:16px;"><canvas id="machine"></canvas><p>The machine in place</p></div>
+        </div>
+        <div class="card">
+          <h2>How it works</h2>
+          <div class="facts" id="facts"></div>
+          <div class="price"><strong id="price"></strong><span>/ month · no contract</span></div>
+          <a class="btn" id="cta" href="/#qualify">Reserve this slot</a>
+          <p class="fine">One advertiser per category per machine — once this category is taken, it's gone. Nothing is charged until we confirm your creative and go-live date.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="/mockup.js"></script>
+  <script>
+  (async () => {
+    const token = location.pathname.split('/').filter(Boolean).pop();
+    const state = document.getElementById('state');
+    try {
+      const res = await fetch(`/api/preview/${token}`);
+      const d = await res.json();
+      if (!res.ok || !d.ok) throw new Error(d.error || 'This preview link is no longer available.');
+      const m = d.mockup;
+      const { banner, machine, closeup } = await window.KWIGZ_MOCKUP.render(m, { logoUrl: d.logoUrl });
+      const show = (id, canvas) => { const el = document.getElementById(id); el.width = canvas.width; el.height = canvas.height; el.getContext('2d').drawImage(canvas, 0, 0); };
+      show('closeup', closeup); show('machine', machine); show('banner', banner);
+      document.getElementById('title').textContent = `${m.business} on the screen at ${m.machine.name}`;
+      document.getElementById('sub').textContent = `This is what your ad looks like on the KWIGZ machine inside ${m.machine.name}${m.machine.city ? ` in ${m.machine.city}` : ''} — the touchscreen every customer uses to buy.`;
+      document.getElementById('machineCaption').textContent = `${m.machine.name}${m.machine.address ? ` · ${m.machine.address}` : ''}`;
+      document.getElementById('price').textContent = `$${m.price}`;
+      document.getElementById('facts').innerHTML = [
+        `<b>Only ${m.categoryLabel.toLowerCase()} business</b> on this machine — no competitors on the same screen.`,
+        `Your banner plays for <b>${m.bannerSeconds} seconds</b> in rotation, about <b>${Number(m.plays).toLocaleString('en-US')} plays a month</b>.`,
+        `Shown to a <b>21+ crowd</b> at the exact moment they're buying.`,
+        `Live within a few days of approving your creative.`,
+      ].map((t) => `<div class="fact"><span>${t}</span></div>`).join('');
+      document.getElementById('cta').href = `/#qualify`;
+      document.title = `${m.business} · KWIGZ ad preview`;
+      state.hidden = true; document.getElementById('content').hidden = false;
+    } catch (err) {
+      state.textContent = err.message;
+    }
+  })();
+  </script>
+</body>
+</html>

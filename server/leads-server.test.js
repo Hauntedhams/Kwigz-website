@@ -379,3 +379,186 @@ test('production refuses missing or weak admin passwords', async () => {
   assert.notEqual(code, 0);
   assert.match(output, /at least 24 characters/);
 });
+
+// ---------- prospecting (Clay lead generation) ----------
+
+const prospectingLib = require('./prospecting');
+const { startFakeClay } = require('./fake-clay');
+
+test('phone extraction prefers tel: links and rejects non-NANP numbers', () => {
+  assert.deepEqual(prospectingLib.normalizePhone('602-955-0055'), { e164: '+16029550055', display: '(602) 955-0055' });
+  assert.deepEqual(prospectingLib.normalizePhone('1 (480) 555-1234'), { e164: '+14805551234', display: '(480) 555-1234' });
+  assert.equal(prospectingLib.normalizePhone('123-456-7890'), null);
+  assert.equal(prospectingLib.normalizePhone('555-555-5555'), null);
+  const html = '<a href="tel:+16029550055">Call</a> <p>Office: 480.555.0199</p> <p>Zip 85016 · est. 2024 · 2547 E Indian School</p>';
+  assert.equal(prospectingLib.extractPhone(html).display, '(602) 955-0055');
+  assert.equal(prospectingLib.extractPhone('<p>no numbers here</p>'), null);
+  assert.ok(Math.abs(prospectingLib.haversineMiles(33.495, -112.0285, 33.508479, -111.98475) - 2.69) < 0.05);
+});
+
+test('website phone lookup reads the homepage, then the contact page', async () => {
+  const site = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    if (req.url === '/') return res.end('<html><body>Welcome. No phone on the home page.</body></html>');
+    if (req.url === '/contact') return res.end('<html><body><a href="tel:(602) 555-0142">Call us</a></body></html>');
+    res.writeHead(404); res.end();
+  });
+  await new Promise((resolve) => site.listen(0, '127.0.0.1', resolve));
+  try {
+    const phone = await prospectingLib.findWebsitePhone(`http://127.0.0.1:${site.address().port}`, { timeoutMs: 2000 });
+    assert.equal(phone.display, '(602) 555-0142');
+    assert.match(phone.source, /\/contact$/);
+    assert.equal(await prospectingLib.findWebsitePhone('ftp://example.com'), null);
+  } finally {
+    await new Promise((resolve) => site.close(resolve));
+  }
+});
+
+test('lead generation: Clay search → enrich → radius → contacts → emails → drafts → outreach → follow-up', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-prospecting-'));
+  const clay = await startFakeClay();
+  let instance;
+  try {
+    instance = await start(dataDir, { CLAY_API_KEY: 'test-clay-key', CLAY_API_BASE: clay.base, SITE_URL: 'https://kwigz.test' });
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
+    const call = async (method, p, body) => {
+      const res = await fetch(`${instance.base}${p}`, { method, headers: auth, body: body ? JSON.stringify(body) : undefined });
+      return { status: res.status, data: await res.json() };
+    };
+
+    // Admin-only.
+    assert.equal((await fetch(`${instance.base}/api/prospects`)).status, 401);
+    assert.equal((await fetch(`${instance.base}/api/prospecting/status`)).status, 401);
+
+    const status = await call('GET', '/api/prospecting/status');
+    assert.equal(status.data.clay.configured, true);
+    assert.equal(status.data.categories.find((c) => c.id === 'dui').configured, true);
+    assert.equal(status.data.machines[0].geo, true);
+    const credits = await call('GET', '/api/prospecting/credits');
+    assert.equal(credits.data.balance, 500);
+
+    assert.equal((await call('POST', '/api/prospecting/runs', { categoryId: 'nope', machineId: 'chopper-johns-phoenix' })).status, 400);
+
+    // Step 1 — generate leads (phones off: no outbound web requests in tests).
+    const started = await call('POST', '/api/prospecting/runs', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', limit: 5, radiusMiles: 20, findPhones: false });
+    assert.equal(started.status, 202);
+    assert.equal(started.data.run.status, 'queued');
+    assert.equal((await call('POST', '/api/prospecting/runs', { categoryId: 'dui', machineId: 'chopper-johns-phoenix' })).status, 400, 'one run at a time');
+    let run;
+    for (let i = 0; i < 100; i++) {
+      run = (await call('GET', `/api/prospecting/runs/${started.data.run.id}`)).data.run;
+      if (['done', 'failed'].includes(run.status)) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    assert.equal(run.status, 'done', run.error);
+    assert.deepEqual({ candidates: run.counts.candidates, inRadius: run.counts.inRadius, saved: run.counts.saved, emailsFound: run.counts.emailsFound }, { candidates: 5, inRadius: 4, saved: 4, emailsFound: 2 });
+    assert.equal(run.creditsUsed, 5.8, '5 enrich × 0.5 + 3 emails × 1.1');
+    const searchQuery = clay.calls.find((c) => c.path === '/search/query-mode').body.query;
+    assert.match(searchQuery, /industry in \("Law Practice", "Legal Services"\)/);
+    assert.match(searchQuery, /city in \("Phoenix", .*"Scottsdale"/);
+    assert.match(searchQuery, /description contains \("DUI"/);
+
+    let { prospects } = (await call('GET', '/api/prospects')).data;
+    assert.equal(prospects.length, 4);
+    assert.ok(!prospects.some((p) => p.domain === 'faraway.example'), 'Tucson is outside the 20 mile radius');
+    const nova = prospects.find((p) => p.domain === 'novalawaz.com');
+    assert.equal(nova.distanceMiles, 2.7);
+    assert.equal(nova.contacts[0].name, 'Ryan Tait', 'founding partner outranks associate');
+    assert.equal(nova.contacts[0].email, 'ryan@novalawaz.com');
+    assert.equal(nova.address, '4455 E Camelback Rd, Phoenix, AZ 85018');
+    assert.ok(nova.score > prospects.find((p) => p.domain === 'bigfirm.example').score, 'small local firm outscores a 500-person firm');
+    assert.equal(nova.status, 'new');
+    assert.equal(nova.mockup.tagline, 'DUI Defense');
+    assert.equal(nova.mockup.plays, 11520);
+
+    // Re-running skips businesses already saved.
+    const again = await call('POST', '/api/prospecting/runs', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', limit: 5, findPhones: false });
+    for (let i = 0; i < 100; i++) {
+      run = (await call('GET', `/api/prospecting/runs/${again.data.run.id}`)).data.run;
+      if (['done', 'failed'].includes(run.status)) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    assert.equal(run.status, 'failed');
+    assert.match(run.error, /already in your prospect list or was ruled out/);
+    assert.equal(clay.calls.filter((c) => /\/routines\/.*\/run$/.test(c.path)).length, 2, "second run enriches nothing — ruled-out businesses are remembered");
+
+    // Step 2 — drafts + preview link.
+    const generated = await call('POST', '/api/prospects/generate', { categoryId: 'dui' });
+    assert.equal(generated.data.count, 4);
+    ({ prospects } = (await call('GET', '/api/prospects')).data);
+    const drafted = prospects.find((p) => p.id === nova.id);
+    assert.equal(drafted.status, 'drafted');
+    assert.match(drafted.previewUrl, /^https:\/\/kwigz\.test\/preview\/[a-f0-9]{24}$/);
+    assert.match(drafted.drafts.email.subject, /Nova Law Group on the screen at Chopper John's/);
+    assert.match(drafted.drafts.email.body, /^Hi Ryan,/);
+    assert.ok(drafted.drafts.email.body.includes(drafted.previewUrl));
+    assert.ok(drafted.drafts.email.body.includes('"DUI Defense"'));
+    assert.ok(drafted.drafts.sms.includes('$200/mo'));
+    assert.ok(drafted.drafts.linkedin.note.length <= 300);
+
+    // Public preview page + JSON + logo proxy need no auth and expose no contact data.
+    const token = drafted.previewUrl.split('/').pop();
+    const page = await fetch(`${instance.base}/preview/${token}`);
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /mockup\.js/);
+    const pub = await fetch(`${instance.base}/api/preview/${token}`);
+    assert.equal(pub.status, 200);
+    const pubData = await pub.json();
+    assert.equal(pubData.mockup.business, 'Nova Law Group');
+    assert.equal(pubData.mockup.machine.name, "Chopper John's");
+    assert.equal(JSON.stringify(pubData).includes('ryan@'), false);
+    const logo = await fetch(`${instance.base}${pubData.logoUrl}`);
+    assert.equal(logo.status, 200);
+    assert.equal(logo.headers.get('content-type'), 'image/png');
+    assert.equal((await fetch(`${instance.base}/api/preview/${'0'.repeat(24)}`)).status, 404);
+
+    // "Send" logs the touch and schedules the follow-up.
+    const sent = await call('POST', `/api/prospects/${nova.id}/outreach`, { channel: 'email' });
+    assert.equal(sent.data.prospect.status, 'contacted');
+    const expected = new Date(); expected.setDate(expected.getDate() + 2);
+    assert.equal(sent.data.prospect.nextFollowUpAt, expected.toISOString().slice(0, 10));
+    assert.equal(sent.data.prospect.outreach[0].channel, 'email');
+    assert.equal((await call('POST', `/api/prospects/${nova.id}/outreach`, { channel: 'fax' })).status, 400);
+
+    // Edits: phone, contact email, drafts, status, follow-up date.
+    const patched = await call('PATCH', `/api/prospects/${nova.id}`, { phone: '602 555 0100', nextFollowUpAt: '2099-01-02', drafts: { sms: 'custom text' }, contacts: [{ ...nova.contacts[0], email: 'new@novalawaz.com' }] });
+    assert.equal(patched.data.prospect.phone, '(602) 555-0100');
+    assert.equal(patched.data.prospect.phoneE164, '+16025550100');
+    assert.equal(patched.data.prospect.nextFollowUpAt, '2099-01-02');
+    assert.equal(patched.data.prospect.drafts.sms, 'custom text');
+    assert.equal(patched.data.prospect.contacts[0].email, 'new@novalawaz.com');
+    assert.equal((await call('PATCH', `/api/prospects/${nova.id}`, { status: 'bogus' })).status, 400);
+    const won = await call('PATCH', `/api/prospects/${nova.id}`, { status: 'won' });
+    assert.equal(won.data.prospect.nextFollowUpAt, '', 'closing a prospect clears the reminder');
+
+    // Mobile lookup goes through Clay.
+    const mobile = await call('POST', `/api/prospects/${nova.id}/find-mobile`, { contact: 0 });
+    assert.equal(mobile.data.found, true);
+    assert.equal(mobile.data.prospect.contacts[0].mobile, '(602) 555-0199');
+
+    assert.equal((await call('DELETE', `/api/prospects/${nova.id}`)).status, 200);
+    assert.equal((await call('DELETE', `/api/prospects/${nova.id}`)).status, 404);
+    assert.equal(JSON.parse(readFileSync(path.join(dataDir, 'prospects.json'), 'utf8')).length, 3);
+  } finally {
+    if (instance) await stop(instance.child);
+    await clay.close();
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('without CLAY_API_KEY the prospecting tools report as not configured', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-noclay-'));
+  let instance;
+  try {
+    instance = await start(dataDir, { CLAY_API_KEY: '' });
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
+    const status = await (await fetch(`${instance.base}/api/prospecting/status`, { headers })).json();
+    assert.equal(status.clay.configured, false);
+    const run = await fetch(`${instance.base}/api/prospecting/runs`, { method: 'POST', headers, body: JSON.stringify({ categoryId: 'dui', machineId: 'chopper-johns-phoenix' }) });
+    assert.equal(run.status, 400);
+    assert.match((await run.json()).error, /CLAY_API_KEY/);
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});

@@ -14,17 +14,25 @@
 //   STRIPE_SECRET_KEY      sk_test_… or sk_live_…  (enables payment links + recurring billing)
 //   STRIPE_WEBHOOK_SECRET  whsec_… from the webhook endpoint for POST /api/stripe/webhook
 //   SITE_URL               public origin used for post-payment redirects (default https://kwigz.com)
+//   CLAY_API_KEY           Clay Public API key (enables the admin "Generate leads" prospecting tools)
 //
 // Public:  POST /api/leads   GET /api/availability   GET /healthz   POST /api/stripe/webhook
+//          GET /preview/<token>   GET /api/preview/<token>[/logo]   (advertiser mockup pages)
 // Admin:   GET /admin        GET/PATCH /api/leads     GET /api/leads.csv
 //          GET/POST/PATCH/DELETE /api/campaigns       GET /api/uploads/<file>
 //          POST /api/campaigns/:id/payment-link       POST /api/campaigns/:id/stop-billing
+//          GET /api/prospecting/status|credits        GET/POST /api/prospecting/runs[/:id]
+//          GET /api/prospects   POST /api/prospects/generate   PATCH/DELETE /api/prospects/:id
+//          POST /api/prospects/:id/outreach|find-mobile        GET /api/prospects/:id/logo
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
+const { createClayClient } = require('./clay');
+const { createProspecting } = require('./prospecting');
+const prospectingConfig = require('./prospecting-config');
 
 const PORT = process.env.PORT === undefined ? 8000 : Number(process.env.PORT);
 const ROOT = path.resolve(__dirname, '..');
@@ -56,9 +64,11 @@ if (PRODUCTION && STRIPE_SECRET_KEY && !STRIPE_WEBHOOK_SECRET) {
 const configContext = { window: {} };
 vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'ads-config.js'), 'utf8'), configContext);
 const ADS = configContext.window.KWIGZ_ADS;
+const CLAY_API_KEY = process.env.CLAY_API_KEY || '';
+const clay = CLAY_API_KEY ? createClayClient({ apiKey: CLAY_API_KEY, base: process.env.CLAY_API_BASE || undefined, log: (m) => console.log(`[clay] ${m}`) }) : null; // CLAY_API_BASE overridable for tests only
 const PUBLIC_FILES = new Set([
   'index.html', 'about.html', 'revenue.html', 'compliance.html', 'contact.html', 'payment-complete.html',
-  'styles.css', 'script.js', 'ads-config.js', 'icons.css', 'icons.svg',
+  'styles.css', 'script.js', 'ads-config.js', 'icons.css', 'icons.svg', 'mockup.js',
   'hero-bg.jpg', 'kwigz-logo-nobg.png', 'kwigz-logo.png',
   'slimwall-installed-web.jpg', 'slimwall-inside-web.jpg', 'IMG_2898.jpeg',
 ]);
@@ -95,6 +105,7 @@ const MIME = {
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 ensureCsvHeader();
+const prospecting = createProspecting({ dataDir: DATA_DIR, ads: ADS, config: prospectingConfig, clay, siteUrl: SITE_URL, log: console.log });
 
 // ---------- storage helpers ----------
 
@@ -691,6 +702,79 @@ async function handleStripeWebhook(req, res) {
   sendJson(res, 200, { received: true, campaign: c ? c.id : null });
 }
 
+// ---------- prospecting (Clay lead generation) ----------
+
+const prospectingError = (res, err) => sendJson(res, err.status && err.status >= 400 && err.status < 600 ? 502 : 400, { ok: false, error: err.message });
+
+async function handleProspectingRoute(req, res, p) {
+  if (p === '/api/prospecting/status' && req.method === 'GET') return sendJson(res, 200, { ok: true, ...prospecting.status() });
+  if (p === '/api/prospecting/credits' && req.method === 'GET') {
+    if (!clay) return sendJson(res, 200, { ok: true, configured: false });
+    try { const c = await clay.credits(); return sendJson(res, 200, { ok: true, configured: true, balance: c.balance, actionExecutionBalance: c.actionExecutionBalance }); } catch (err) { return prospectingError(res, err); }
+  }
+  if (p === '/api/prospecting/runs' && req.method === 'GET') return sendJson(res, 200, { ok: true, runs: prospecting.readRuns().slice().reverse() });
+  if (p === '/api/prospecting/runs' && req.method === 'POST') {
+    try { const run = prospecting.startRun(await readJsonBody(req)); return sendJson(res, 202, { ok: true, run }); } catch (err) { return prospectingError(res, err); }
+  }
+  const runMatch = p.match(/^\/api\/prospecting\/runs\/([^/]+)$/);
+  if (runMatch && req.method === 'GET') {
+    const run = prospecting.readRuns().find((r) => r.id === runMatch[1]);
+    return run ? sendJson(res, 200, { ok: true, run }) : sendJson(res, 404, { ok: false, error: 'Run not found' });
+  }
+  if (p === '/api/prospects' && req.method === 'GET') {
+    const prospects = prospecting.readProspects().map((x) => ({ ...x, previewUrl: x.previewToken ? prospecting.previewUrl(x) : '', mockup: prospecting.mockupSpec(x) }));
+    return sendJson(res, 200, { ok: true, count: prospects.length, prospects });
+  }
+  if (p === '/api/prospects/generate' && req.method === 'POST') {
+    try {
+      const body = await readJsonBody(req);
+      const ids = Array.isArray(body.ids) ? body.ids.map((id) => clean(id, 60)) : undefined;
+      const generated = prospecting.generateDrafts({ ids, categoryId: body.categoryId ? clean(body.categoryId, 40) : undefined, status: body.status === undefined ? 'new' : (body.status || '') });
+      return sendJson(res, 200, { ok: true, count: generated.length, ids: generated.map((x) => x.id) });
+    } catch (err) { return prospectingError(res, err); }
+  }
+  const prospectMatch = p.match(/^\/api\/prospects\/([^/]+)(?:\/(outreach|find-mobile|logo))?$/);
+  if (!prospectMatch) return false;
+  const id = decodeURIComponent(prospectMatch[1]);
+  const action = prospectMatch[2];
+  try {
+    if (!action && req.method === 'PATCH') {
+      const updated = prospecting.patchProspect(id, await readJsonBody(req));
+      return updated ? sendJson(res, 200, { ok: true, prospect: updated }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
+    }
+    if (!action && req.method === 'DELETE') return prospecting.deleteProspect(id) ? sendJson(res, 200, { ok: true }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
+    if (action === 'outreach' && req.method === 'POST') {
+      const updated = prospecting.logOutreach(id, await readJsonBody(req));
+      return updated ? sendJson(res, 200, { ok: true, prospect: updated }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
+    }
+    if (action === 'find-mobile' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = await prospecting.findMobile(id, body.contact);
+      return result ? sendJson(res, 200, { ok: true, ...result }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
+    }
+    if (action === 'logo' && req.method === 'GET') {
+      const logo = await prospecting.logoFor(prospecting.readProspects().find((x) => x.id === id));
+      if (!logo) { res.writeHead(404); return res.end('No logo'); }
+      return sendFile(res, logo.file, { 'Cache-Control': 'private, max-age=86400' });
+    }
+  } catch (err) { return prospectingError(res, err); }
+  return false;
+}
+
+// Public mockup page linked from outreach emails: shows the business's ad on the machine.
+async function handlePreview(req, res, token, sub) {
+  if (sub === undefined) return sendFile(res, path.join(__dirname, 'preview.html'), { 'Cache-Control': 'no-store' });
+  const found = prospecting.previewByToken(token);
+  if (!found) return sendJson(res, 404, { ok: false, error: 'This preview link is no longer available.' });
+  if (sub === 'json') return sendJson(res, 200, { ok: true, mockup: found.spec, logoUrl: found.prospect.logoUrl ? `/api/preview/${token}/logo` : '' });
+  if (sub === 'logo') {
+    const logo = await prospecting.logoFor(found.prospect);
+    if (!logo) { res.writeHead(404); return res.end('No logo'); }
+    return sendFile(res, logo.file, { 'Cache-Control': 'public, max-age=86400' });
+  }
+  return sendJson(res, 404, { ok: false, error: 'Not found' });
+}
+
 function serveStatic(req, res) {
   const url = new URL(req.url, 'http://localhost');
   let pathname = decodeURIComponent(url.pathname);
@@ -721,6 +805,10 @@ async function route(req, res) {
   if (p === '/api/leads' && req.method === 'POST') return handleLeadPost(req, res).catch((e) => sendJson(res, 500, { ok: false, error: e.message }));
   if (p === '/api/availability' && req.method === 'GET') return sendJson(res, 200, { ok: true, machines: availability() });
   if (p === '/api/stripe/webhook' && req.method === 'POST') return handleStripeWebhook(req, res);
+  const previewMatch = p.match(/^\/preview\/([a-f0-9]{24})\/?$/);
+  if (previewMatch && req.method === 'GET') return handlePreview(req, res, previewMatch[1]);
+  const previewApiMatch = p.match(/^\/api\/preview\/([a-f0-9]{24})(?:\/(logo))?$/);
+  if (previewApiMatch && req.method === 'GET') return handlePreview(req, res, previewApiMatch[1], previewApiMatch[2] || 'json');
 
   // --- admin ---
   if (p === '/admin' || p === '/admin/' || p === '/admin.html') {
@@ -777,6 +865,11 @@ async function route(req, res) {
 
     if (p.startsWith('/api/uploads/')) return sendFile(res, path.join(UPLOADS_DIR, path.basename(p)), { 'Cache-Control': 'no-store' });
 
+    if (p.startsWith('/api/prospect')) {
+      const handled = await handleProspectingRoute(req, res, p);
+      if (handled !== false) return handled;
+    }
+
     return sendJson(res, 404, { ok: false, error: 'Not found' });
   }
 
@@ -801,4 +894,5 @@ server.listen(PORT, () => {
   console.log(`Admin dashboard: http://localhost:${port}/admin ${ADMIN_PASSWORD ? '(password protected)' : '(no ADMIN_PASSWORD set — localhost only)'}`);
   console.log(`Data directory: ${DATA_DIR}`);
   console.log(`Stripe: ${STRIPE_SECRET_KEY ? `${STRIPE_MODE} mode${STRIPE_WEBHOOK_SECRET ? '' : ' (no STRIPE_WEBHOOK_SECRET — payments will not auto-confirm)'}` : 'not configured'}`);
+  console.log(`Clay lead generation: ${clay ? 'enabled' : 'not configured (set CLAY_API_KEY)'}`);
 });
