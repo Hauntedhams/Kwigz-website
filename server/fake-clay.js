@@ -1,13 +1,27 @@
-// Test double for the Clay Public API. Used by leads-server.test.js and for local UI work:
+// Test double for the Clay Public API (+ a tiny fake Gemini image endpoint). Used by
+// leads-server.test.js and for local UI work:
 //
-//   node server/fake-clay.js            # prints the base URL
-//   CLAY_API_KEY=test CLAY_API_BASE=http://127.0.0.1:<port> node server/leads-server.js
+//   node server/fake-clay.js            # prints the base URLs
+//   CLAY_API_KEY=test-clay-key CLAY_API_BASE=http://127.0.0.1:<port> \
+//   GEMINI_API_KEY=test-gemini-key GEMINI_API_BASE=http://127.0.0.1:<port>/v1beta node server/leads-server.js
 //
 // Returns canned Phoenix businesses, decision-makers, enrichment and emails. No network.
 
 const http = require('http');
+const zlib = require('zlib');
 
 const PNG_1x1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+
+// Builds a real (tiny) PNG with a horizontal gradient so the canvas renderer has something to draw.
+function gradientPng(w = 84, h = 36) {
+  const crc = (buf) => { let c = ~0; for (const b of buf) { c ^= b; for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1)); } return (~c) >>> 0; };
+  const chunk = (type, data) => { const len = Buffer.alloc(4); len.writeUInt32BE(data.length); const td = Buffer.concat([Buffer.from(type), data]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([len, td, c]); };
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(w, 0); ihdr.writeUInt32BE(h, 4); ihdr[8] = 8; ihdr[9] = 2; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0;
+  const raw = Buffer.alloc((w * 3 + 1) * h);
+  for (let y = 0; y < h; y++) { raw[y * (w * 3 + 1)] = 0; for (let x = 0; x < w; x++) { const o = y * (w * 3 + 1) + 1 + x * 3; raw[o] = Math.round(10 + 60 * x / w); raw[o + 1] = Math.round(20 + 40 * x / w); raw[o + 2] = Math.round(50 + 150 * x / w); } }
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
+}
+const ART_PNG = gradientPng();
 
 const COMPANIES = [
   { clay_company_id: 1, name: 'Nova Law Group', domain: 'novalawaz.com', size: '2-10', industry: 'Law Practice', location: 'Phoenix, Arizona', description: 'Phoenix litigation boutique focused on DUI defense and criminal defense.', linkedin_url: 'https://www.linkedin.com/company/novalawaz', lat: 33.508479, lng: -111.98475, address: '4455 E Camelback Rd, Phoenix, AZ 85018', specialties: ['DUI Defense', 'Criminal Defense'], logo: true, revenue: '1M-5M' },
@@ -23,11 +37,12 @@ const PEOPLE = {
 };
 const EMAILS = { 'Ryan Tait': 'ryan@novalawaz.com', 'Brad Rideout': 'brad@rideoutlaw.com' };
 
-function startFakeClay({ port = 0, pollsBeforeComplete = 1 } = {}) {
+function startFakeClay({ port = 0, pollsBeforeComplete = 1, geminiQuota = null } = {}) {
   const searches = new Map();
   const runs = new Map();
   const calls = [];
   let n = 0;
+  let geminiQuotaLeft = geminiQuota; // null = unlimited
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost');
     const json = (status, body) => { res.writeHead(status, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(body)); };
@@ -37,6 +52,15 @@ function startFakeClay({ port = 0, pollsBeforeComplete = 1 } = {}) {
       const body = raw ? JSON.parse(raw) : {};
       calls.push({ method: req.method, path: url.pathname, body });
       if (url.pathname === '/logo.png') { res.writeHead(200, { 'Content-Type': 'image/png' }); return res.end(PNG_1x1); }
+      // Fake Gemini Interactions API (image generation). Models containing "missing" 404 so the client's fallback is exercised.
+      if (url.pathname === '/v1beta/interactions' && req.method === 'POST') {
+        if (req.headers['x-goog-api-key'] !== 'test-gemini-key') return json(401, { error: { code: 401, message: 'API key not valid', status: 'UNAUTHENTICATED' } });
+        if (/missing/.test(body.model || '')) return json(404, { error: { code: 404, message: `models/${body.model} is not found for API version v1beta`, status: 'NOT_FOUND' } });
+        if (geminiQuotaLeft !== null && geminiQuotaLeft-- <= 0) return json(429, { error: { code: 429, message: 'You exceeded your current quota (GenerateRequestsPerDayPerProjectPerModel-FreeTier)', status: 'RESOURCE_EXHAUSTED' } });
+        const text = (body.input || []).find((b) => b.type === 'text')?.text || '';
+        if (/blocked/i.test(text)) return json(200, { id: `int_${++n}`, status: 'completed', outputs: [{ type: 'model_output', content: [{ type: 'text', text: 'I can\'t help with that.' }] }] });
+        return json(200, { id: `int_${++n}`, model: body.model, status: 'completed', outputs: [{ type: 'model_output', role: 'model', content: [{ type: 'image', mime_type: 'image/png', data: ART_PNG.toString('base64') }] }] });
+      }
       if (req.headers['clay-api-key'] !== 'test-clay-key') return json(401, { message: 'Authentication failed' });
       if (url.pathname === '/me') return json(200, { user: { email: 'test@kwigz.com' }, workspace: { id: '1', name: 'Test' } });
       if (url.pathname === '/credits/balance') return json(200, { balance: 500, actionExecutionBalance: 1000 });
@@ -79,8 +103,8 @@ function startFakeClay({ port = 0, pollsBeforeComplete = 1 } = {}) {
   return new Promise((resolve) => server.listen(port, '127.0.0.1', () => resolve({ server, base: `http://127.0.0.1:${server.address().port}`, calls, close: () => new Promise((r) => server.close(r)) })));
 }
 
-module.exports = { startFakeClay, COMPANIES, PEOPLE, EMAILS };
+module.exports = { startFakeClay, COMPANIES, PEOPLE, EMAILS, ART_PNG };
 
 if (require.main === module) {
-  startFakeClay({ port: Number(process.env.PORT) || 0 }).then(({ base }) => console.log(`Fake Clay API at ${base}  (CLAY_API_KEY=test-clay-key CLAY_API_BASE=${base})`));
+  startFakeClay({ port: Number(process.env.PORT) || 0 }).then(({ base }) => console.log(`Fake Clay API at ${base}  (CLAY_API_KEY=test-clay-key CLAY_API_BASE=${base} GEMINI_API_KEY=test-gemini-key GEMINI_API_BASE=${base}/v1beta)`));
 }

@@ -64,7 +64,7 @@ the contact page) POSTs to `/api/leads`. Each lead is appended to:
 | `DATA_DIR/campaigns.json` | advertiser campaigns created in `/admin` |
 | `DATA_DIR/uploads/` | advertiser banner images |
 | `DATA_DIR/prospects.json` | outbound prospects found with Clay (see *Prospecting*) |
-| `DATA_DIR/prospect-runs.json`, `prospect-excluded.json`, `logos/` | lead-search history, businesses ruled out, cached logos |
+| `DATA_DIR/prospect-runs.json`, `prospect-excluded.json`, `logos/`, `art/` | lead-search history, businesses ruled out, cached logos, AI banner art |
 
 `DATA_DIR` defaults to `server/data/` locally and `/data` on Render.
 
@@ -176,8 +176,30 @@ Nothing is sent automatically: there is no email/SMS provider wired up yet, so
 every message goes out from your own accounts. The public preview pages expose
 only the business name, tagline, phone and the machine — never contact details.
 
-To develop without spending credits: `npm run fake-clay` in one terminal, then
-`CLAY_API_KEY=test-clay-key CLAY_API_BASE=http://127.0.0.1:<port> npm run dev`.
+### AI banner art (Gemini, optional)
+
+Under a lead's mockup, **Banner art → Generate art** asks Google's Gemini image
+model ("Nano Banana") to paint a background for that business: the prompt is
+auto-filled from the category scene (`categories.<id>.art` in
+`server/prospecting-config.js`), the business name and city, plus any free-text
+*art direction* you type, and the business's real logo is attached as a colour
+reference. The model is told to paint **no text or logos** — the real logo, name,
+phone and call-to-action are still drawn pixel-exact on top by `mockup.js`, and
+the machine photo composite is unchanged. The pill/tagline accent is taken from
+the logo's dominant colour. Each generation is saved as a thumbnail; click one to
+use it (everywhere: admin, PNG downloads, the public preview), or **Classic** for
+the gradient theme. The × on a thumbnail deletes it (files live in `DATA_DIR/art/`).
+
+Setup: create a free key at <https://aistudio.google.com/apikey> and set
+`GEMINI_API_KEY` on Render (the Blueprint prompts for it) or in `.env`. The free
+tier has a daily image cap shown in AI Studio; when it's hit the button reports
+"free-tier limit reached". `GEMINI_IMAGE_MODEL` overrides the default model
+(`gemini-nano-banana-2.1`); if that model isn't available to your key the client
+falls back through `gemini-3.1-flash-image` and `gemini-2.5-flash-image`.
+
+To develop without spending credits: `npm run fake-clay` in one terminal (it also
+fakes Gemini), then
+`CLAY_API_KEY=test-clay-key CLAY_API_BASE=http://127.0.0.1:<port> GEMINI_API_KEY=test-gemini-key GEMINI_API_BASE=http://127.0.0.1:<port>/v1beta npm run dev`.
 
 ## Payments & recurring billing (Stripe)
 

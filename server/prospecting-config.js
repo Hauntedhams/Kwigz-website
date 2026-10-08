@@ -34,6 +34,24 @@ module.exports = {
   },
   creditEstimates: { enrichCompany: 0.5, workEmail: 1.1, mobilePhone: 10.3 },
 
+  // AI banner art (Gemini "Nano Banana", free tier). The model paints ONLY the background —
+  // the real logo, name, phone and CTA are drawn on top by mockup.js, so they're always exact.
+  // {{scene}} comes from categories.<id>.art; the rest is auto-filled from the lead.
+  art: {
+    aspectRatio: '21:9',   // closest supported ratio to the 1080×441 banner; cover-cropped on render
+    imageSize: '1K',
+    maxVariants: 6,        // per lead, oldest kept; extra generations replace nothing — admin deletes
+    prompt: [
+      'Create a premium advertising background for a {{category}} business called "{{business}}" in {{city}}, Arizona.',
+      'Scene: {{scene}}',
+      'Composition: wide cinematic 21:9 banner. Keep the LEFT 60% of the frame dark, simple and low-detail so white text stays readable there; put the visual interest on the right third.',
+      'Style: photoreal, moody, high-end, shallow depth of field, rich contrast, no clutter.',
+      'If a logo image is attached, use it ONLY as a color and mood reference — match its palette in the lighting and accents.',
+      'Absolutely no text, letters, numbers, words, logos, signs, phone numbers, watermarks or UI elements anywhere in the image. No people\'s faces in close-up.',
+      '{{direction}}',
+    ].join('\n'),
+  },
+
   // Cities searched for each machine. Clay filters by headquarters city, not radius, so
   // list every city inside the radius; the distance filter trims the rest afterwards.
   metros: {
@@ -53,6 +71,7 @@ module.exports = {
   //   sizes       → Clay `company_size` buckets to keep (small local businesses)
   //   titles      → overrides defaultTitles
   //   pitch       → words used by the outreach templates
+  //   art         → the scene Gemini paints behind the banner (see `art.prompt` above)
   categories: {
     dui: {
       industries: ['Law Practice', 'Legal Services'],
@@ -65,6 +84,7 @@ module.exports = {
         tagline: 'DUI & Criminal Defense',
         cta: 'Arrested? Call now.',
       },
+      art: 'a dim Phoenix city street at night after the bars close, wet asphalt reflecting red and blue police light in the far distance, a confident downtown law-office skyline, calm and authoritative',
     },
     injury: {
       industries: ['Law Practice', 'Legal Services'],
@@ -77,6 +97,7 @@ module.exports = {
         tagline: 'Personal Injury Attorneys',
         cta: 'Injured? Free consultation.',
       },
+      art: 'a desert highway at dusk with a motorcycle and car headlights streaking past, Phoenix skyline glowing, a sense of protection and strength, deep navy and amber tones',
     },
     motorcycle: {
       industries: ['Motor Vehicle Manufacturing', 'Retail Motor Vehicles', 'Vehicle Repair and Maintenance', 'Retail', 'Automotive'],
@@ -88,6 +109,7 @@ module.exports = {
         tagline: 'Motorcycle Sales · Service · Parts',
         cta: 'Ride in this weekend.',
       },
+      art: 'a gleaming custom cruiser motorcycle under warm garage lights, chrome and polished black paint, Arizona sunset through an open roll-up door, dust in the air',
     },
     bail: {
       industries: ['Legal Services', 'Financial Services', 'Consumer Services'],
@@ -99,6 +121,7 @@ module.exports = {
         tagline: '24/7 Bail Bonds',
         cta: 'Call anytime, day or night.',
       },
+      art: 'a quiet downtown Phoenix courthouse at night with warm lights on, a 24-hour open-sign glow (no readable text), reassuring and ready, deep green and gold tones',
     },
     tattoo: {
       industries: ['Consumer Services', 'Retail', 'Arts and Crafts', 'Personal Care Services'],
@@ -111,6 +134,7 @@ module.exports = {
         tagline: 'Custom Tattoos & Piercing',
         cta: 'Walk-ins welcome.',
       },
+      art: 'a moody tattoo studio interior, neon pink and violet glow on dark brick, tattoo machines and ink bottles in soft focus, artistic and edgy',
     },
     insurance: {
       industries: ['Insurance', 'Insurance Agencies and Brokerages', 'Insurance Carriers'],
@@ -123,6 +147,7 @@ module.exports = {
         tagline: 'Auto · Motorcycle · Home Insurance',
         cta: 'Get a free quote.',
       },
+      art: 'a protected home and motorcycle in a Phoenix suburb at golden hour, calm sky, a feeling of security and trust, teal and navy palette',
     },
     hvac: {
       industries: ['Building Equipment Contractors', 'Construction', 'Consumer Services', 'Repair and Maintenance', 'Facilities Services'],
@@ -134,6 +159,7 @@ module.exports = {
         tagline: 'Air Conditioning Repair & Install',
         cta: 'Same-day service.',
       },
+      art: 'a blazing Phoenix summer sky over desert rooftops with a modern AC condenser unit, cool blue air flowing from a vent into a dark comfortable room, relief from heat',
     },
     plumbing: {
       industries: ['Building Equipment Contractors', 'Construction', 'Consumer Services', 'Repair and Maintenance'],
@@ -145,6 +171,7 @@ module.exports = {
         tagline: 'Plumbing · Drains · Water Heaters',
         cta: '24/7 emergency service.',
       },
+      art: 'gleaming copper and chrome pipes with crystal-clear water droplets, a modern water heater in a clean dark utility room, green and steel tones',
     },
     autobody: {
       industries: ['Vehicle Repair and Maintenance', 'Automotive Service and Collision Repair', 'Automotive', 'Motor Vehicle Manufacturing'],
@@ -156,6 +183,7 @@ module.exports = {
         tagline: 'Collision & Auto Body Repair',
         cta: 'Free estimates.',
       },
+      art: 'a flawless freshly painted car in a dark showroom-style body shop, mirror reflections on the paint, sparks from a welder in the background, red and charcoal tones',
     },
     restaurant: {
       industries: ['Restaurants', 'Food and Beverage Services', 'Food & Beverages'],
@@ -168,6 +196,7 @@ module.exports = {
         tagline: 'Open Late · Dine In · Takeout',
         cta: 'Open late tonight.',
       },
+      art: 'late-night street food under warm string lights, sizzling tacos and burgers steaming on a dark wooden table, cozy and inviting, amber and red tones',
     },
     other: {
       industries: [],
@@ -179,6 +208,7 @@ module.exports = {
         tagline: 'Proudly serving Phoenix',
         cta: 'Call today.',
       },
+      art: 'a stylish Phoenix nightlife scene at dusk, warm bar lights and a desert skyline, upscale and local',
     },
   },
 };

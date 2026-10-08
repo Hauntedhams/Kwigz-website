@@ -30,6 +30,8 @@ services:
         sync: false        # whsec_… from Developers → Webhooks → endpoint https://kwigz.com/api/stripe/webhook
       - key: CLAY_API_KEY
         sync: false        # Clay Public API key — powers the admin "Generate leads" prospecting tools (optional)
+      - key: GEMINI_API_KEY
+        sync: false        # Google AI Studio key (free tier) — AI banner art for prospect mockups (optional)
     disk:
       name: kwigz-data
       mountPath: /data

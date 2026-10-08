@@ -76,7 +76,7 @@
       const d = await res.json();
       if (!res.ok || !d.ok) throw new Error(d.error || 'This preview link is no longer available.');
       const m = d.mockup;
-      const { banner, machine, closeup } = await window.KWIGZ_MOCKUP.render(m, { logoUrl: d.logoUrl });
+      const { banner, machine, closeup } = await window.KWIGZ_MOCKUP.render(m, { logoUrl: d.logoUrl, artUrl: d.artUrl });
       const show = (id, canvas) => { const el = document.getElementById(id); el.width = canvas.width; el.height = canvas.height; el.getContext('2d').drawImage(canvas, 0, 0); };
       show('closeup', closeup); show('machine', machine); show('banner', banner);
       document.getElementById('title').textContent = `${m.business} on the screen at ${m.machine.name}`;

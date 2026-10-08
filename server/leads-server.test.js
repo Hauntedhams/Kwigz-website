@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { spawn } = require('node:child_process');
-const { mkdtempSync, rmSync, readFileSync } = require('node:fs');
+const { mkdtempSync, rmSync, readFileSync, existsSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
@@ -419,7 +419,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
   const clay = await startFakeClay();
   let instance;
   try {
-    instance = await start(dataDir, { CLAY_API_KEY: 'test-clay-key', CLAY_API_BASE: clay.base, SITE_URL: 'https://kwigz.test' });
+    instance = await start(dataDir, { CLAY_API_KEY: 'test-clay-key', CLAY_API_BASE: clay.base, GEMINI_API_KEY: 'test-gemini-key', GEMINI_API_BASE: `${clay.base}/v1beta`, GEMINI_IMAGE_MODEL: 'gemini-missing-model', SITE_URL: 'https://kwigz.test' });
     const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
     const call = async (method, p, body) => {
       const res = await fetch(`${instance.base}${p}`, { method, headers: auth, body: body ? JSON.stringify(body) : undefined });
@@ -432,6 +432,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
 
     const status = await call('GET', '/api/prospecting/status');
     assert.equal(status.data.clay.configured, true);
+    assert.equal(status.data.gemini.configured, true);
     assert.equal(status.data.categories.find((c) => c.id === 'dui').configured, true);
     assert.equal(status.data.machines[0].geo, true);
     const credits = await call('GET', '/api/prospecting/credits');
@@ -511,6 +512,36 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
     assert.equal(logo.status, 200);
     assert.equal(logo.headers.get('content-type'), 'image/png');
     assert.equal((await fetch(`${instance.base}/api/preview/${'0'.repeat(24)}`)).status, 404);
+    assert.equal(pubData.artUrl, '', 'no AI art yet → classic banner');
+
+    // AI banner art: Gemini paints the background (logo sent as a reference), real text stays client-side.
+    assert.equal((await fetch(`${instance.base}/api/prospects/${nova.id}/art`, { method: 'POST' })).status, 401);
+    const art = await call('POST', `/api/prospects/${nova.id}/art`, { count: 1, direction: 'gold accents' });
+    assert.equal(art.status, 200, JSON.stringify(art.data));
+    assert.equal(art.data.made.length, 1);
+    assert.equal(art.data.prospect.art.selected, art.data.made[0]);
+    assert.equal(art.data.prospect.art.variants[0].model, 'gemini-nano-banana-2.1', 'unavailable configured model falls back to the default');
+    assert.match(art.data.prospect.art.prompt, /for a DUI \/ Criminal Defense business called "Nova Law Group" in Phoenix/);
+    assert.match(art.data.prospect.art.prompt, /Scene: a dim Phoenix city street/);
+    assert.match(art.data.prospect.art.prompt, /gold accents/);
+    const geminiCall = clay.calls.find((c) => c.path === '/v1beta/interactions' && !/missing/.test(c.body.model));
+    assert.equal(geminiCall.body.response_format.aspect_ratio, '21:9');
+    assert.equal(geminiCall.body.input.filter((b) => b.type === 'image').length, 1, 'logo attached as a color reference');
+    assert.equal(geminiCall.body.store, false);
+    const vid = art.data.made[0];
+    const artImg = await fetch(`${instance.base}/api/prospects/${nova.id}/art/${vid}`, { headers: auth });
+    assert.equal(artImg.status, 200);
+    assert.equal(artImg.headers.get('content-type'), 'image/png');
+    const pubArt = await (await fetch(`${instance.base}/api/preview/${token}`)).json();
+    assert.equal(pubArt.mockup.art, true);
+    assert.equal(pubArt.artUrl, `/api/preview/${token}/art`);
+    assert.equal((await fetch(`${instance.base}${pubArt.artUrl}`)).status, 200, 'public preview serves the selected art');
+    assert.equal((await call('PATCH', `/api/prospects/${nova.id}`, { artSelected: 'art-nope' })).status, 400);
+    const classic = await call('PATCH', `/api/prospects/${nova.id}`, { artSelected: '' });
+    assert.equal(classic.data.prospect.art.selected, '');
+    assert.equal((await fetch(`${instance.base}/api/preview/${token}/art`)).status, 404, 'deselected → no public art');
+    assert.equal((await call('DELETE', `/api/prospects/${nova.id}/art/${vid}`)).data.prospect.art.variants.length, 0);
+    assert.equal(existsSync(path.join(dataDir, 'art', `${vid}.png`)), false, 'file removed with the variant');
 
     // "Send" logs the touch and schedules the follow-up.
     const sent = await call('POST', `/api/prospects/${nova.id}/outreach`, { channel: 'email' });
@@ -557,6 +588,39 @@ test('without CLAY_API_KEY the prospecting tools report as not configured', asyn
     const run = await fetch(`${instance.base}/api/prospecting/runs`, { method: 'POST', headers, body: JSON.stringify({ categoryId: 'dui', machineId: 'chopper-johns-phoenix' }) });
     assert.equal(run.status, 400);
     assert.match((await run.json()).error, /CLAY_API_KEY/);
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('gemini client: model fallback, blocked prompts, and daily quota are reported clearly', async () => {
+  const { createGeminiClient } = require('./gemini');
+  const fake = await startFakeClay({ geminiQuota: 2 });
+  try {
+    const g = createGeminiClient({ apiKey: 'test-gemini-key', base: `${fake.base}/v1beta`, model: 'gemini-missing-model', maxRetries: 0 });
+    const img = await g.generateImage({ prompt: 'desert at dusk' });
+    assert.equal(img.mimeType, 'image/png');
+    assert.ok(img.buffer.length > 50 && img.buffer.subarray(1, 4).toString() === 'PNG');
+    assert.equal(img.model, 'gemini-nano-banana-2.1');
+    assert.equal(g.model, 'gemini-nano-banana-2.1', 'client remembers the working model');
+    await assert.rejects(g.generateImage({ prompt: 'something blocked' }), /no image/);
+    await assert.rejects(g.generateImage({ prompt: 'desert' }), /free-tier limit reached/);
+    assert.throws(() => createGeminiClient({ apiKey: '' }), /GEMINI_API_KEY/);
+  } finally { await fake.close(); }
+});
+
+test('without GEMINI_API_KEY art generation reports as not configured', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-nogemini-'));
+  let instance;
+  try {
+    instance = await start(dataDir, { CLAY_API_KEY: '', GEMINI_API_KEY: '' });
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
+    const status = await (await fetch(`${instance.base}/api/prospecting/status`, { headers })).json();
+    assert.equal(status.gemini.configured, false);
+    const res = await fetch(`${instance.base}/api/prospects/nope/art`, { method: 'POST', headers, body: '{}' });
+    assert.equal(res.status, 400);
+    assert.match((await res.json()).error, /GEMINI_API_KEY/);
   } finally {
     if (instance) await stop(instance.child);
     rmSync(dataDir, { recursive: true, force: true });

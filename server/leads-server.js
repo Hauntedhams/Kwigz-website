@@ -15,15 +15,18 @@
 //   STRIPE_WEBHOOK_SECRET  whsec_… from the webhook endpoint for POST /api/stripe/webhook
 //   SITE_URL               public origin used for post-payment redirects (default https://kwigz.com)
 //   CLAY_API_KEY           Clay Public API key (enables the admin "Generate leads" prospecting tools)
+//   GEMINI_API_KEY         Google AI Studio key (enables AI banner art for mockups; free tier works)
+//   GEMINI_IMAGE_MODEL     optional model override (default gemini-nano-banana-2.1)
 //
 // Public:  POST /api/leads   GET /api/availability   GET /healthz   POST /api/stripe/webhook
-//          GET /preview/<token>   GET /api/preview/<token>[/logo]   (advertiser mockup pages)
+//          GET /preview/<token>   GET /api/preview/<token>[/logo|/art]   (advertiser mockup pages)
 // Admin:   GET /admin        GET/PATCH /api/leads     GET /api/leads.csv
 //          GET/POST/PATCH/DELETE /api/campaigns       GET /api/uploads/<file>
 //          POST /api/campaigns/:id/payment-link       POST /api/campaigns/:id/stop-billing
 //          GET /api/prospecting/status|credits        GET/POST /api/prospecting/runs[/:id]
 //          GET /api/prospects   POST /api/prospects/generate   PATCH/DELETE /api/prospects/:id
 //          POST /api/prospects/:id/outreach|find-mobile        GET /api/prospects/:id/logo
+//          POST /api/prospects/:id/art   GET/DELETE /api/prospects/:id/art/:variantId
 
 const http = require('http');
 const fs = require('fs');
@@ -31,6 +34,7 @@ const path = require('path');
 const crypto = require('crypto');
 const vm = require('vm');
 const { createClayClient } = require('./clay');
+const { createGeminiClient } = require('./gemini');
 const { createProspecting } = require('./prospecting');
 const prospectingConfig = require('./prospecting-config');
 
@@ -66,6 +70,8 @@ vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'ads-config.js'), 'utf8'), co
 const ADS = configContext.window.KWIGZ_ADS;
 const CLAY_API_KEY = process.env.CLAY_API_KEY || '';
 const clay = CLAY_API_KEY ? createClayClient({ apiKey: CLAY_API_KEY, base: process.env.CLAY_API_BASE || undefined, log: (m) => console.log(`[clay] ${m}`) }) : null; // CLAY_API_BASE overridable for tests only
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const gemini = GEMINI_API_KEY ? createGeminiClient({ apiKey: GEMINI_API_KEY, base: process.env.GEMINI_API_BASE || undefined, model: process.env.GEMINI_IMAGE_MODEL || undefined, log: (m) => console.log(`[gemini] ${m}`) }) : null;
 const PUBLIC_FILES = new Set([
   'index.html', 'about.html', 'revenue.html', 'compliance.html', 'contact.html', 'payment-complete.html',
   'styles.css', 'script.js', 'ads-config.js', 'icons.css', 'icons.svg', 'mockup.js',
@@ -105,7 +111,7 @@ const MIME = {
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 ensureCsvHeader();
-const prospecting = createProspecting({ dataDir: DATA_DIR, ads: ADS, config: prospectingConfig, clay, siteUrl: SITE_URL, log: console.log });
+const prospecting = createProspecting({ dataDir: DATA_DIR, ads: ADS, config: prospectingConfig, clay, gemini, siteUrl: SITE_URL, log: console.log });
 
 // ---------- storage helpers ----------
 
@@ -733,10 +739,11 @@ async function handleProspectingRoute(req, res, p) {
       return sendJson(res, 200, { ok: true, count: generated.length, ids: generated.map((x) => x.id) });
     } catch (err) { return prospectingError(res, err); }
   }
-  const prospectMatch = p.match(/^\/api\/prospects\/([^/]+)(?:\/(outreach|find-mobile|logo))?$/);
+  const prospectMatch = p.match(/^\/api\/prospects\/([^/]+)(?:\/(outreach|find-mobile|logo|art)(?:\/([a-z0-9-]+))?)?$/);
   if (!prospectMatch) return false;
   const id = decodeURIComponent(prospectMatch[1]);
   const action = prospectMatch[2];
+  const variantId = prospectMatch[3];
   try {
     if (!action && req.method === 'PATCH') {
       const updated = prospecting.patchProspect(id, await readJsonBody(req));
@@ -757,6 +764,20 @@ async function handleProspectingRoute(req, res, p) {
       if (!logo) { res.writeHead(404); return res.end('No logo'); }
       return sendFile(res, logo.file, { 'Cache-Control': 'private, max-age=86400' });
     }
+    if (action === 'art' && !variantId && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const result = await prospecting.generateArt(id, { count: body.count, direction: body.direction });
+      return result ? sendJson(res, 200, { ok: true, ...result }) : sendJson(res, 404, { ok: false, error: 'Prospect not found' });
+    }
+    if (action === 'art' && variantId && req.method === 'GET') {
+      const art = prospecting.artFile(prospecting.readProspects().find((x) => x.id === id), variantId);
+      if (!art) { res.writeHead(404); return res.end('No art'); }
+      return sendFile(res, art.file, { 'Cache-Control': 'private, max-age=86400' });
+    }
+    if (action === 'art' && variantId && req.method === 'DELETE') {
+      const updated = prospecting.deleteArt(id, variantId);
+      return updated ? sendJson(res, 200, { ok: true, prospect: updated }) : sendJson(res, 404, { ok: false, error: 'Art not found' });
+    }
   } catch (err) { return prospectingError(res, err); }
   return false;
 }
@@ -766,11 +787,16 @@ async function handlePreview(req, res, token, sub) {
   if (sub === undefined) return sendFile(res, path.join(__dirname, 'preview.html'), { 'Cache-Control': 'no-store' });
   const found = prospecting.previewByToken(token);
   if (!found) return sendJson(res, 404, { ok: false, error: 'This preview link is no longer available.' });
-  if (sub === 'json') return sendJson(res, 200, { ok: true, mockup: found.spec, logoUrl: found.prospect.logoUrl ? `/api/preview/${token}/logo` : '' });
+  if (sub === 'json') return sendJson(res, 200, { ok: true, mockup: found.spec, logoUrl: found.prospect.logoUrl ? `/api/preview/${token}/logo` : '', artUrl: found.spec.art ? `/api/preview/${token}/art` : '' });
   if (sub === 'logo') {
     const logo = await prospecting.logoFor(found.prospect);
     if (!logo) { res.writeHead(404); return res.end('No logo'); }
     return sendFile(res, logo.file, { 'Cache-Control': 'public, max-age=86400' });
+  }
+  if (sub === 'art') {
+    const art = prospecting.artFile(found.prospect);
+    if (!art) { res.writeHead(404); return res.end('No art'); }
+    return sendFile(res, art.file, { 'Cache-Control': 'public, max-age=3600' });
   }
   return sendJson(res, 404, { ok: false, error: 'Not found' });
 }
@@ -807,7 +833,7 @@ async function route(req, res) {
   if (p === '/api/stripe/webhook' && req.method === 'POST') return handleStripeWebhook(req, res);
   const previewMatch = p.match(/^\/preview\/([a-f0-9]{24})\/?$/);
   if (previewMatch && req.method === 'GET') return handlePreview(req, res, previewMatch[1]);
-  const previewApiMatch = p.match(/^\/api\/preview\/([a-f0-9]{24})(?:\/(logo))?$/);
+  const previewApiMatch = p.match(/^\/api\/preview\/([a-f0-9]{24})(?:\/(logo|art))?$/);
   if (previewApiMatch && req.method === 'GET') return handlePreview(req, res, previewApiMatch[1], previewApiMatch[2] || 'json');
 
   // --- admin ---
@@ -895,4 +921,5 @@ server.listen(PORT, () => {
   console.log(`Data directory: ${DATA_DIR}`);
   console.log(`Stripe: ${STRIPE_SECRET_KEY ? `${STRIPE_MODE} mode${STRIPE_WEBHOOK_SECRET ? '' : ' (no STRIPE_WEBHOOK_SECRET — payments will not auto-confirm)'}` : 'not configured'}`);
   console.log(`Clay lead generation: ${clay ? 'enabled' : 'not configured (set CLAY_API_KEY)'}`);
+  console.log(`Gemini banner art: ${gemini ? `enabled (${gemini.model})` : 'not configured (set GEMINI_API_KEY)'}`);
 });

@@ -214,6 +214,13 @@
     .mock { background: #111; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
     .mock canvas { width: 100%; height: auto; display: block; }
     .mock-sm { max-width: 420px; }
+    .art-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .art-thumb { position: relative; width: 132px; height: 54px; border-radius: 8px; overflow: hidden; border: 2px solid var(--line); background: #0b1a33; cursor: pointer; padding: 0; display: grid; place-items: center; color: #fff; font-size: 0.72rem; font-weight: 700; }
+    .art-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .art-thumb.selected { border-color: var(--red); box-shadow: 0 0 0 2px rgba(220,38,38,0.2); }
+    .art-thumb .art-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.7rem; line-height: 18px; cursor: pointer; padding: 0; }
+    .art-gen { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .art-gen input { flex: 1; min-width: 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.82rem; }
     .contact-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; font-size: 0.84rem; }
     .contact-card + .contact-card { margin-top: 8px; }
     .contact-card .ttl { color: var(--muted); font-size: 0.76rem; }
@@ -455,8 +462,9 @@
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const TOKEN_KEY = 'kwigz_admin_token';
   let token = sessionStorage.getItem(TOKEN_KEY) || '';
+  const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
   let leads = [], campaigns = [], stripe = { enabled: false, mode: 'test', webhook: false };
-  let prospects = [], prospecting = { clay: { configured: false }, categories: [], machines: [], defaults: { limit: 15, maxLimit: 20, radiusMiles: 20, followUpDays: 2 }, creditEstimates: {}, activeRun: null, recentRuns: [] };
+  let prospects = [], prospecting = { clay: { configured: false }, gemini: { configured: false }, categories: [], machines: [], defaults: { limit: 15, maxLimit: 20, radiusMiles: 20, followUpDays: 2 }, creditEstimates: {}, activeRun: null, recentRuns: [] };
   let pStatus = '', pCategory = '', pQuery = '', openProspectId = null, draftTab = 'email', runPollTimer = null;
   let leadType = '', leadStatus = '', leadQuery = '', openLeadId = null;
   let calMonth = new Date(); calMonth.setDate(1);
@@ -1097,6 +1105,7 @@
           <div class="mock mock-sm" style="margin-top:10px;"><canvas id="mock-banner" width="1080" height="441"></canvas></div>
           <div class="row-actions" style="margin-top:10px;"><button class="btn btn-sm" data-pa="dl-machine" data-pid="${esc(p.id)}">Download mockup PNG</button><button class="btn btn-sm" data-pa="dl-full" data-pid="${esc(p.id)}">Download full photo PNG</button><button class="btn btn-sm" data-pa="dl-banner" data-pid="${esc(p.id)}">Download banner PNG</button>${p.previewUrl ? `<button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="preview">Copy preview link</button><a class="btn btn-sm" href="${esc(p.previewUrl)}" target="_blank" rel="noopener">Open preview</a>` : ''}</div>
           <p class="hint" style="color:var(--muted);font-size:0.74rem;margin-top:6px;">The email links to this preview page, so they see their ad on the machine without an attachment. Clay is the source of their logo when we have one.</p>
+          ${artPanel(p)}
         </div>
         <div class="block"><h4>Company</h4><div class="kv">${info || '<div><span>—</span></div>'}</div>
           <div class="kv"><div><span>Phone</span><b><input class="inline" style="width:170px;" value="${esc(p.phone)}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /></b></div></div></div>
@@ -1119,16 +1128,49 @@
     </div>`;
   }
 
+  // Banner art: Gemini paints the background; the real logo/name/phone are drawn on top by mockup.js.
+  function artPanel(p) {
+    const variants = p.art?.variants || [];
+    const selected = p.art?.selected || '';
+    const g = prospecting.gemini || { configured: false };
+    const thumbs = `<button class="art-thumb ${selected ? '' : 'selected'}" data-pa="art-select" data-pid="${esc(p.id)}" data-vid="" title="Category colors, no AI art">Classic</button>${variants.map((v) => `<span class="art-thumb ${v.id === selected ? 'selected' : ''}" data-pa="art-select" data-pid="${esc(p.id)}" data-vid="${esc(v.id)}" title="${esc(v.direction || v.model || '')}"><img data-art-vid="${esc(v.id)}" data-pid="${esc(p.id)}" alt="" /><button class="art-del" data-pa="art-del" data-pid="${esc(p.id)}" data-vid="${esc(v.id)}" title="Delete this art">×</button></span>`).join('')}`;
+    const gen = g.configured
+      ? `<div class="art-gen"><input id="artDirection" placeholder="Art direction (optional) — e.g. “courthouse steps at sunset, gold accents”" maxlength="300" /><button class="btn btn-sm btn-primary" data-pa="art-gen" data-pid="${esc(p.id)}">${variants.length ? 'More art' : 'Generate art'}</button></div>
+         <p class="hint" style="color:var(--muted);font-size:0.74rem;margin-top:6px;">Gemini (${esc(g.model || 'free tier')}) paints a ${esc(catById(p.categoryId).label.toLowerCase())} scene using their logo as a color reference. Their real logo, name and phone stay pixel-exact on top. Pick a thumbnail to use it everywhere — preview page, PNGs and emails. Takes 10–30 s.</p>`
+      : `<p class="hint" style="color:var(--muted);font-size:0.74rem;margin-top:6px;">AI banner art is off. Create a free key at <b>aistudio.google.com/apikey</b> and add it to Render → Environment as <b>GEMINI_API_KEY</b>.</p>`;
+    return `<h4 style="margin-top:14px;">Banner art</h4><div class="art-row">${thumbs}</div>${gen}`;
+  }
+
+  const artBlobCache = new Map(); // variantId → blob URL (admin-authed fetch)
+  async function artBlobUrl(pid, vid) {
+    if (!vid) return '';
+    if (artBlobCache.has(vid)) return artBlobCache.get(vid);
+    const r = await fetch(`/api/prospects/${encodeURIComponent(pid)}/art/${encodeURIComponent(vid)}`, { headers: authHeaders() });
+    if (!r.ok) return '';
+    const url = URL.createObjectURL(await r.blob());
+    artBlobCache.set(vid, url);
+    return url;
+  }
+  async function hydrateArtThumbs() {
+    for (const img of $$('img[data-art-vid]:not([src])')) {
+      const url = await artBlobUrl(img.dataset.pid, img.dataset.artVid);
+      if (url && document.body.contains(img)) img.src = url;
+    }
+  }
+
   const mockupCache = new Map();
   async function renderMockup(p) {
     const machineEl = $('#mock-machine'), bannerEl = $('#mock-banner');
     if (!machineEl || !bannerEl || !window.KWIGZ_MOCKUP) return;
-    const key = JSON.stringify([p.id, p.mockup, p.logoUrl]);
+    hydrateArtThumbs();
+    const key = JSON.stringify([p.id, p.mockup, p.logoUrl, p.art?.selected || '']);
     let rendered = mockupCache.get(key);
     if (!rendered) {
       let logoUrl = '';
+      let artUrl = '';
+      try { artUrl = await artBlobUrl(p.id, p.art?.selected || ''); } catch {}
       if (p.logoUrl) { try { const r = await fetch(`/api/prospects/${encodeURIComponent(p.id)}/logo`, { headers: token ? { Authorization: `Bearer ${token}` } : {} }); if (r.ok) logoUrl = URL.createObjectURL(await r.blob()); } catch {} }
-      try { rendered = await window.KWIGZ_MOCKUP.render(p.mockup, { logoUrl }); } catch (err) { console.error(err); return; }
+      try { rendered = await window.KWIGZ_MOCKUP.render(p.mockup, { logoUrl, artUrl }); } catch (err) { console.error(err); return; }
       mockupCache.clear(); mockupCache.set(key, rendered);
     }
     if (!document.body.contains(machineEl)) return;
@@ -1204,6 +1246,29 @@
         const start = addDays(todayISO, ADS.approvalDays);
         openCampaignModal({ machineId: p.machineId, categoryId: p.categoryId, business: p.business, contactName: c?.name || '', email: c?.email || '', phone: p.phone || c?.mobile || '', website: p.website || '', budget: ADS.budgets[0].amount, start, end: addDays(start, ADS.campaignDays - 1), notes: `From prospecting · ${p.id}` }, { title: `New campaign — ${p.business}` });
         renderAll(); return;
+      }
+      if (pa === 'art-gen') {
+        const direction = $('#artDirection')?.value?.trim() || '';
+        t.disabled = true; const label = t.textContent; t.textContent = 'Painting…';
+        try {
+          const r = await api(`/api/prospects/${encodeURIComponent(id)}/art`, { method: 'POST', body: JSON.stringify({ count: 1, direction }) });
+          const i = prospects.findIndex((x) => x.id === id); if (i !== -1) prospects[i] = { ...prospects[i], ...r.prospect, mockup: { ...prospects[i].mockup, art: Boolean(r.prospect.art?.selected) } };
+          toast(r.failed ? `Art failed: ${r.failed}` : 'Art generated — pick it below');
+        } finally { t.disabled = false; t.textContent = label; }
+        renderProspecting(); return;
+      }
+      if (pa === 'art-select') {
+        const vid = t.dataset.vid || '';
+        if ((p.art?.selected || '') === vid) return;
+        const updated = await patchProspect(id, { artSelected: vid }, vid ? 'Art selected' : 'Classic banner selected');
+        updated.mockup = { ...updated.mockup, art: Boolean(vid) };
+        renderProspecting(); return;
+      }
+      if (pa === 'art-del') {
+        e.stopPropagation();
+        const r = await api(`/api/prospects/${encodeURIComponent(id)}/art/${encodeURIComponent(t.dataset.vid)}`, { method: 'DELETE' });
+        const i = prospects.findIndex((x) => x.id === id); if (i !== -1) prospects[i] = { ...prospects[i], ...r.prospect, mockup: { ...prospects[i].mockup, art: Boolean(r.prospect.art?.selected) } };
+        toast('Art deleted'); renderProspecting(); return;
       }
       if (pa === 'dl-machine' || pa === 'dl-banner' || pa === 'dl-full') {
         const slug = p.business.replace(/[^a-z0-9]+/gi, '-').toLowerCase();

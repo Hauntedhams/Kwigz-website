@@ -6,6 +6,8 @@
 //          business phone scraped from the company website. Saved as prospects.
 // Step 2 — POST /api/prospects/generate: writes the email / text / LinkedIn drafts and
 //          creates the public mockup preview link for each prospect.
+//          POST /api/prospects/:id/art (optional): Gemini paints banner background art from
+//          the lead's category + logo; the real logo/phone/name are drawn on top client-side.
 // Then the admin "sends" by copying the draft (mailto:/sms:/LinkedIn), logs the touch,
 // and the prospect shows up again in "Needs attention" when the follow-up is due.
 
@@ -103,12 +105,14 @@ async function findWebsitePhone(website, opts) {
 
 // ---------- module ----------
 
-function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.log, fetchImpl = fetch }) {
+function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl, log = console.log, fetchImpl = fetch }) {
   const PROSPECTS_FILE = path.join(dataDir, 'prospects.json');
   const RUNS_FILE = path.join(dataDir, 'prospect-runs.json');
   const EXCLUDED_FILE = path.join(dataDir, 'prospect-excluded.json'); // enriched once, ruled out (e.g. outside radius) — never pay for them again
   const LOGO_DIR = path.join(dataDir, 'logos');
+  const ART_DIR = path.join(dataDir, 'art'); // Gemini banner backgrounds, <variantId>.png
   fs.mkdirSync(LOGO_DIR, { recursive: true });
+  fs.mkdirSync(ART_DIR, { recursive: true });
 
   const readJson = (file, fallback) => { try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (err) { if (err.code === 'ENOENT') return fallback; throw err; } };
   const writeJson = (file, data) => { fs.writeFileSync(`${file}.tmp`, JSON.stringify(data, null, 2)); fs.renameSync(`${file}.tmp`, file); };
@@ -140,6 +144,7 @@ function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.
     const runs = readRuns();
     return {
       clay: { configured: Boolean(clay) },
+      gemini: { configured: Boolean(gemini), model: gemini ? gemini.model : '' },
       defaults: { limit: config.defaults.limit, maxLimit: config.defaults.maxLimit, radiusMiles: config.defaults.radiusMiles, followUpDays: config.defaults.followUpDays, contactsPerCompany: config.defaults.contactsPerCompany },
       creditEstimates: config.creditEstimates,
       sender: config.sender,
@@ -388,7 +393,7 @@ function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.
     const pitch = (catConfig(p.categoryId) || config.categories.other).pitch;
     return {
       business: p.business, tagline: pickSpecialty(p) || pitch.tagline, cta: pitch.cta, phone: p.phone || '', city: p.city || '', website: p.domain || '',
-      categoryId: category.id, categoryLabel: category.label, categoryIcon: category.icon, hasLogo: Boolean(p.logoUrl),
+      categoryId: category.id, categoryLabel: category.label, categoryIcon: category.icon, hasLogo: Boolean(p.logoUrl), art: Boolean(selectedArt(p)),
       machine: { name: machine.name, city: machine.city, address: machine.address || '', venueType: machine.venueType || '' },
       price: price(), plays: playsFor(machine), bannerSeconds: ads.bannerSeconds, bannerSize: ads.bannerSize, siteUrl,
     };
@@ -432,6 +437,11 @@ function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
     if (body.business !== undefined) { const b = clean(body.business, 160); if (!b) throw new Error('Business name is required'); p.business = b; }
     if (body.website !== undefined) p.website = clean(body.website, 300);
+    if (body.artSelected !== undefined) {
+      const id = clean(body.artSelected, 60);
+      if (id && !(p.art?.variants || []).some((v) => v.id === id)) throw new Error('Unknown art variant');
+      p.art = { ...(p.art || { variants: [] }), selected: id };
+    }
     if (Array.isArray(body.contacts)) {
       p.contacts = body.contacts.slice(0, 6).map((c) => ({ name: clean(c.name, 120), firstName: clean(c.firstName, 60) || firstNameOf(c.name), title: clean(c.title, 120), linkedinUrl: clean(c.linkedinUrl, 300), city: clean(c.city, 80), email: clean(c.email, 254).toLowerCase(), emailSource: clean(c.emailSource, 20) || (c.email ? 'manual' : ''), mobile: clean(c.mobile, 40) })).filter((c) => c.name);
     }
@@ -468,9 +478,10 @@ function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.
 
   function deleteProspect(id) {
     const prospects = readProspects();
-    const next = prospects.filter((p) => p.id !== id);
-    if (next.length === prospects.length) return false;
-    writeProspects(next);
+    const gone = prospects.find((p) => p.id === id);
+    if (!gone) return false;
+    for (const v of gone.art?.variants || []) fs.rmSync(artPath(v.id), { force: true });
+    writeProspects(prospects.filter((p) => p.id !== id));
     return true;
   }
 
@@ -501,6 +512,81 @@ function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.
     return p ? { prospect: p, spec: mockupSpec(p) } : null;
   }
 
+  // ---------- AI banner art (Gemini) ----------
+
+  const selectedArt = (p) => (p?.art?.variants || []).find((v) => v.id === p.art.selected) || null;
+  const artPath = (variantId) => path.join(ART_DIR, `${variantId}.png`);
+
+  function artPrompt(p, direction = '') {
+    const cat = catConfig(p.categoryId) || config.categories.other;
+    const category = categoryById(p.categoryId)?.label || p.categoryId;
+    const fill = { business: p.business, category, city: p.city || machineById(p.machineId)?.city || 'Phoenix', scene: cat.art || config.categories.other.art || '', direction: direction ? `Art direction from the advertiser: ${direction}` : '' };
+    return config.art.prompt.replace(/\{\{(\w+)\}\}/g, (_, k) => fill[k] ?? '').replace(/\n{2,}/g, '\n').trim();
+  }
+
+  // Generates `count` background variants (sequentially — the free tier is rate-limited per minute).
+  async function generateArt(id, { count = 1, direction = '' } = {}) {
+    if (!gemini) throw new Error('AI art is not configured on the server (set GEMINI_API_KEY — free at aistudio.google.com/apikey).');
+    const n = Math.max(1, Math.min(3, Math.round(Number(count) || 1)));
+    const p = readProspects().find((x) => x.id === id);
+    if (!p) return null;
+    const prompt = artPrompt(p, clean(direction, 300));
+    const logo = await logoFor(p);
+    const refs = logo && logo.type !== 'image/svg+xml' ? [{ mimeType: logo.type, data: fs.readFileSync(logo.file) }] : [];
+    const made = [];
+    let lastErr = null;
+    for (let i = 0; i < n; i++) {
+      try {
+        const { buffer, model } = await gemini.generateImage({ prompt, images: refs, aspectRatio: config.art.aspectRatio, imageSize: config.art.imageSize });
+        const variant = { id: newId('art'), createdAt: nowISO(), model, direction: clean(direction, 300), bytes: buffer.length };
+        fs.writeFileSync(artPath(variant.id), buffer);
+        made.push(variant);
+      } catch (err) {
+        lastErr = err;
+        log(`[gemini] art for ${p.business} failed: ${err.message}`);
+        break;
+      }
+    }
+    if (!made.length) throw lastErr || new Error('Gemini returned no image');
+    // Re-read: generation took a while and the admin may have edited the prospect meanwhile.
+    const prospects = readProspects();
+    const cur = prospects.find((x) => x.id === id);
+    if (!cur) { made.forEach((v) => fs.rmSync(artPath(v.id), { force: true })); return null; }
+    cur.art = cur.art || { variants: [], selected: '' };
+    cur.art.variants.push(...made);
+    const overflow = cur.art.variants.length - config.art.maxVariants;
+    if (overflow > 0) {
+      const dropped = cur.art.variants.filter((v) => v.id !== cur.art.selected).slice(0, overflow);
+      for (const v of dropped) fs.rmSync(artPath(v.id), { force: true });
+      cur.art.variants = cur.art.variants.filter((v) => !dropped.includes(v));
+    }
+    if (!cur.art.selected || !cur.art.variants.some((v) => v.id === cur.art.selected)) cur.art.selected = made[0].id;
+    cur.art.prompt = prompt;
+    cur.updatedAt = nowISO();
+    writeProspects(prospects);
+    return { prospect: cur, made: made.map((v) => v.id), failed: lastErr ? lastErr.message : '' };
+  }
+
+  function deleteArt(id, variantId) {
+    const prospects = readProspects();
+    const p = prospects.find((x) => x.id === id);
+    if (!p?.art?.variants?.some((v) => v.id === variantId)) return null;
+    fs.rmSync(artPath(variantId), { force: true });
+    p.art.variants = p.art.variants.filter((v) => v.id !== variantId);
+    if (p.art.selected === variantId) p.art.selected = p.art.variants.at(-1)?.id || '';
+    p.updatedAt = nowISO();
+    writeProspects(prospects);
+    return p;
+  }
+
+  // variantId omitted → the selected variant (what the preview page shows).
+  function artFile(p, variantId) {
+    const v = variantId ? (p?.art?.variants || []).find((x) => x.id === variantId) : selectedArt(p);
+    if (!v) return null;
+    const file = artPath(v.id);
+    return fs.existsSync(file) ? { file, type: 'image/png', variant: v } : null;
+  }
+
   // Logos come from Clay's CDN; proxy + cache them so the canvas stays same-origin (exportable).
   async function logoFor(p) {
     if (!p?.logoUrl) return null;
@@ -527,6 +613,7 @@ function createProspecting({ dataDir, ads, config, clay, siteUrl, log = console.
 
   return {
     status, startRun, readRuns, readProspects, patchProspect, deleteProspect, generateDrafts, logOutreach, findMobile, mockupSpec, previewByToken, logoFor, previewUrl,
+    generateArt, deleteArt, artFile, artPrompt,
     PROSPECT_STATUSES, OUTREACH_CHANNELS,
   };
 }

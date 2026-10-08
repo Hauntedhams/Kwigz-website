@@ -1,6 +1,6 @@
 // KWIGZ ad mockup renderer (browser, no dependencies).
-// Draws a 1080×441 banner for a business, composes the machine's portrait screen,
-// and warps it onto the photo of the installed SlimWall. Used by /admin and /preview/<token>.
+// Draws a 1080×441 banner for a business (optionally over AI-generated art), composes the machine's
+// portrait screen, and warps it onto the photo of the installed SlimWall. Used by /admin and /preview/<token>.
 (() => {
   // Screen corners on slimwall-installed-web.jpg as displayed (1050×1400, EXIF-rotated).
   const SCREEN_QUAD = { tl: [419, 506], tr: [618, 526], br: [618, 922], bl: [427, 959] };
@@ -58,19 +58,67 @@
     return `${t.trim()}…`;
   }
 
-  function drawBanner(spec, logo) {
+  // Draws `img` scaled to cover the box (like CSS background-size: cover), centered.
+  function drawCover(ctx, img, x, y, w, h) {
+    const s = Math.max(w / img.width, h / img.height);
+    const dw = img.width * s, dh = img.height * s;
+    ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+  }
+
+  // Most saturated, reasonably common color in the logo → brand accent. Null if the logo is
+  // basically monochrome (then the category accent is used).
+  function logoAccent(logo) {
+    try {
+      const n = 48, c = canvasOf(n, n), ctx = c.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(logo, 0, 0, n, n);
+      const { data } = ctx.getImageData(0, 0, n, n);
+      const bins = new Map();
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i], g = data[i + 1], b = data[i + 2], a = data[i + 3];
+        if (a < 64) continue;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        const sat = max ? (max - min) / max : 0, light = (max + min) / 510;
+        if (sat < 0.35 || light < 0.12 || light > 0.92) continue;
+        const key = `${r >> 4},${g >> 4},${b >> 4}`;
+        const bin = bins.get(key) || { r: 0, g: 0, b: 0, count: 0, sat: 0 };
+        bin.r += r; bin.g += g; bin.b += b; bin.count++; bin.sat += sat;
+        bins.set(key, bin);
+      }
+      let best = null;
+      for (const bin of bins.values()) { const score = bin.count * (0.5 + bin.sat / bin.count); if (bin.count >= 6 && (!best || score > best.score)) best = { ...bin, score }; }
+      if (!best) return null;
+      const r = Math.round(best.r / best.count), g = Math.round(best.g / best.count), b = Math.round(best.b / best.count);
+      const hex = `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+      return { hex, dark: (0.299 * r + 0.587 * g + 0.114 * b) < 150 };
+    } catch { return null; }
+  }
+
+  function drawBanner(spec, logo, art) {
     const [W, H] = [1080, 441];
     const c = canvasOf(W, H);
     const ctx = c.getContext('2d');
-    const th = themeFor(spec.categoryId);
+    const th = { ...themeFor(spec.categoryId) };
+    // With AI art behind it, borrow the accent from the business's real logo so the pill/tagline match their brand.
+    if (art && logo) { const brand = logoAccent(logo); if (brand) { th.accent = brand.hex; th.ink = brand.dark ? '#fff' : '#111'; } }
 
-    const bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, th.base); bg.addColorStop(1, th.base2);
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-    // soft accent glow top-right
-    const glow = ctx.createRadialGradient(W - 120, 40, 10, W - 120, 40, 520);
-    glow.addColorStop(0, `${th.accent}55`); glow.addColorStop(1, `${th.accent}00`);
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    if (art) {
+      drawCover(ctx, art, 0, 0, W, H);
+      // Left-to-right scrim keeps the text side legible whatever the art looks like.
+      const scrim = ctx.createLinearGradient(0, 0, W, 0);
+      scrim.addColorStop(0, 'rgba(5,8,16,0.88)'); scrim.addColorStop(0.5, 'rgba(5,8,16,0.62)'); scrim.addColorStop(1, 'rgba(5,8,16,0.10)');
+      ctx.fillStyle = scrim; ctx.fillRect(0, 0, W, H);
+      const bottom = ctx.createLinearGradient(0, H - 160, 0, H);
+      bottom.addColorStop(0, 'rgba(5,8,16,0)'); bottom.addColorStop(1, 'rgba(5,8,16,0.55)');
+      ctx.fillStyle = bottom; ctx.fillRect(0, 0, W, H);
+    } else {
+      const bg = ctx.createLinearGradient(0, 0, W, H);
+      bg.addColorStop(0, th.base); bg.addColorStop(1, th.base2);
+      ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+      // soft accent glow top-right
+      const glow = ctx.createRadialGradient(W - 120, 40, 10, W - 120, 40, 520);
+      glow.addColorStop(0, `${th.accent}55`); glow.addColorStop(1, `${th.accent}00`);
+      ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
+    }
     ctx.fillStyle = th.accent; ctx.fillRect(0, 0, 14, H);
 
     let x = 54;
@@ -95,9 +143,9 @@
     ctx.fillText(ellipsize(ctx, spec.business, textMax), x, 60 + nameSize * 0.78);
     let y = 60 + nameSize + 18;
 
-    // Tagline
+    // Tagline (a dark brand accent is unreadable as text on the scrim — fall back to soft white)
     if (spec.tagline) {
-      ctx.fillStyle = th.accent;
+      ctx.fillStyle = th.ink === '#fff' && th.accent !== themeFor(spec.categoryId).accent ? 'rgba(255,255,255,0.85)' : th.accent;
       fitText(ctx, spec.tagline, textMax, 32, 22, 700);
       ctx.fillText(ellipsize(ctx, spec.tagline, textMax), x, y + 26);
       y += 60;
@@ -118,7 +166,9 @@
     // CTA pill
     ctx.font = `700 26px ${FONT}`;
     const pillX = W - ctaW - 48, pillY = H - 48 - 64;
+    if (art) { ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6; }
     roundRect(ctx, pillX, pillY, ctaW, 64, 32); ctx.fillStyle = th.accent; ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
     ctx.fillStyle = th.ink === '#fff' ? '#fff' : th.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(ellipsize(ctx, ctaText, ctaW - 40), pillX + ctaW / 2, pillY + 33);
 
@@ -204,10 +254,10 @@
     return c;
   }
 
-  async function render(spec, { logoUrl = '', photoUrl = PHOTO } = {}) {
+  async function render(spec, { logoUrl = '', photoUrl = PHOTO, artUrl = '' } = {}) {
     if (document.fonts?.load) { try { await Promise.all([document.fonts.load(`900 60px ${FONT}`), document.fonts.load(`700 26px ${FONT}`)]); } catch { /* fall back to system font */ } }
-    const [photo, logo] = await Promise.all([loadImage(photoUrl), logoUrl ? loadImage(logoUrl).catch(() => null) : null]);
-    const banner = drawBanner(spec, logo);
+    const [photo, logo, art] = await Promise.all([loadImage(photoUrl), logoUrl ? loadImage(logoUrl).catch(() => null) : null, artUrl ? loadImage(artUrl).catch(() => null) : null]);
+    const banner = drawBanner(spec, logo, art);
     const screen = drawScreen(spec, banner);
     const machine = drawMachine(photo, screen);
     const closeup = drawCloseup(machine);
