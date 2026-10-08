@@ -78,7 +78,7 @@ const PUBLIC_FILES = new Set([
   'index.html', 'about.html', 'revenue.html', 'compliance.html', 'contact.html', 'payment-complete.html',
   'styles.css', 'script.js', 'ads-config.js', 'icons.css', 'icons.svg', 'mockup.js',
   'hero-bg.jpg', 'kwigz-logo-nobg.png', 'kwigz-logo.png',
-  'slimwall-installed-web.jpg', 'slimwall-inside-web.jpg', 'IMG_2898.jpeg',
+  'slimwall-installed-web.jpg', 'slimwall-inside-web.jpg', 'yucca-installed-web.jpg', 'IMG_2898.jpeg',
 ]);
 const loginAttempts = new Map();
 const MAX_BODY = 8 * 1024 * 1024;          // room for a base64 banner

@@ -1,12 +1,15 @@
 // KWIGZ ad mockup renderer (browser, no dependencies).
-// Draws a 1080×441 banner for a business (optionally over AI-generated art), composes the machine's
-// portrait screen, and warps it onto the photo of the installed SlimWall. Used by /admin and /preview/<token>.
+// Draws a 1080×441 banner for a business (optionally over AI-generated art) and warps it onto the
+// header strip of the real machine screen in the reference photo — the rest of the screen (product
+// grid) is the actual photo. Used by /admin and /preview/<token>.
 (() => {
-  // Screen corners on slimwall-installed-web.jpg as displayed (1050×1400, EXIF-rotated).
-  const SCREEN_QUAD = { tl: [419, 506], tr: [618, 526], br: [618, 922], bl: [427, 959] };
-  const PHOTO = '/slimwall-installed-web.jpg';
-  const PHOTO_SIZE = [1050, 1400];
-  const SCREEN = [1080, 1920];
+  // Reference photo: the installed machine at Yucca Tap Room. The ad slot is the dark header strip
+  // above the product grid (where the venue logo sits). Corners in photo pixels (573×768).
+  const PHOTO = '/yucca-installed-web.jpg';
+  const PHOTO_SIZE = [573, 768];
+  const SCREEN_QUAD = { tl: [226, 263], tr: [345.5, 276], br: [345.5, 331], bl: [226, 324] };
+  const RENDER_SCALE = 2; // composite at 2× the photo so the banner stays crisp even on a soft photo
+  const BANNER = [1080, 441];
   const FONT = "'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif";
 
   const THEMES = {
@@ -94,7 +97,7 @@
   }
 
   function drawBanner(spec, logo, art) {
-    const [W, H] = [1080, 441];
+    const [W, H] = BANNER;
     const c = canvasOf(W, H);
     const ctx = c.getContext('2d');
     const th = { ...themeFor(spec.categoryId) };
@@ -180,77 +183,70 @@
     return c;
   }
 
-  // Portrait screen: the advertiser banner on top, the machine's attract loop below.
-  function drawScreen(spec, banner) {
-    const [W, H] = SCREEN;
-    const c = canvasOf(W, H);
+  // The header strip is a little taller than the 1080×441 ad (perspective aside, ~1080×550). Draw the
+  // banner at the top and extend its bottom edge colour downwards so nothing of the old header shows.
+  function stripCanvas(banner) {
+    const quadW = Math.hypot(SCREEN_QUAD.tr[0] - SCREEN_QUAD.tl[0], SCREEN_QUAD.tr[1] - SCREEN_QUAD.tl[1]);
+    const quadH = (Math.hypot(SCREEN_QUAD.bl[0] - SCREEN_QUAD.tl[0], SCREEN_QUAD.bl[1] - SCREEN_QUAD.tl[1]) + Math.hypot(SCREEN_QUAD.br[0] - SCREEN_QUAD.tr[0], SCREEN_QUAD.br[1] - SCREEN_QUAD.tr[1])) / 2;
+    const H = Math.max(BANNER[1], Math.round(BANNER[0] * quadH / quadW));
+    const c = canvasOf(BANNER[0], H);
     const ctx = c.getContext('2d');
-    ctx.fillStyle = '#07070c'; ctx.fillRect(0, 0, W, H);
-    ctx.drawImage(banner, 0, 0, W, 441);
-
-    const bg = ctx.createRadialGradient(W / 2, 1000, 50, W / 2, 1000, 900);
-    bg.addColorStop(0, '#1b1038'); bg.addColorStop(1, '#07070c');
-    ctx.fillStyle = bg; ctx.fillRect(0, 441, W, H - 441);
-
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const neon = (text, y, size, color) => {
-      ctx.font = `900 ${size}px ${FONT}`;
-      ctx.shadowColor = color; ctx.shadowBlur = 60; ctx.fillStyle = color; ctx.fillText(text, W / 2, y);
-      ctx.shadowBlur = 18; ctx.fillStyle = '#fff'; ctx.fillText(text, W / 2, y);
-      ctx.shadowBlur = 0;
-    };
-    neon('VAPES', 760, 190, '#b36bff');
-    neon('SOLD', 960, 190, '#b36bff');
-    neon('HERE', 1160, 190, '#b36bff');
-    ctx.fillStyle = '#fff'; ctx.font = `800 64px ${FONT}`; ctx.fillText('TAP TO BUY', W / 2, 1440);
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 4; roundRect(ctx, W / 2 - 230, 1390, 460, 100, 50); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.font = `700 34px ${FONT}`; ctx.fillText('21+ · ID VERIFIED', W / 2, 1640);
-    ctx.fillStyle = '#dc2626'; ctx.font = `900 54px ${FONT}`; ctx.fillText('KWIGZ', W / 2, 1790);
-    ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+    if (H > BANNER[1]) {
+      const bctx = banner.getContext('2d');
+      const d = bctx.getImageData(0, BANNER[1] - 6, BANNER[0], 6).data;
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let i = 0; i < d.length; i += 4 * 7) { r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+      ctx.fillStyle = `rgb(${Math.round(r / n)},${Math.round(g / n)},${Math.round(b / n)})`;
+      ctx.fillRect(0, 0, BANNER[0], H);
+    }
+    ctx.drawImage(banner, 0, 0);
     return c;
   }
 
-  // Maps the screen canvas onto the photo's screen quad with thin horizontal strips
-  // (each strip gets its own affine transform, which approximates the perspective well).
-  function drawMachine(photo, screen) {
-    const [W, H] = PHOTO_SIZE;
+  // Maps the strip canvas onto the photo's header quad with thin horizontal slices (each slice gets
+  // its own affine transform, which approximates the perspective well). Output is RENDER_SCALE× the photo.
+  function drawMachine(photo, banner) {
+    const S = RENDER_SCALE;
+    const [W, H] = [PHOTO_SIZE[0] * S, PHOTO_SIZE[1] * S];
     const c = canvasOf(W, H);
     const ctx = c.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(photo, 0, 0, W, H);
-    const { tl, tr, br, bl } = SCREEN_QUAD;
+    const strip = stripCanvas(banner);
+    const q = Object.fromEntries(Object.entries(SCREEN_QUAD).map(([k, [x, y]]) => [k, [x * S, y * S]]));
+    const { tl, tr, br, bl } = q;
     const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
-    const sw = screen.width, sh = screen.height;
-    const strips = 36;
+    const sw = strip.width, sh = strip.height;
+    const slices = 24;
     ctx.save();
     ctx.beginPath(); ctx.moveTo(...tl); ctx.lineTo(...tr); ctx.lineTo(...br); ctx.lineTo(...bl); ctx.closePath(); ctx.clip();
-    for (let i = 0; i < strips; i++) {
-      const t0 = i / strips, t1 = (i + 1) / strips;
+    for (let i = 0; i < slices; i++) {
+      const t0 = i / slices, t1 = (i + 1) / slices;
       const L0 = lerp(tl, bl, t0), R0 = lerp(tr, br, t0), L1 = lerp(tl, bl, t1);
       const sy = t0 * sh, sH = (t1 - t0) * sh;
-      // affine: (0,0)→L0, (sw,0)→R0, (0,sH)→L1
       const a = (R0[0] - L0[0]) / sw, b = (R0[1] - L0[1]) / sw;
       const cc = (L1[0] - L0[0]) / sH, d = (L1[1] - L0[1]) / sH;
       ctx.setTransform(a, b, cc, d, L0[0], L0[1]);
-      // Overdraw each strip by a few source pixels so edges blend instead of showing seams.
-      const over = i === strips - 1 ? 0 : sh / strips * 0.35;
-      ctx.drawImage(screen, 0, sy, sw, sH + over, 0, 0, sw, sH + over);
+      const over = i === slices - 1 ? 0 : sh / slices * 0.35;
+      ctx.drawImage(strip, 0, sy, sw, sH + over, 0, 0, sw, sH + over);
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    // glass glare + slight darkening at the edges so it sits in the photo
+    // Match the photo: slight glass glare + the screen's own glow bleeding onto the bezel edge.
     const glare = ctx.createLinearGradient(tl[0], tl[1], br[0], br[1]);
-    glare.addColorStop(0, 'rgba(255,255,255,0.10)'); glare.addColorStop(0.45, 'rgba(255,255,255,0)'); glare.addColorStop(1, 'rgba(0,0,0,0.12)');
+    glare.addColorStop(0, 'rgba(255,255,255,0.08)'); glare.addColorStop(0.5, 'rgba(255,255,255,0)'); glare.addColorStop(1, 'rgba(0,0,0,0.10)');
     ctx.fillStyle = glare; ctx.fillRect(0, 0, W, H);
     ctx.restore();
     return c;
   }
 
-  // Zoomed crop around the machine so the ad is legible in emails and previews.
-  const CLOSEUP = { x: 300, y: 420, w: 450, h: 620, scale: 2 };
+  // Zoomed crop around the machine so the ad is legible in emails and previews (photo px → ×scale).
+  const CLOSEUP = { x: 150, y: 222, w: 270, h: 405, scale: 3 };
   function drawCloseup(machine) {
+    const S = RENDER_SCALE;
     const c = canvasOf(CLOSEUP.w * CLOSEUP.scale, CLOSEUP.h * CLOSEUP.scale);
     const ctx = c.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(machine, CLOSEUP.x, CLOSEUP.y, CLOSEUP.w, CLOSEUP.h, 0, 0, c.width, c.height);
+    ctx.drawImage(machine, CLOSEUP.x * S, CLOSEUP.y * S, CLOSEUP.w * S, CLOSEUP.h * S, 0, 0, c.width, c.height);
     return c;
   }
 
@@ -258,10 +254,9 @@
     if (document.fonts?.load) { try { await Promise.all([document.fonts.load(`900 60px ${FONT}`), document.fonts.load(`700 26px ${FONT}`)]); } catch { /* fall back to system font */ } }
     const [photo, logo, art] = await Promise.all([loadImage(photoUrl), logoUrl ? loadImage(logoUrl).catch(() => null) : null, artUrl ? loadImage(artUrl).catch(() => null) : null]);
     const banner = drawBanner(spec, logo, art);
-    const screen = drawScreen(spec, banner);
-    const machine = drawMachine(photo, screen);
+    const machine = drawMachine(photo, banner);
     const closeup = drawCloseup(machine);
-    return { banner, screen, machine, closeup };
+    return { banner, machine, closeup };
   }
 
   function download(canvas, filename) {
@@ -273,5 +268,5 @@
     }, 'image/png');
   }
 
-  window.KWIGZ_MOCKUP = { SCREEN_QUAD, PHOTO, THEMES, render, drawBanner, drawScreen, drawMachine, drawCloseup, loadImage, download };
+  window.KWIGZ_MOCKUP = { SCREEN_QUAD, PHOTO, PHOTO_SIZE, CLOSEUP, THEMES, render, drawBanner, drawMachine, drawCloseup, loadImage, download };
 })();

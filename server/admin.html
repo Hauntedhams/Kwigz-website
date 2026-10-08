@@ -1178,7 +1178,7 @@
     return `<div class="p-detail">
       <div>
         <div class="block"><h4>Mockup — ${esc(p.business)} on ${esc(machineById(p.machineId).name)}</h4>
-          <div class="mock"><canvas id="mock-machine" width="900" height="1240"></canvas></div>
+          <div class="mock"><canvas id="mock-machine" width="810" height="1215"></canvas></div>
           <div class="mock mock-sm" style="margin-top:10px;"><canvas id="mock-banner" width="1080" height="441"></canvas></div>
           <div class="row-actions" style="margin-top:10px;"><button class="btn btn-sm" data-pa="dl-machine" data-pid="${esc(p.id)}">Download mockup PNG</button><button class="btn btn-sm" data-pa="dl-full" data-pid="${esc(p.id)}">Download full photo PNG</button><button class="btn btn-sm" data-pa="dl-banner" data-pid="${esc(p.id)}">Download banner PNG</button>${p.previewUrl ? `<button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="preview">Copy preview link</button><a class="btn btn-sm" href="${esc(p.previewUrl)}" target="_blank" rel="noopener">Open preview</a>` : ''}</div>
           <p class="hint" style="color:var(--muted);font-size:0.74rem;margin-top:6px;">The email links to this preview page, so they see their ad on the machine without an attachment. Clay is the source of their logo when we have one.</p>
@@ -1251,6 +1251,7 @@
       mockupCache.clear(); mockupCache.set(key, rendered);
     }
     if (!document.body.contains(machineEl)) return;
+    machineEl.width = rendered.closeup.width; machineEl.height = rendered.closeup.height;
     machineEl.getContext('2d').drawImage(rendered.closeup, 0, 0);
     bannerEl.getContext('2d').drawImage(rendered.banner, 0, 0);
   }

@@ -188,6 +188,11 @@ current view with all tick counts.
 connection note + follow-up message, follow-up versions of each, and a public
 **mockup page** (`/preview/<token>`) showing their ad composited onto the real
 machine photo (banner auto-designed from their name, specialty, phone and logo).
+The reference photo is `yucca-installed-web.jpg` (the installed machine at Yucca
+Tap Room); only the dark header strip above the product grid is replaced — the
+rest of the screen is the real photo. To swap the photo, replace that file and
+update `SCREEN_QUAD` / `PHOTO_SIZE` / `CLOSEUP` at the top of `mockup.js`
+(corners of the header strip in photo pixels).
 Open a lead to review/edit the drafts, download the mockup PNGs, then:
 
 - **Send email** opens your mail app with to/subject/body filled in.
