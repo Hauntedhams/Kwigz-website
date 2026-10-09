@@ -105,6 +105,32 @@ async function findWebsitePhone(website, opts) {
 
 // ---------- module ----------
 
+// Extra emails / phone numbers on a business (beyond the primary + per-contact ones): [{ value, label }].
+const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function normalizeAltEmails(list, max = 12) {
+  const seen = new Set(); const out = [];
+  for (const item of Array.isArray(list) ? list : []) {
+    const value = clean(typeof item === 'string' ? item : item?.value, 254).toLowerCase();
+    if (!EMAIL_OK.test(value) || seen.has(value)) continue;
+    seen.add(value); out.push({ value, label: clean(typeof item === 'string' ? '' : item?.label, 60) });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+function normalizeAltPhones(list, max = 12) {
+  const seen = new Set(); const out = [];
+  for (const item of Array.isArray(list) ? list : []) {
+    const raw = clean(typeof item === 'string' ? item : item?.value, 40);
+    if (!raw) continue;
+    const ph = normalizePhone(raw);
+    const key = ph ? ph.e164 : raw.replace(/\D/g, '');
+    if (!key || seen.has(key)) continue;
+    seen.add(key); out.push({ value: ph ? ph.display : raw, e164: ph ? ph.e164 : '', label: clean(typeof item === 'string' ? '' : item?.label, 60) });
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
 function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl, log = console.log, fetchImpl = fetch }) {
   const PROSPECTS_FILE = path.join(dataDir, 'prospects.json');
   const RUNS_FILE = path.join(dataDir, 'prospect-runs.json');
@@ -520,6 +546,10 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     else if (!p.website && row.website) set('website', /^https?:\/\//.test(row.website) ? row.website : `https://${row.website}`);
     const ph = normalizePhone(row.phone);
     if (!p.phone && (ph || row.phone)) { p.phone = ph ? ph.display : row.phone; p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = 'import'; filled.push('phone'); }
+    else if (ph && ph.e164 !== p.phoneE164 && !(p.contacts || []).some((c) => c.mobileE164 === ph.e164)) {
+      const next = normalizeAltPhones([...(p.altPhones || []), { value: ph.display, label: 'import' }]);
+      if (next.length > (p.altPhones || []).length) { p.altPhones = next; filled.push('extraPhone'); }
+    }
     set('address', row.address);
     set('city', row.city || (row.address.match(/,\s*([A-Za-z .'-]+),\s*[A-Z]{2}\b/) || [])[1]);
     if (/linkedin\.com\/company\//.test(row.companyLinkedin) && !p.linkedinUrl) { p.linkedinUrl = row.companyLinkedin; filled.push('companyLinkedin'); }
@@ -541,10 +571,12 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     if (row.contactName || email || li) {
       p.contacts = p.contacts || [];
       const nk = (n) => `${n || ''}`.toLowerCase().replace(/[^a-z]+/g, ' ').trim();
+      if (email && (p.altEmails || []).some((a) => a.value === email) && !row.contactName && !li) return filled; // already recorded as an extra email
       let c = p.contacts.find((x) => (row.contactName && nk(x.name) === nk(row.contactName)) || (email && x.email === email) || (li && x.linkedinUrl === li));
       if (!c && !row.contactName && p.contacts[0] && (!p.contacts[0].email || !p.contacts[0].linkedinUrl)) c = p.contacts[0]; // bare email/LinkedIn → primary
       if (c) {
         if (email && !c.email) { c.email = email; c.emailSource = 'import'; filled.push('email'); }
+        else if (email && c.email !== email && !(p.contacts || []).some((x) => x.email === email)) { const next = normalizeAltEmails([...(p.altEmails || []), { value: email, label: c.name || 'import' }]); if (next.length > (p.altEmails || []).length) { p.altEmails = next; filled.push('extraEmail'); } }
         if (li && !c.linkedinUrl) { c.linkedinUrl = li; filled.push('linkedin'); }
         if (row.contactTitle && !c.title) { c.title = row.contactTitle; filled.push('title'); }
         if (row.contactName && (!c.name || c.name === p.business)) { c.name = row.contactName; c.firstName = firstNameOf(row.contactName); filled.push('contact'); }
@@ -647,14 +679,22 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     if (body.nextFollowUpAt !== undefined) { const v = clean(body.nextFollowUpAt, 10); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('nextFollowUpAt must be YYYY-MM-DD'); p.nextFollowUpAt = v; }
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
     if (body.business !== undefined) { const b = clean(body.business, 160); if (!b) throw new Error('Business name is required'); p.business = b; }
-    if (body.website !== undefined) p.website = clean(body.website, 300);
+    if (body.website !== undefined) { const w = clean(body.website, 300); const d = normalizeDomain(w); p.website = w && d && !/^https?:\/\//.test(w) ? `https://${w}` : w; p.domain = d || ''; if (!p.logoUrl && d) p.logoUrl = faviconFor(d); }
+    if (body.address !== undefined) p.address = clean(body.address, 200);
+    if (body.city !== undefined) p.city = clean(body.city, 80);
+    if (body.linkedinUrl !== undefined) p.linkedinUrl = clean(body.linkedinUrl, 300);
+    if (body.mapsUrl !== undefined) p.mapsUrl = clean(body.mapsUrl, 400);
+    if (body.altEmails !== undefined) p.altEmails = normalizeAltEmails(body.altEmails);
+    if (body.altPhones !== undefined) p.altPhones = normalizeAltPhones(body.altPhones);
+    if (body.preferredEmail !== undefined) p.preferredEmail = clean(body.preferredEmail, 254).toLowerCase();
+    if (body.preferredPhone !== undefined) p.preferredPhone = clean(body.preferredPhone, 40);
     if (body.artSelected !== undefined) {
       const id = clean(body.artSelected, 60);
       if (id && !(p.art?.variants || []).some((v) => v.id === id)) throw new Error('Unknown art variant');
       p.art = { ...(p.art || { variants: [] }), selected: id };
     }
     if (Array.isArray(body.contacts)) {
-      p.contacts = body.contacts.slice(0, 6).map((c) => ({ name: clean(c.name, 120), firstName: clean(c.firstName, 60) || firstNameOf(c.name), title: clean(c.title, 120), linkedinUrl: clean(c.linkedinUrl, 300), city: clean(c.city, 80), email: clean(c.email, 254).toLowerCase(), emailSource: clean(c.emailSource, 20) || (c.email ? 'manual' : ''), mobile: clean(c.mobile, 40) })).filter((c) => c.name);
+      p.contacts = body.contacts.slice(0, 8).map((c) => { const m = normalizePhone(clean(c.mobile, 40)); return { name: clean(c.name, 120), firstName: clean(c.firstName, 60) || firstNameOf(c.name), title: clean(c.title, 120), linkedinUrl: clean(c.linkedinUrl, 300), city: clean(c.city, 80), email: clean(c.email, 254).toLowerCase(), emailSource: clean(c.emailSource, 20) || (c.email ? 'manual' : ''), mobile: m ? m.display : clean(c.mobile, 40), mobileE164: m ? m.e164 : '' }; }).filter((c) => c.name);
     }
     if (body.drafts && typeof body.drafts === 'object' && p.drafts) {
       const d = body.drafts;
@@ -872,4 +912,4 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   };
 }
 
-module.exports = { createProspecting, haversineMiles, extractPhone, normalizePhone, normalizeDomain, findWebsitePhone };
+module.exports = { createProspecting, haversineMiles, extractPhone, normalizePhone, normalizeDomain, findWebsitePhone, normalizeAltEmails, normalizeAltPhones };

@@ -288,6 +288,15 @@
     @media (max-width: 1100px) { .board { grid-template-columns: 1fr; } }
     .contact-card { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; font-size: 0.84rem; }
     .contact-card + .contact-card { margin-top: 8px; }
+    .contact-edit { grid-template-columns: 1fr 1fr; }
+    .contact-edit .cc-head { grid-column: 1 / -1; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .contact-edit .cc-head input { flex: 1; min-width: 120px; }
+    .contact-edit > div > input { width: 100%; }
+    .kv-edit input.inline { font-size: 0.82rem; padding: 5px 8px; }
+    .alt-list { display: grid; gap: 6px; }
+    .alt-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+    .alt-row input.inline { width: 100%; font-size: 0.8rem; padding: 5px 8px; }
+    .alt-row.alt-new input { border-style: dashed; }
     .contact-card .ttl { color: var(--muted); font-size: 0.76rem; }
     .contact-card input { padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: 0.8rem; width: 100%; }
     .contact-card .cc-actions { display: flex; gap: 6px; flex-wrap: wrap; grid-column: 1 / -1; }
@@ -817,7 +826,7 @@
         <td style="white-space:nowrap;"><b>${timeAgo(l.receivedAt)}</b><br/><span class="t" style="color:var(--muted);font-size:0.75rem;">${new Date(l.receivedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></td>
         <td>${typeBadge(l.type)}</td>
         <td class="who"><strong>${esc(leadName(l))}</strong>${l.contactName && l.businessName ? `<span>${esc(l.contactName)}</span>` : ''}${l.venue && l.name ? `<span>${esc(l.name)}</span>` : ''}</td>
-        <td class="contact"><a href="mailto:${esc(l.email)}">${esc(l.email)}</a>${l.phone ? `<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>` : ''}</td>
+        <td class="contact"><a href="mailto:${esc(l.email)}">${esc(l.email)}</a>${(l.altEmails || []).map((a) => `<a href="mailto:${esc(a.value)}" title="${esc(a.label || '')}">${esc(a.value)}</a>`).join('')}${l.phone ? `<a href="tel:${esc(l.phone)}">${esc(l.phone)}</a>` : ''}${(l.altPhones || []).map((a) => `<a href="tel:${esc(a.e164 || a.value)}" title="${esc(a.label || '')}">${esc(a.value)}</a>`).join('')}</td>
         <td class="details">${leadDetails(l)}</td>
         <td><select class="inline" data-lead-status="${esc(l.id)}">${['new', 'contacted', 'won', 'lost'].map((s) => `<option value="${s}" ${l.status === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></td>
       </tr>
@@ -825,7 +834,7 @@
   }
 
   function leadDetailPanel(l) {
-    const skip = new Set(['id', 'status', 'notes', 'updatedAt', 'type', 'ip', 'page', 'submittedAt', 'path']);
+    const skip = new Set(['id', 'status', 'notes', 'updatedAt', 'type', 'ip', 'page', 'submittedAt', 'path', 'altEmails', 'altPhones']);
     const kv = Object.entries(l).filter(([k, v]) => !skip.has(k) && v !== '' && v != null).map(([k, v]) => `<div><span>${esc(k)}</span><b>${k === 'bannerFile' ? `<a href="/api/uploads/${esc(v)}" target="_blank" data-auth-link>${esc(v)}</a>` : esc(v)}</b></div>`).join('');
     const banner = l.bannerFile ? `<img class="banner-thumb" data-banner="${esc(l.bannerFile)}" alt="Banner" />` : '';
     const linked = campaignForLead(l);
@@ -833,10 +842,14 @@
       l.type === 'advertiser-application' && !linked ? `<button class="btn btn-sm btn-primary" data-campaign-from-lead="${esc(l.id)}">Create campaign from this application</button>` : '',
       linked ? `<span class="badge green">Campaign created</span><button class="btn btn-sm" data-edit-campaign="${linked.id}">Open campaign</button>` : '',
       `<a class="btn btn-sm" href="mailto:${esc(l.email)}">Email ${esc(l.email)}</a>`,
-      l.phone ? `<a class="btn btn-sm" href="tel:${esc(l.phone)}">Call</a>` : '',
+      ...(l.altEmails || []).map((a) => `<a class="btn btn-sm" href="mailto:${esc(a.value)}">Email ${esc(a.value)}</a>`),
+      l.phone ? `<a class="btn btn-sm" href="tel:${esc(l.phone)}">Call ${esc(l.phone)}</a>` : '',
+      ...(l.altPhones || []).map((a) => `<a class="btn btn-sm" href="tel:${esc(a.e164 || a.value)}">Call ${esc(a.value)}</a>`),
       `<span style="color:var(--muted);font-size:0.75rem;">IP ${esc(l.ip || '—')} · from ${esc((l.page || '').replace(/^https?:\/\//, '').slice(0, 40))}</span>`,
     ].join('');
-    return `${banner}<div class="kv">${kv}</div><label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Notes</label><textarea class="notes" data-lead-notes="${esc(l.id)}" placeholder="Call notes, offer sent, follow-up date…">${esc(l.notes)}</textarea><div class="row-actions">${actions}</div>`;
+    return `${banner}<div class="kv">${kv}</div>
+      <div class="two-col" style="margin:12px 0;"><div><label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Extra emails</label>${altEditor('lead', l.id, 'email', l.altEmails)}</div><div><label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Extra phone numbers</label>${altEditor('lead', l.id, 'phone', l.altPhones)}</div></div>
+      <label style="font-size:0.75rem;font-weight:700;color:#374151;display:block;margin-bottom:5px;">Notes</label><textarea class="notes" data-lead-notes="${esc(l.id)}" placeholder="Call notes, offer sent, follow-up date…">${esc(l.notes)}</textarea><div class="row-actions">${actions}</div>`;
   }
 
   // Banner images need the auth header, so load them as blobs.
@@ -1077,7 +1090,45 @@
   const P_STATUS_COLOR = { new: 'red', drafted: 'purple', contacted: 'blue', replied: 'green', won: 'green', lost: '', skipped: '' };
   const P_STATUS_LABEL = { new: 'New', drafted: 'Ready to send', contacted: 'Contacted', replied: 'Replied', won: 'Won', lost: 'Lost', skipped: 'Skipped' };
   const primaryContact = (p) => (p.contacts || [])[0] || null;
-  const smsHref = (p, body) => { const n = p.phoneE164 || primaryContact(p)?.mobileE164 || ''; return n ? `sms:${n}${/iPhone|iPad|Mac/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(body)}` : ''; };
+  // Every email / phone we know for a prospect (contacts + extras), de-duplicated, in priority order.
+  const allEmails = (p) => { const seen = new Set(); const out = []; const add = (value, label, src) => { const v = (value || '').toLowerCase(); if (!v || seen.has(v)) return; seen.add(v); out.push({ value: v, label, src }); }; (p.contacts || []).forEach((c) => add(c.email, c.name, 'contact')); (p.altEmails || []).forEach((a) => add(a.value, a.label || 'extra', 'alt')); return out; };
+  const allPhones = (p) => { const seen = new Set(); const out = []; const add = (value, e164, label, src) => { const k = e164 || (value || '').replace(/\D/g, ''); if (!k || seen.has(k)) return; seen.add(k); out.push({ value, e164: e164 || '', label, src }); }; if (p.phone) add(p.phone, p.phoneE164, 'Business line', 'business'); (p.contacts || []).forEach((c) => c.mobile && add(c.mobile, c.mobileE164, `${c.name} mobile`, 'contact')); (p.altPhones || []).forEach((a) => add(a.value, a.e164, a.label || 'extra', 'alt')); return out; };
+  const pickEmail = (p) => { const list = allEmails(p); return (p.preferredEmail && list.find((e) => e.value === p.preferredEmail)) || list[0] || null; };
+  const pickPhone = (p) => { const list = allPhones(p); return (p.preferredPhone && list.find((e) => e.value === p.preferredPhone || e.e164 === p.preferredPhone)) || list[0] || null; };
+  // Editor for extra emails / phones. owner = 'prospect' | 'lead'. Saves the whole list on change.
+  function altEditor(owner, id, kind, items) {
+    const ph = kind === 'email' ? 'name@business.com' : '(573) 555-0100';
+    return `<div class="alt-list" data-alt-owner="${owner}" data-alt-id="${esc(id)}" data-alt-kind="${kind}">
+      ${(items || []).map((a, i) => `<div class="alt-row"><input class="inline" type="${kind === 'email' ? 'email' : 'tel'}" value="${esc(a.value)}" placeholder="${ph}" data-alt-value /><input class="inline" value="${esc(a.label || '')}" placeholder="label (office, billing, owner…)" data-alt-label /><button class="btn btn-sm btn-danger" data-alt-del="${i}" title="Remove">×</button></div>`).join('')}
+      <div class="alt-row alt-new"><input class="inline" type="${kind === 'email' ? 'email' : 'tel'}" placeholder="+ add ${kind === 'email' ? 'another email' : 'another number'} — ${ph}" data-alt-value /><input class="inline" placeholder="label" data-alt-label /><button class="btn btn-sm" data-alt-add>Add</button></div>
+    </div>`;
+  }
+  function readAltList(box) { return [...box.querySelectorAll('.alt-row')].map((r) => ({ value: r.querySelector('[data-alt-value]').value.trim(), label: r.querySelector('[data-alt-label]').value.trim() })).filter((a) => a.value); }
+  async function saveAltList(box) {
+    const { altOwner, altId, altKind } = box.dataset;
+    const key = altKind === 'email' ? 'altEmails' : 'altPhones';
+    const list = readAltList(box);
+    if (altOwner === 'prospect') { await patchProspect(altId, { [key]: list }, `${altKind === 'email' ? 'Emails' : 'Phone numbers'} saved`); renderProspecting(); }
+    else { const { lead } = await api(`/api/leads/${encodeURIComponent(altId)}`, { method: 'PATCH', body: JSON.stringify({ [key]: list }) }); const l = leads.find((x) => x.id === altId); if (l) Object.assign(l, lead); toast('Saved'); renderLeads(); hydrateBanners(); }
+  }
+  document.addEventListener('click', async (e) => {
+    const add = e.target.closest('[data-alt-add]'), del = e.target.closest('[data-alt-del]');
+    if (!add && !del) return;
+    const box = e.target.closest('.alt-list');
+    try {
+      if (add) { const row = add.closest('.alt-row'); if (!row.querySelector('[data-alt-value]').value.trim()) return toast('Type the email or number first'); row.classList.remove('alt-new'); await saveAltList(box); }
+      if (del) { del.closest('.alt-row').remove(); await saveAltList(box); }
+    } catch (err) { toast(err.message); }
+  });
+  document.addEventListener('focusout', async (e) => {
+    const inp = e.target.closest('.alt-list .alt-row:not(.alt-new) input'); if (!inp) return;
+    const box = inp.closest('.alt-list');
+    const key = box.dataset.altKind === 'email' ? 'altEmails' : 'altPhones';
+    const current = box.dataset.altOwner === 'prospect' ? (prospects.find((x) => x.id === box.dataset.altId) || {})[key] : (leads.find((x) => x.id === box.dataset.altId) || {})[key];
+    if (JSON.stringify((current || []).map((a) => [a.value, a.label || ''])) === JSON.stringify(readAltList(box).map((a) => [a.value, a.label]))) return;
+    try { await saveAltList(box); } catch (err) { toast(err.message); }
+  });
+  const smsHref = (p, body) => { const ph = pickPhone(p); const n = ph ? (ph.e164 || ph.value.replace(/[^\d+]/g, '')) : ''; return n ? `sms:${n}${/iPhone|iPad|Mac/.test(navigator.userAgent) ? '&' : '?'}body=${encodeURIComponent(body)}` : ''; };
   const mailHref = (to, subject, body) => `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const linkedinSearchUrl = (p) => `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(p.business)}`;
 
@@ -1187,11 +1238,13 @@
     $('#prospectRows').innerHTML = rows.map((p) => {
       const c = primaryContact(p);
       const due = followUpDue(p);
-      const email = c?.email || '';
+      const email = pickEmail(p)?.value || '';
+      const phone = pickPhone(p);
+      const moreE = Math.max(0, allEmails(p).length - 1), moreP = Math.max(0, allPhones(p).length - 1);
       return `<tr class="p-row ${due ? 'is-due' : p.status === 'new' ? 'is-new' : ''}" data-pid="${esc(p.id)}" data-pa="toggle">
         <td class="who"><strong>${esc(p.business)}</strong><span>${p.source === 'import' ? '<span class="badge" style="font-size:0.6rem;padding:1px 6px;margin-right:4px;">Imported</span>' : ''}${esc(catById(p.categoryId).label)}${p.city ? ` · ${esc(p.city)}` : ''}${p.distanceMiles != null ? ` · ${p.distanceMiles} mi` : ''}${p.rating ? ` · ${p.rating}★` : ''}</span></td>
         <td class="who">${c ? `<strong style="font-weight:600;">${esc(c.name)}</strong><span>${esc(c.title)}</span>` : '<span>No decision-maker found</span>'}</td>
-        <td class="contact">${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>` : '<span>no email</span>'}${p.phone ? `<a href="tel:${esc(p.phoneE164 || p.phone)}">${esc(p.phone)}</a>` : '<span>no phone</span>'}</td>
+        <td class="contact">${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>${moreE ? `<span style="display:inline;color:var(--muted);font-size:0.7rem;"> +${moreE} more</span>` : ''}` : '<span>no email</span>'}${phone ? `<a href="tel:${esc(phone.e164 || phone.value)}">${esc(phone.value)}</a>${moreP ? `<span style="display:inline;color:var(--muted);font-size:0.7rem;"> +${moreP} more</span>` : ''}` : '<span>no phone</span>'}</td>
         <td><span class="score ${p.score >= 70 ? 'hi' : p.score >= 50 ? 'mid' : ''}" title="${esc((p.scoreNotes || []).join(' · '))}">${p.score ?? '—'}</span></td>
         <td><span class="badge ${P_STATUS_COLOR[p.status] || ''}">${P_STATUS_LABEL[p.status] || p.status}</span>${p.outreach?.length ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:3px;">${p.outreach.length} touch${p.outreach.length === 1 ? '' : 'es'}</div>` : ''}</td>
         <td style="white-space:nowrap;">${due ? `<span class="badge amber dot">Due ${fmtDate(p.nextFollowUpAt)}</span>` : p.nextFollowUpAt && p.status === 'contacted' ? fmtDate(p.nextFollowUpAt) : '—'}</td>
@@ -1205,37 +1258,45 @@
     const d = p.drafts;
     const followUp = p.outreach.length > 0;
     const sent = (ch) => p.outreach.filter((o) => o.channel === ch).length;
+    const field = (label, key, value, placeholder = '', type = 'text') => `<div><span>${label}</span><b><input class="inline" type="${type}" style="width:100%;max-width:340px;" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" /></b></div>`;
     const info = [
-      p.address ? ['Address', p.address] : null,
-      p.distanceMiles != null ? ['Distance', `${p.distanceMiles} miles from ${machineById(p.machineId).name}`] : null,
-      p.website ? ['Website', `<a href="${esc(/^https?:/.test(p.website) ? p.website : `https://${p.website}`)}" target="_blank" rel="noopener">${esc(p.domain || p.website)}</a>`] : null,
-      p.linkedinUrl ? ['LinkedIn', `<a href="${esc(p.linkedinUrl)}" target="_blank" rel="noopener">company page</a>`] : null,
-      p.size ? ['Size', `${p.size} employees${p.revenue ? ` · $${p.revenue} revenue` : ''}`] : null,
-      p.industry ? ['Industry', p.industry] : null,
-      p.specialties?.length ? ['Specialties', p.specialties.slice(0, 8).join(', ')] : null,
-      p.phoneSource && p.phoneSource !== 'manual' ? ['Phone from', `<a href="${esc(p.phoneSource)}" target="_blank" rel="noopener">their website</a>`] : null,
-    ].filter(Boolean).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-    const contacts = (p.contacts || []).map((ct, i) => `<div class="contact-card">
-        <div><b>${esc(ct.name)}</b>${ct.title ? ` <span class="ttl">· ${esc(ct.title)}</span>` : ''}${i === 0 ? ' <span class="badge purple" style="font-size:0.62rem;">primary</span>' : ''}</div>
-        <div>${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">LinkedIn</a>` : ''}</div>
+      field('Business', 'business', p.business),
+      field('Website', 'website', p.website, 'https://…'),
+      field('Address', 'address', p.address, 'street, city, state'),
+      field('City', 'city', p.city),
+      field('Company LinkedIn', 'linkedinUrl', p.linkedinUrl, 'https://www.linkedin.com/company/…'),
+      field('Google Maps', 'mapsUrl', p.mapsUrl, 'https://www.google.com/maps/…'),
+      p.distanceMiles != null ? `<div><span>Distance</span><b>${p.distanceMiles} miles from ${esc(machineById(p.machineId).name)}</b></div>` : '',
+      p.rating ? `<div><span>Google rating</span><b>${p.rating}★${p.reviews ? ` · ${fmtN(p.reviews)} reviews` : ''}</b></div>` : '',
+      p.size ? `<div><span>Size</span><b>${esc(p.size)} employees${p.revenue ? ` · $${esc(p.revenue)} revenue` : ''}</b></div>` : '',
+      p.industry ? `<div><span>Industry</span><b>${esc(p.industry)}</b></div>` : '',
+      p.specialties?.length ? `<div><span>Specialties</span><b>${esc(p.specialties.slice(0, 8).join(', '))}</b></div>` : '',
+      p.phoneSource && !['manual', 'import'].includes(p.phoneSource) ? `<div><span>Phone from</span><b><a href="${esc(p.phoneSource)}" target="_blank" rel="noopener">their website</a></b></div>` : '',
+    ].filter(Boolean).join('');
+    const contacts = (p.contacts || []).map((ct, i) => `<div class="contact-card contact-edit">
+        <div class="cc-head"><input class="inline" value="${esc(ct.name)}" placeholder="Full name" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="name" /><input class="inline" value="${esc(ct.title || '')}" placeholder="Title (Owner, Partner…)" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="title" />${i === 0 ? '<span class="badge purple" style="font-size:0.62rem;">primary</span>' : `<button class="btn btn-sm" data-pa="contact-primary" data-pid="${esc(p.id)}" data-idx="${i}" title="Make this the primary contact">Make primary</button>`}<button class="btn btn-sm btn-danger" data-pa="contact-del" data-pid="${esc(p.id)}" data-idx="${i}" title="Remove contact">×</button></div>
         <div><input type="email" placeholder="work email" value="${esc(ct.email)}" data-pa="contact-email" data-pid="${esc(p.id)}" data-idx="${i}" /></div>
-        <div>${ct.mobile ? `<a href="tel:${esc(ct.mobileE164 || ct.mobile)}">${esc(ct.mobile)}</a>` : `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}" title="Clay mobile lookup — about ${prospecting.creditEstimates?.mobilePhone || 10} credits" ${ct.linkedinUrl ? '' : 'disabled'}>Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>`}</div>
-      </div>`).join('') || '<div class="contact-card"><div>No decision-maker found — add one manually below or use the company phone.</div></div>';
+        <div><input type="tel" placeholder="mobile" value="${esc(ct.mobile || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="mobile" /></div>
+        <div><input placeholder="LinkedIn profile URL" value="${esc(ct.linkedinUrl || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="linkedinUrl" /></div>
+        <div class="cc-actions">${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">Open LinkedIn</a>` : ''}${ct.mobile ? `<a class="btn btn-sm" href="tel:${esc(ct.mobileE164 || ct.mobile)}">Call mobile</a>` : `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}" title="Clay mobile lookup — about ${prospecting.creditEstimates?.mobilePhone || 10} credits" ${ct.linkedinUrl && prospecting.clay?.configured ? '' : 'disabled'}>Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>`}</div>
+      </div>`).join('') + `<button class="btn btn-sm" data-pa="contact-add" data-pid="${esc(p.id)}" style="margin-top:8px;">+ Add decision-maker</button>`;
     const draftsHtml = !d ? `<div class="draft"><p style="color:var(--muted);font-size:0.85rem;">No drafts yet.</p><div class="send-row"><button class="btn btn-primary btn-sm" data-pa="draft-one" data-pid="${esc(p.id)}">Generate outreach for this lead</button></div></div>` : (() => {
       const tabs = [['email', `Email${sent('email') ? ` ✓${sent('email')}` : ''}`], ['sms', `Text${sent('sms') ? ` ✓${sent('sms')}` : ''}`], ['linkedin', `LinkedIn${sent('linkedin') ? ` ✓${sent('linkedin')}` : ''}`], ['call', `Call${sent('call') ? ` ✓${sent('call')}` : ''}`]];
       const tabBar = `<div class="draft-tabs">${tabs.map(([k, l]) => `<button class="chip ${draftTab === k ? 'active' : ''}" data-pa="tab" data-pid="${esc(p.id)}" data-tab="${k}">${l}</button>`).join('')}${followUp ? '<span class="hint" style="align-self:center;color:var(--muted);font-size:0.74rem;">Showing follow-up versions — already contacted</span>' : ''}</div>`;
       const em = followUp ? d.followUpEmail : d.email;
       const emKey = followUp ? 'followUpEmail' : 'email';
-      const to = c?.email || '';
+      const toE = pickEmail(p); const to = toE?.value || '';
+      const emailList = allEmails(p), phoneList = allPhones(p);
+      const toSelect = emailList.length ? `<select class="inline" style="width:100%;" data-pa="prefer" data-pid="${esc(p.id)}" data-kind="email">${emailList.map((e) => `<option value="${esc(e.value)}" ${e.value === to ? 'selected' : ''}>${esc(e.value)}${e.label ? ` — ${esc(e.label)}` : ''}</option>`).join('')}</select>` : '<input value="" placeholder="No email yet — add one on a contact card or under Extra emails" readonly />';
       let body = '';
-      if (draftTab === 'email') body = `<label>To</label><input value="${esc(to)}" placeholder="No email found — add one on the contact card" readonly /><label>Subject</label><input value="${esc(em.subject)}" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${emKey}.subject" /><label>Email</label><textarea data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${emKey}.body">${esc(em.body)}</textarea>
+      if (draftTab === 'email') body = `<label>To ${emailList.length > 1 ? `<span style="font-weight:500;color:var(--muted);">(${emailList.length} on file — pick one)</span>` : ''}</label>${toSelect}<label>Subject</label><input value="${esc(em.subject)}" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${emKey}.subject" /><label>Email</label><textarea data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${emKey}.body">${esc(em.body)}</textarea>
         <div class="send-row"><span class="hint">Opens your mail app with everything filled in, then logs it and sets a follow-up for ${prospecting.defaults.followUpDays} days out. Attach the mockup PNG if you like.</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="email">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="email" ${to ? '' : 'disabled'}>Send email</button></div>`;
-      if (draftTab === 'sms') { const t = followUp ? d.followUpSms : d.sms; const key = followUp ? 'followUpSms' : 'sms'; const num = p.phone || c?.mobile || ''; body = `<label>To</label><input value="${esc(num)}" placeholder="No phone found — add one in the company info" readonly /><label>Text message</label><textarea style="min-height:110px;" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${key}">${esc(t)}</textarea>
-        <div class="send-row"><span class="hint">Opens Messages with the text filled in (works on Mac/iPhone), then logs it. ${p.phone ? 'This is the business line — a text may hit an office phone.' : ''}</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="sms">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="sms" ${num ? '' : 'disabled'}>Send text</button></div>`; }
+      if (draftTab === 'sms') { const t = followUp ? d.followUpSms : d.sms; const key = followUp ? 'followUpSms' : 'sms'; const pk = pickPhone(p); const num = pk?.value || ''; const numSelect = phoneList.length ? `<select class="inline" style="width:100%;" data-pa="prefer" data-pid="${esc(p.id)}" data-kind="phone">${phoneList.map((e) => `<option value="${esc(e.value)}" ${e.value === num ? 'selected' : ''}>${esc(e.value)} — ${esc(e.label)}</option>`).join('')}</select>` : '<input value="" placeholder="No phone yet — add one under Phone numbers" readonly />'; body = `<label>To ${phoneList.length > 1 ? `<span style="font-weight:500;color:var(--muted);">(${phoneList.length} on file — pick one)</span>` : ''}</label>${numSelect}<label>Text message</label><textarea style="min-height:110px;" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${key}">${esc(t)}</textarea>
+        <div class="send-row"><span class="hint">Opens Messages with the text filled in (works on Mac/iPhone), then logs it. ${pk?.src === 'business' ? 'This is the business line — a text may hit an office phone.' : ''}</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="sms">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="sms" ${num ? '' : 'disabled'}>Send text</button></div>`; }
       if (draftTab === 'linkedin') body = `<label>Connection note <span style="font-weight:500;color:var(--muted);">(max 300 chars)</span></label><textarea style="min-height:80px;" maxlength="300" data-pa="draft-field" data-pid="${esc(p.id)}" data-key="linkedin.note">${esc(d.linkedin.note)}</textarea><label>Message after they accept</label><textarea data-pa="draft-field" data-pid="${esc(p.id)}" data-key="linkedin.message">${esc(d.linkedin.message)}</textarea>
         <div class="send-row"><span class="hint">LinkedIn has no messaging API, so this copies the note and opens ${c?.linkedinUrl ? `${esc(c.firstName || c.name)}'s profile` : 'a LinkedIn search'} — paste it into "Add a note", then it's logged.</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="linkedin-message">Copy message</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="linkedin">Copy note &amp; open LinkedIn</button></div>`;
       if (draftTab === 'call') body = `<label>Call script</label><textarea style="min-height:120px;" readonly>${esc(`Hi${c?.firstName ? ` ${c.firstName}` : ''}, this is ${prospecting.sender?.name || 'Victor'} with KWIGZ — we run the vending machine screen inside ${machineById(p.machineId).name}${machineById(p.machineId).city ? ` in ${machineById(p.machineId).city}` : ''}. Quick one: we put one ${catById(p.categoryId).label.toLowerCase()} business on that screen and the slot's open. It's $${p.mockup?.price || 200} a month, no contract. I made a mockup of ${p.business} on it — can I text or email it to you?`)}</textarea>
-        <div class="send-row"><span class="hint">${p.phone ? `Business line ${esc(p.phone)}` : 'No phone on file'}${c?.mobile ? ` · ${esc(c.name)} mobile ${esc(c.mobile)}` : ''}</span>${p.phone ? `<a class="btn btn-sm" href="tel:${esc(p.phoneE164 || p.phone)}">Call</a>` : ''}<input class="inline" id="callNote" placeholder="Outcome (optional)" style="width:180px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="call">Log call</button></div>`;
+        <div class="send-row"><span class="hint">${phoneList.length ? phoneList.map((e) => `<a href="tel:${esc(e.e164 || e.value)}">${esc(e.value)}</a> <span style="color:var(--muted);">${esc(e.label)}</span>`).join(' · ') : 'No phone on file'}</span><input class="inline" id="callNote" placeholder="Outcome (optional)" style="width:180px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="call">Log call</button></div>`;
       return `${tabBar}<div class="draft">${body}</div>`;
     })();
     const log = p.outreach.length ? `<div class="touch-log">${p.outreach.slice().reverse().map((o) => `<div><b>${esc(o.channel)}</b> ${o.followUp ? 'follow-up ' : ''}<span>· ${new Date(o.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${o.note ? ` · ${esc(o.note)}` : ''}</span></div>`).join('')}</div>` : '<div class="touch-log"><span>No outreach yet.</span></div>';
@@ -1248,8 +1309,11 @@
           <p class="hint" style="color:var(--muted);font-size:0.74rem;margin-top:6px;">The email links to this preview page, so they see their ad on the machine without an attachment. Clay is the source of their logo when we have one.</p>
           ${artPanel(p)}
         </div>
-        <div class="block"><h4>Company</h4><div class="kv">${info || '<div><span>—</span></div>'}</div>
-          <div class="kv"><div><span>Phone</span><b><input class="inline" style="width:170px;" value="${esc(p.phone)}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /></b></div></div></div>
+        <div class="block"><h4>Company <span style="font-weight:500;text-transform:none;letter-spacing:0;">— edit any field, it saves when you click away</span></h4><div class="kv kv-edit">${info}</div>
+          <div class="kv" style="margin-top:8px;"><div><span>Business phone</span><b><input class="inline" style="width:170px;" value="${esc(p.phone)}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /></b></div></div>
+          <h4 style="margin-top:12px;">Extra phone numbers</h4>${altEditor('prospect', p.id, 'phone', p.altPhones)}
+          <h4 style="margin-top:12px;">Extra emails <span style="font-weight:500;text-transform:none;letter-spacing:0;">— office, billing, second addresses…</span></h4>${altEditor('prospect', p.id, 'email', p.altEmails)}
+        </div>
         <div class="block"><h4>Decision-makers</h4>${contacts}</div>
         <div class="block"><h4>Notes</h4><textarea class="notes" data-pa="notes" data-pid="${esc(p.id)}" placeholder="Call notes, objections, who referred you…">${esc(p.notes)}</textarea></div>
       </div>
@@ -1516,9 +1580,9 @@
       const c = primaryContact(p);
       const isDue = followUpDue(p);
       return `<tr class="${isDue ? 'is-due' : ''}">
-        <td class="who"><button data-pa="goto" data-pid="${esc(p.id)}" title="Open in Prospecting">${esc(p.business)}</button><span>${esc(catById(p.categoryId).label)}${c ? ` · ${esc(c.name)}` : ''}${p.phone ? ` · ${esc(p.phone)}` : ''}${c?.email ? ` · ${esc(c.email)}` : ''}${p.drafts ? '' : ' · <i>no drafts yet</i>'}</span></td>
-        ${box(p, 'email', { can: Boolean(c?.email), title: c?.email || 'no email' })}
-        ${box(p, 'sms', { can: Boolean(p.phone || c?.mobile), title: p.phone || c?.mobile || 'no phone' })}
+        <td class="who"><button data-pa="goto" data-pid="${esc(p.id)}" title="Open in Prospecting">${esc(p.business)}</button><span>${esc(catById(p.categoryId).label)}${c ? ` · ${esc(c.name)}` : ''}${pickPhone(p) ? ` · ${esc(pickPhone(p).value)}` : ''}${pickEmail(p) ? ` · ${esc(pickEmail(p).value)}` : ''}${p.drafts ? '' : ' · <i>no drafts yet</i>'}</span></td>
+        ${box(p, 'email', { can: Boolean(pickEmail(p)), title: pickEmail(p)?.value || 'no email' })}
+        ${box(p, 'sms', { can: Boolean(pickPhone(p)), title: pickPhone(p)?.value || 'no phone' })}
         ${box(p, 'linkedin', { title: c?.linkedinUrl || 'LinkedIn search' })}
         ${box(p, 'call', { title: p.phone || 'no phone' })}
         ${box(p, 'follow-up', { title: 'Any touch after the first counts as a follow-up' })}
@@ -1551,7 +1615,7 @@
   $('#outreachExport').addEventListener('click', () => {
     const rows = filteredOutreach();
     const cols = ['Business', 'Category', 'Machine', 'Contact', 'Title', 'Email', 'Phone', 'LinkedIn', 'Website', 'Address', 'Status', 'Email sent', 'Texts', 'LinkedIn msgs', 'Calls', 'Follow-ups', 'Next follow-up', 'Preview link', 'Notes'];
-    const csv = [cols, ...rows.map((p) => { const c = primaryContact(p) || {}; return [p.business, catById(p.categoryId).label, machineById(p.machineId).name, c.name || '', c.title || '', c.email || '', p.phone || c.mobile || '', c.linkedinUrl || '', p.website || '', p.address || '', P_STATUS_LABEL[p.status] || p.status, touched(p, 'email'), touched(p, 'sms'), touched(p, 'linkedin'), touched(p, 'call'), touched(p, 'follow-up'), p.nextFollowUpAt || '', p.previewUrl || '', p.notes || '']; })]
+    const csv = [cols, ...rows.map((p) => { const c = primaryContact(p) || {}; return [p.business, catById(p.categoryId).label, machineById(p.machineId).name, c.name || '', c.title || '', allEmails(p).map((e) => e.value).join('; '), allPhones(p).map((e) => e.value).join('; '), c.linkedinUrl || '', p.website || '', p.address || '', P_STATUS_LABEL[p.status] || p.status, touched(p, 'email'), touched(p, 'sms'), touched(p, 'linkedin'), touched(p, 'call'), touched(p, 'follow-up'), p.nextFollowUpAt || '', p.previewUrl || '', p.notes || '']; })]
       .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
     Object.assign(document.createElement('a'), { href: url, download: `kwigz-outreach-${todayISO}.csv` }).click();
@@ -1702,7 +1766,7 @@
       }
       if (pa === 'send') {
         const ch = t.dataset.channel; const fu = p.outreach.length > 0; const c = primaryContact(p);
-        if (ch === 'email') { const em = fu ? p.drafts.followUpEmail : p.drafts.email; window.location.href = mailHref(c.email, em.subject, em.body); }
+        if (ch === 'email') { const em = fu ? p.drafts.followUpEmail : p.drafts.email; const to = pickEmail(p)?.value; if (!to) return toast('No email on file — add one first'); window.location.href = mailHref(to, em.subject, em.body); }
         if (ch === 'sms') { const href = smsHref(p, fu ? p.drafts.followUpSms : p.drafts.sms); if (href) window.location.href = href; else await copyText(fu ? p.drafts.followUpSms : p.drafts.sms, 'Text copied — no phone number to open Messages'); }
         if (ch === 'linkedin') { await copyText(p.drafts.linkedin.note, 'Connection note copied — paste it into "Add a note"'); window.open(c?.linkedinUrl || linkedinSearchUrl(p), '_blank', 'noopener'); }
         const note = ch === 'call' ? ($('#callNote')?.value || '') : '';
@@ -1713,6 +1777,9 @@
       }
       if (pa === 'status') { await patchProspect(id, { status: t.dataset.status }, 'Status saved'); renderAll(); return; }
       if (pa === 'delete') { if (!confirm(`Delete ${p.business} from prospects? (Use Skip to keep a record.)`)) return; await api(`/api/prospects/${encodeURIComponent(id)}`, { method: 'DELETE' }); prospects = prospects.filter((x) => x.id !== id); openProspectId = null; renderAll(); toast('Deleted'); return; }
+      if (pa === 'contact-add') { await patchProspect(id, { contacts: [...(p.contacts || []), { name: 'New contact', title: '', email: '', mobile: '', linkedinUrl: '' }] }, 'Contact added — fill in their details'); renderProspecting(); setTimeout(() => { const inputs = $$(`[data-pa="contact-field"][data-pid="${CSS.escape(id)}"][data-key="name"]`); const last = inputs[inputs.length - 1]; if (last) { last.focus(); last.select(); } }, 50); return; }
+      if (pa === 'contact-del') { const ct = p.contacts[Number(t.dataset.idx)]; if (!confirm(`Remove ${ct?.name || 'this contact'}?`)) return; await patchProspect(id, { contacts: p.contacts.filter((_, i) => i !== Number(t.dataset.idx)) }, 'Contact removed'); renderAll(); return; }
+      if (pa === 'contact-primary') { const i = Number(t.dataset.idx); const contacts = [p.contacts[i], ...p.contacts.filter((_, j) => j !== i)]; await patchProspect(id, { contacts }, `${contacts[0].name} is now the primary contact`); renderAll(); return; }
       if (pa === 'find-mobile') { if (!confirm(`Look up a mobile number with Clay? About ${prospecting.creditEstimates?.mobilePhone || 10} credits.`)) return; t.disabled = true; t.textContent = 'Searching…'; const r = await api(`/api/prospects/${encodeURIComponent(id)}/find-mobile`, { method: 'POST', body: JSON.stringify({ contact: Number(t.dataset.idx) }) }); const i = prospects.findIndex((x) => x.id === id); if (i !== -1) prospects[i] = { ...prospects[i], ...r.prospect }; toast(r.found ? 'Mobile number found' : 'No mobile number found'); renderProspecting(); loadCredits(); return; }
       if (pa === 'book') {
         if (p.status !== 'won') await patchProspect(id, { status: 'won' });
@@ -1753,12 +1820,15 @@
     } catch (err) { toast(err.message); }
   });
   document.addEventListener('change', async (e) => {
-    const t = e.target.closest('[data-pa="followup"], [data-pa="contact-email"], [data-pa="phone"]');
+    const t = e.target.closest('[data-pa="followup"], [data-pa="contact-email"], [data-pa="phone"], [data-pa="pfield"], [data-pa="contact-field"], [data-pa="prefer"]');
     if (!t) return;
     const id = t.dataset.pid; const p = prospects.find((x) => x.id === id); if (!p) return;
     try {
       if (t.dataset.pa === 'followup') { await patchProspect(id, { nextFollowUpAt: t.value }, 'Follow-up date saved'); renderAll(); }
       if (t.dataset.pa === 'phone') { await patchProspect(id, { phone: t.value }, 'Phone saved'); renderProspecting(); }
+      if (t.dataset.pa === 'pfield') { if ((p[t.dataset.key] || '') === t.value.trim()) return; await patchProspect(id, { [t.dataset.key]: t.value.trim() }, 'Saved'); renderAll(); }
+      if (t.dataset.pa === 'contact-field') { const contacts = p.contacts.map((c, i) => (i === Number(t.dataset.idx) ? { ...c, [t.dataset.key]: t.value.trim(), ...(t.dataset.key === 'name' ? { firstName: '' } : {}) } : c)); await patchProspect(id, { contacts }, 'Contact saved'); renderProspecting(); }
+      if (t.dataset.pa === 'prefer') { await patchProspect(id, t.dataset.kind === 'email' ? { preferredEmail: t.value } : { preferredPhone: t.value }, `Will ${t.dataset.kind === 'email' ? 'email' : 'text'} ${t.value}`); renderAll(); }
       if (t.dataset.pa === 'contact-email') { const contacts = p.contacts.map((c, i) => (i === Number(t.dataset.idx) ? { ...c, email: t.value.trim(), emailSource: 'manual' } : c)); await patchProspect(id, { contacts }, 'Email saved'); renderProspecting(); }
     } catch (err) { toast(err.message); }
   });

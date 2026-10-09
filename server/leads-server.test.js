@@ -733,6 +733,46 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     assert.equal(kevin.website, 'https://www.shelterinsurance.com/kmoore', 'tracking query string stripped');
     const leavitt = clayish.data.prospects.find((p) => /Leavitt/.test(p.business));
     assert.equal(leavitt.contacts[0]?.email, 'insurance@leavitt.com', 'second Leavitt row filled the first one in');
+
+    // Extra emails / phones: a conflicting import value lands in the extras instead of being dropped…
+    const again = await call('POST', '/api/prospecting/imports', { categoryId: 'insurance', machineId: 'cousins-wappapello', findPhones: false, rows: [{ business: 'Shelter Insurance - Kevin Moore', email: 'office@shelterinsurance.com', phone: '(573) 555-0101' }] });
+    assert.deepEqual(again.data.import.mergedFields, { phone: 1, extraEmail: 1 }, 'no phone yet → becomes primary; second email → extras');
+    let kev = again.data.merged[0];
+    assert.equal(kev.contacts[0].email, 'smoore@shelterinsurance.com', 'primary email untouched');
+    assert.deepEqual(kev.altEmails.map((a) => a.value), ['office@shelterinsurance.com']);
+    assert.equal(kev.phone, '(573) 555-0101');
+    const third = await call('POST', '/api/prospecting/imports', { categoryId: 'insurance', machineId: 'cousins-wappapello', findPhones: false, rows: [{ business: 'Shelter Insurance - Kevin Moore', phone: '(573) 555-0177' }] });
+    assert.deepEqual(third.data.import.mergedFields, { extraPhone: 1 });
+    assert.deepEqual(third.data.merged[0].altPhones.map((a) => [a.value, a.e164]), [['(573) 555-0177', '+15735550177']], 'a different number lands in extras');
+    // …and everything about the business is editable from the admin.
+    const edited = await call('PATCH', `/api/prospects/${kev.id}`, {
+      address: '123 Main St, Dexter, MO 63841', city: 'Dexter', website: 'shelterinsurance.com/kmoore', linkedinUrl: 'https://www.linkedin.com/company/shelter-insurance', mapsUrl: 'https://maps.google.com/?cid=1',
+      altEmails: [{ value: 'office@shelterinsurance.com', label: 'office' }, 'billing@shelterinsurance.com', 'not-an-email', 'office@shelterinsurance.com'],
+      altPhones: [{ value: '573 555 0101', label: 'front desk' }, '573-555-0102', 'nope'],
+      preferredEmail: 'billing@shelterinsurance.com', preferredPhone: '(573) 555-0102',
+      contacts: [{ name: 'Kevin Moore', title: 'Agent', email: 'smoore@shelterinsurance.com', mobile: '573 555 0199', linkedinUrl: 'https://www.linkedin.com/in/kevin-moore/' }, { name: 'Pat Office', title: 'Office Manager', email: 'pat@shelterinsurance.com' }],
+    });
+    assert.equal(edited.status, 200, JSON.stringify(edited.data));
+    kev = edited.data.prospect;
+    assert.equal(kev.website, 'https://shelterinsurance.com/kmoore');
+    assert.equal(kev.domain, 'shelterinsurance.com');
+    assert.equal(kev.city, 'Dexter');
+    assert.deepEqual(kev.altEmails.map((a) => [a.value, a.label]), [['office@shelterinsurance.com', 'office'], ['billing@shelterinsurance.com', '']], 'invalid + duplicate extras dropped');
+    assert.deepEqual(kev.altPhones.map((a) => [a.value, a.label]), [['(573) 555-0101', 'front desk'], ['(573) 555-0102', '']]);
+    assert.equal(kev.preferredEmail, 'billing@shelterinsurance.com');
+    assert.equal(kev.contacts.length, 2);
+    assert.equal(kev.contacts[0].mobile, '(573) 555-0199');
+    assert.equal(kev.contacts[0].mobileE164, '+15735550199');
+    assert.equal(kev.contacts[1].firstName, 'Pat');
+
+    // Form leads get extra emails / phones too.
+    const leadRes = await fetch(`${instance.base}/api/leads`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'contact', name: 'Venue Owner', email: 'owner@venue.example', phone: '5735550000', message: 'Interested in a machine', website: 'https://kwigz.com/contact' }) });
+    assert.equal(leadRes.status, 201, await leadRes.text());
+    const leadId = (await call('GET', '/api/leads')).data.leads.find((l) => l.email === 'owner@venue.example').id;
+    const lp = await call('PATCH', `/api/leads/${encodeURIComponent(leadId)}`, { altEmails: ['manager@venue.example', 'bad'], altPhones: [{ value: '573-555-0001', label: 'bar phone' }] });
+    assert.equal(lp.status, 200, JSON.stringify(lp.data));
+    assert.deepEqual(lp.data.lead.altEmails.map((a) => a.value), ['manager@venue.example']);
+    assert.deepEqual(lp.data.lead.altPhones.map((a) => [a.value, a.label]), [['(573) 555-0001', 'bar phone']]);
     const novaMerged = bulk.data.merged.find((p) => p.domain === 'novalawaz.com');
     assert.equal(novaMerged.phone, '(602) 555-0142', 'blank phone filled');
     assert.equal(novaMerged.contacts[0].name, 'Ryan Tait');
@@ -744,7 +784,8 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     assert.equal(suzMerged.contacts[0].email, 'rj@suzukilawoffices.com', 'existing email kept');
     assert.equal(suzMerged.contacts[0].linkedinUrl, 'https://www.linkedin.com/in/richard-suzuki/', 'LinkedIn added to the existing contact (matched by LinkedIn URL)');
     assert.equal(suzMerged.linkedinUrl, 'https://www.linkedin.com/company/suzuki-law');
-    assert.deepEqual(bulk.data.import.mergedFields, { phone: 1, rating: 1, location: 1, contact: 1, linkedin: 1, companyLinkedin: 1 });
+    assert.deepEqual(bulk.data.import.mergedFields, { phone: 1, rating: 1, location: 1, contact: 1, linkedin: 1, companyLinkedin: 1, extraEmail: 1 });
+    assert.deepEqual(suzMerged.altEmails.map((a) => a.value), ['other@suzukilawoffices.com'], 'a second email for a known contact is kept as an extra');
 
     // Machines board: dropping a lead on a machine books a campaign and marks the prospect won; dragging it off un-wins it.
     const booked = await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: suzMerged.business, budget: 200, start: '2030-01-10', end: '2030-02-08', prospectId: suzMerged.id });

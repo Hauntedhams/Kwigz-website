@@ -186,6 +186,20 @@ original file (`DATA_DIR/imports/`) — **View leads** filters the table to that
 import, **Open file** shows the raw upload, × removes the record (leads stay).
 API: `POST /api/prospecting/imports {categoryId, machineId, rows:[{business,…}], raw, filename}`.
 
+### Editing a lead's details · extra emails & numbers
+
+Open a prospect: every **Company** field (name, website, address, city, company
+LinkedIn, Google Maps link, business phone) is an inline input that saves on blur.
+**Extra phone numbers** and **Extra emails** are lists with a free-text label
+(office, billing, owner…). **Decision-makers** are fully editable — name, title,
+work email, mobile, LinkedIn — with *+ Add decision-maker*, *Make primary* and
+remove. The Email and Text drafts' **To** field becomes a dropdown of every
+address / number on file; your pick is remembered (`preferredEmail` /
+`preferredPhone`) and used by the Send buttons and the Outreach tab. Imports feed
+these lists too: a *different* email or number for a business you already have is
+added as an extra rather than dropped. Form leads (Leads tab) get the same
+*Extra emails / Extra phone numbers* editors, stored in `lead-meta.json`.
+
 ### Outreach tab
 
 **Outreach** is the day-to-day checklist: one row per business with tick-boxes for

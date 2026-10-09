@@ -37,7 +37,7 @@ const crypto = require('crypto');
 const vm = require('vm');
 const { createClayClient } = require('./clay');
 const { createGeminiClient } = require('./gemini');
-const { createProspecting } = require('./prospecting');
+const { createProspecting, normalizeAltEmails, normalizeAltPhones } = require('./prospecting');
 const prospectingConfig = require('./prospecting-config');
 
 const PORT = process.env.PORT === undefined ? 8000 : Number(process.env.PORT);
@@ -157,6 +157,8 @@ function readLeads() {
     const m = meta[lead.id] || {};
     lead.status = m.status || 'new';
     lead.notes = m.notes || '';
+    lead.altEmails = m.altEmails || [];
+    lead.altPhones = m.altPhones || [];
     lead.updatedAt = m.updatedAt || lead.receivedAt;
     return lead;
   });
@@ -340,6 +342,8 @@ function handleLeadPatch(req, res, id) {
       entry.status = body.status;
     }
     if (body.notes !== undefined) entry.notes = clean(body.notes, 2000);
+    if (body.altEmails !== undefined) entry.altEmails = normalizeAltEmails(body.altEmails);
+    if (body.altPhones !== undefined) entry.altPhones = normalizeAltPhones(body.altPhones);
     entry.updatedAt = new Date().toISOString();
     meta[id] = entry;
     writeJson(LEAD_META_FILE, meta);
