@@ -395,6 +395,25 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   // Free alternative to Clay: the admin pastes/uploads a list; rows become prospects with
   // source:'import' and flow through the same drafts → mockup → AI art → outreach pipeline.
   const IMPORT_FIELDS = ['business', 'phone', 'website', 'email', 'address', 'city', 'contactName', 'contactTitle', 'linkedinUrl', 'companyLinkedin', 'lat', 'lng', 'rating', 'reviews', 'category', 'notes', 'logoUrl', 'mapsUrl'];
+  const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  const URL_RE = /https?:\/\/[^\s"'<>)]+|(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s"'<>)]*)?/i;
+  // A field may come from several columns (Clay exports "Find Work Email", "Find Work Email (2)"…).
+  // Pull the first usable value out of whatever text is there — "❌ No email found", "✅ a@b.com (status: accept_all)" etc.
+  function pickField(field, raw) {
+    const values = (Array.isArray(raw) ? raw : [raw]).map((v) => clean(v, field === 'notes' ? 1000 : 400)).filter(Boolean);
+    if (!values.length) return '';
+    const negative = (v) => /\bno\b.*\b(e-?mail|phone|number|result|match)\b|not found|n\/a|none|null|undefined/i.test(v) && !EMAIL_RE.test(v);
+    if (field === 'email') { for (const v of values) { const m = v.match(EMAIL_RE); if (m && !/example\.com|placeholder@/i.test(m[0])) return m[0].toLowerCase(); } return ''; }
+    if (field === 'phone') { for (const v of values) { if (negative(v)) continue; const digits = v.replace(/\D/g, ''); if (digits.length >= 10 && digits.length <= 11) return v.replace(/^[^\d+(]+/, ''); } return ''; }
+    if (['website', 'linkedinUrl', 'companyLinkedin', 'mapsUrl', 'logoUrl'].includes(field)) {
+      for (const v of values) { const m = v.match(URL_RE); if (m) return field === 'website' ? m[0].split('?')[0] : m[0]; }
+      return '';
+    }
+    if (['lat', 'lng', 'rating', 'reviews'].includes(field)) { for (const v of values) { const m = v.replace(/,/g, '').match(/-?\d+(\.\d+)?/); if (m) return m[0]; } return ''; }
+    if (field === 'notes') return [...new Set(values.filter((v) => !negative(v)))].join(' · ').slice(0, 1000);
+    for (const v of values) if (!negative(v)) return v.replace(/^[✅❌⚠️✔️✓×\s]+/, '').trim();
+    return '';
+  }
   const faviconFor = (domain) => `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=256`;
 
   function importProspects({ categoryId, machineId, rows, filename = '', raw = '', findPhones = true } = {}) {
@@ -407,8 +426,16 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     const hasGeo = Number.isFinite(machine.lat) && Number.isFinite(machine.lng);
     const prospects = readProspects();
     const nameKeyOf = (name) => `${name}`.toLowerCase().replace(/\b(the|llc|inc|pllc|pc|llp|ltd|co|corp|law firm|law office|law offices|attorneys? at law)\b/g, ' ').replace(/[^a-z0-9]+/g, ' ').trim();
-    const byDomain = new Map(prospects.filter((p) => p.domain).map((p) => [p.domain, p]));
+    // Franchise agents (State Farm, Farm Bureau, Leavitt…) share one domain but are separate advertisers,
+    // so a domain match only merges when the names line up or the street address is the same.
+    // (Two agents sharing one office are still two leads — so no address-based merging.)
+    // Token containment: "rinehart insurance" ⊂ "rinehart insurance agency" (yes), "smith law" vs "smith lawn care" (no).
+    const nameContains = (a, b) => { const ta = a.split(' '), tb = new Set(b.split(' ')); const [short, long] = ta.length <= tb.size ? [ta, tb] : [[...tb], new Set(ta)]; return short.length >= 2 && short.every((t) => long.has(t)); };
+    // Agent-style names ("Judson Mayfield – Farm Bureau") only merge on an exact match, never by containment.
+    const sameBusiness = (e, nameKey, rowHasPerson) => { const ek = nameKeyOf(e.business); return ek === nameKey || (!rowHasPerson && !personInBusinessName(e.business) && nameContains(ek, nameKey)); };
+    const byDomain = new Map(); for (const p of prospects) if (p.domain) (byDomain.get(p.domain) || byDomain.set(p.domain, []).get(p.domain)).push(p);
     const byName = new Map(prospects.map((p) => [nameKeyOf(p.business), p]));
+    const allNames = () => [...byName.values()];
     const ts = nowISO();
     const importId = newId('I');
     const added = [];
@@ -416,11 +443,14 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     const mergedFields = {};
     let skipped = 0, duplicates = 0;
     for (const r of rows) {
-      const row = {}; for (const k of IMPORT_FIELDS) row[k] = clean(r?.[k], k === 'notes' ? 1000 : 300);
+      const row = {}; for (const k of IMPORT_FIELDS) row[k] = pickField(k, r?.[k]);
       if (!row.business) { skipped++; continue; }
       const domain = normalizeDomain(row.website);
       const nameKey = nameKeyOf(row.business);
-      const existing = (domain && byDomain.get(domain)) || byName.get(nameKey);
+      // "Chrissy Davault – Missouri Farm Bureau Insurance" / "Shelter Insurance - Kevin Moore": lift the person out as the contact.
+      const person = personInBusinessName(row.business);
+      if (!row.contactName && person) row.contactName = person;
+      const existing = byName.get(nameKey) || (domain ? (byDomain.get(domain) || []).find((e) => sameBusiness(e, nameKey, Boolean(person))) : undefined) || allNames().find((e) => (!domain || !e.domain) && sameBusiness(e, nameKey, Boolean(person)));
       if (existing) {
         // Already in the list (from Clay or an earlier import): fill in whatever this row adds — never overwrite.
         const filled = mergeIntoProspect(existing, row, { domain, machine, hasGeo });
@@ -450,7 +480,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       if (p.rating) { sc.score += Math.round(Math.min(10, (p.rating - 3.5) * 8)); sc.scoreNotes.push(`${p.rating}★${p.reviews ? ` (${p.reviews})` : ''}`); }
       p.score = sc.score; p.scoreNotes = sc.scoreNotes;
       added.push(p);
-      if (domain) byDomain.set(domain, p); byName.set(nameKey, p);
+      if (domain) (byDomain.get(domain) || byDomain.set(domain, []).get(domain)).push(p); byName.set(nameKey, p);
     }
     if (!added.length && !mergedIds.length) throw new Error(duplicates ? `All ${duplicates} businesses are already in your prospect list with nothing new to add.` : 'No usable rows — each row needs at least a business name.');
     prospects.push(...added);
@@ -469,6 +499,17 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     // Fill in missing phones from their websites in the background — free, but slow.
     if (findPhones) fillImportedPhones(importId, [...added, ...prospects.filter((p) => uniqueMerged.includes(p.id))].filter((p) => !p.phone && p.website).map((p) => p.id)).catch((err) => log(`[prospecting] import phone lookup failed: ${err.message}`));
     return { import: record, prospects: added, merged: prospects.filter((p) => uniqueMerged.includes(p.id)) };
+  }
+
+  const BIZ_WORD = /\b(insurance|agency|agent|agents|law|legal|attorney|attorneys|realty|real estate|group|llc|inc|co|company|bureau|farm|financial|services|dental|clinic|auto|motors|plumbing|hvac|roofing|bail|bonds|tattoo|bar|grill|restaurant|shop|repair|collision|body)\b/i;
+  const PERSON = /^[A-Z][a-z'’.-]+(?: [A-Z]\.?)?(?: [A-Z][a-z'’.-]+){1,2}$/;
+  function personInBusinessName(name) {
+    const parts = `${name}`.split(/\s+[–—-]\s+|\s*[|:]\s+/).map((x) => x.trim()).filter(Boolean);
+    if (parts.length !== 2) return '';
+    const [a, b] = parts;
+    if (PERSON.test(a) && !BIZ_WORD.test(a) && BIZ_WORD.test(b)) return a;
+    if (PERSON.test(b) && !BIZ_WORD.test(b) && BIZ_WORD.test(a)) return b;
+    return '';
   }
 
   // Fills blanks on an existing prospect from an import row. Returns the list of fields it filled.

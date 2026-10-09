@@ -160,11 +160,21 @@ Below the Clay controls, **Or import your own list** takes a CSV/TSV file or a
 paste from Google Maps / a spreadsheet — any columns, with or without a header row.
 Columns are auto-matched (business name, phone, website, address, email, owner,
 contact title, LinkedIn, lat/lng, rating, reviews, category, notes, logo URL, Maps
-URL) and you can fix the mapping in the preview before clicking **Import**. Rows
+URL) and you can fix the mapping in the preview before clicking **Import**. Several
+columns may feed the same field — Clay exports like "Find Work Email", "Find Work
+Email (2)"… all map to *Email* and the first real address wins; cells such as
+"❌ No email found" or "✅ a@b.com (status: accept_all)" are parsed, not taken
+literally. "Person – Brand" names ("Chrissy Davault – Missouri Farm Bureau
+Insurance") lift the person out as the contact. The preview tells you how many
+rows actually carry an email / phone before you import. Rows
 become prospects (badged *Imported*) for the category/machine selected above and
 flow through exactly the same Step 2: drafts, preview page, AI art, Outreach tab.
-Businesses already in your list (matched by website domain, or by name ignoring
-"LLC / PLLC / The / Law Firm"…) are **merged, not duplicated**: every blank on the
+Businesses already in your list are **merged, not duplicated**. Matching is by
+name (ignoring "LLC / PLLC / The / Law Firm"…, and "Rinehart Insurance" ⊂
+"Rinehart Insurance Agency"), or by website domain *when the names also line
+up* — franchise agents who share one domain (Farm Bureau, State Farm, Shelter…)
+stay separate leads, and agent-style names only merge on an exact match. When
+merged, every blank on the
 existing lead is filled from the new row — phone, website, address, lat/lng,
 rating, logo, company LinkedIn — and the contact's email / LinkedIn / title are
 filled or a new contact is added. Existing values are never overwritten. The

@@ -1350,11 +1350,11 @@
   // ---------- import your own list ----------
   const IMPORT_LABELS = { '': '— skip —', business: 'Business name', phone: 'Phone', website: 'Website', email: 'Email', address: 'Address', city: 'City', contactName: 'Owner / contact name', contactTitle: 'Contact title', linkedinUrl: 'Contact LinkedIn', companyLinkedin: 'Company LinkedIn', lat: 'Latitude', lng: 'Longitude', rating: 'Google rating', reviews: 'Review count', category: 'Category / type', notes: 'Notes', logoUrl: 'Logo URL', mapsUrl: 'Google Maps URL' };
   const IMPORT_GUESS = [
-    [/^(business|company|firm|name|title|place|business ?name|company ?name)$/i, 'business'], [/^(phone|tel|telephone|phone ?number|mobile|number)$/i, 'phone'],
-    [/^(website|web|site|url|domain|homepage|website ?url)$/i, 'website'], [/^(e-?mail|email ?address)$/i, 'email'], [/^(address|street|full ?address|location|formatted ?address)$/i, 'address'],
+    [/^(business|company|firm|name|title|place|business ?name|company ?name)$/i, 'business'], [/^(phone|tel|telephone|phone ?number|mobile|number|phone ?\(?\d*\)?|find ?phone.*|.*phone ?number.*)$/i, 'phone'],
+    [/^(website|web|site|url|domain|homepage|website ?url)$/i, 'website'], [/^(e-?mail|email ?address)$|\b(work |find |finder |personal )?e-?mails?\b(?!.*(valid|verif|status))/i, 'email'], [/^(address|street|full ?address|location|formatted ?address)$/i, 'address'],
     [/^(city|town|locality)$/i, 'city'], [/^(owner|contact|contact ?name|person|decision ?maker|owner ?name|first ?name|full ?name)$/i, 'contactName'], [/^(contact ?title|job ?title|role|position)$/i, 'contactTitle'],
     [/^(linkedin|contact ?linkedin|linkedin ?url|profile)$/i, 'linkedinUrl'], [/^(company ?linkedin|linkedin ?company)$/i, 'companyLinkedin'], [/^(lat|latitude)$/i, 'lat'], [/^(lng|lon|long|longitude)$/i, 'lng'],
-    [/^(rating|stars|google ?rating|score)$/i, 'rating'], [/^(reviews|review ?count|ratings|user ?ratings ?total|num ?reviews)$/i, 'reviews'], [/^(category|type|categories|main ?category|industry|query)$/i, 'category'],
+    [/^(rating|stars|google ?rating|score|average ?rating)$/i, 'rating'], [/^(reviews?|reviews? ?count|ratings|user ?ratings ?total|num(ber)? ?(of )?reviews|review ?total|total ?reviews)$/i, 'reviews'], [/^(category|type|categories|main ?category|industry|query)$/i, 'category'],
     [/^(notes?|note|description|comment)$/i, 'notes'], [/^(logo|logo ?url|image|photo)$/i, 'logoUrl'], [/^(maps? ?url|google ?maps? ?url|maps ?link|place ?url|link)$/i, 'mapsUrl'],
   ];
   let importParsed = null; // { headers, rows (array of arrays), mapping [], raw, filename, hasHeader }
@@ -1381,7 +1381,9 @@
   const guessFromValues = (vals) => {
     const v = vals.filter(Boolean);
     if (!v.length) return '';
-    if (v.every((x) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x))) return 'email';
+    const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+    if (v.filter((x) => EMAIL_RE.test(x)).length >= Math.max(1, v.length * 0.3)) return 'email';
+    if (v.every((x) => /no e-?mail|not found|no phone/i.test(x))) return '';
     if (v.every((x) => x.replace(/\D/g, '').length >= 10 && x.replace(/\D/g, '').length <= 11 && /^[\d\s().+-]+$/.test(x))) return 'phone';
     if (v.every((x) => /linkedin\.com\/in\//.test(x))) return 'linkedinUrl';
     if (v.every((x) => /maps\.google|google\.com\/maps|goo\.gl\/maps/.test(x))) return 'mapsUrl';
@@ -1413,12 +1415,16 @@
     const { headers, rows, mapping } = importParsed;
     const used = new Set();
     box.hidden = false;
-    box.innerHTML = `<div class="hint" style="margin:10px 0 0;color:var(--muted);font-size:0.78rem;">${rows.length} row${rows.length === 1 ? '' : 's'} · ${importParsed.hasHeader ? 'first row used as headers' : 'no header row detected — matched by content'}. Check each column:</div>
+    box.innerHTML = `<div class="hint" style="margin:10px 0 0;color:var(--muted);font-size:0.78rem;">${rows.length} row${rows.length === 1 ? '' : 's'} · ${importParsed.hasHeader ? 'first row used as headers' : 'no header row detected — matched by content'}. Check each column — several columns can feed the same field (e.g. multiple "Find Work Email" columns); the first real value wins and "No email found" is ignored:</div>
       <div class="map-grid">${headers.map((h, i) => { const ex = rows.slice(0, 3).map((r) => r[i]).filter(Boolean).join(' · '); return `<div class="mp ${mapping[i] ? 'ok' : ''}"><b title="${esc(h)}">${esc(h)}</b><span class="ex" title="${esc(ex)}">${esc(ex) || '<i>empty</i>'}</span><select data-map-col="${i}">${Object.entries(IMPORT_LABELS).map(([k, l]) => `<option value="${k}" ${mapping[i] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`; }).join('')}</div>`;
     const ok = mapping.includes('business');
     $('#importBtn').disabled = !ok;
     const cat = catById($('#genCategory').value), m = machineById($('#genMachine').value);
-    $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name}. Businesses already in your list (same website or name) aren't duplicated — their blanks get filled in from this file.` : 'Pick which column is the business name.';
+    const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+    const has = (field, test) => rows.filter((r) => mapping.some((f, i) => f === field && test(r[i] || ''))).length;
+    const nEmail = has('email', (v) => EMAIL_RE.test(v) && !/placeholder@/i.test(v)), nPhone = has('phone', (v) => v.replace(/\D/g, '').length >= 10);
+    const multi = Object.entries(mapping.reduce((a, f) => { if (f) a[f] = (a[f] || 0) + 1; return a; }, {})).filter(([, n]) => n > 1).map(([f, n]) => `${IMPORT_LABELS[f]} ×${n}`);
+    $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name} · ${nEmail} with an email, ${nPhone} with a phone${multi.length ? ` · merging columns: ${multi.join(', ')}` : ''}. Businesses already in your list aren't duplicated — their blanks get filled in.` : 'Pick which column is the business name.';
     $('#importBtn').textContent = ok ? `Import ${rows.length} business${rows.length === 1 ? '' : 'es'}` : 'Import';
   }
   $('#importText').addEventListener('input', (e) => prepareImport(e.target.value));
@@ -1433,14 +1439,14 @@
     const sel = e.target.closest('select[data-map-col]');
     if (!sel || !importParsed) return;
     const i = Number(sel.dataset.mapCol);
-    if (sel.value && sel.value !== 'notes') importParsed.mapping = importParsed.mapping.map((m, j) => (j !== i && m === sel.value ? '' : m)); // one column per field
+    if (sel.value === 'business') importParsed.mapping = importParsed.mapping.map((m, j) => (j !== i && m === 'business' ? '' : m)); // exactly one name column; everything else may repeat
     importParsed.mapping[i] = sel.value;
     renderImportPreview();
   });
   $('#importBtn').addEventListener('click', async () => {
     if (!importParsed) return;
     const { rows, mapping, raw, filename } = importParsed;
-    const objs = rows.map((r) => { const o = {}; mapping.forEach((f, i) => { if (!f) return; o[f] = o[f] ? `${o[f]} ${r[i]}` : r[i]; }); return o; }).filter((o) => o.business);
+    const objs = rows.map((r) => { const o = {}; mapping.forEach((f, i) => { if (!f || !r[i]) return; (o[f] ||= []).push(r[i]); }); return o; }).filter((o) => o.business);
     $('#importBtn').disabled = true; $('#importBtn').textContent = 'Importing…';
     try {
       const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ categoryId: $('#genCategory').value, machineId: $('#genMachine').value, rows: objs, raw, filename }) });

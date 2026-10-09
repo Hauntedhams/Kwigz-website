@@ -711,6 +711,28 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     assert.equal(bulk.status, 200, JSON.stringify(bulk.data));
     assert.deepEqual({ imported: bulk.data.import.imported, merged: bulk.data.import.merged, duplicates: bulk.data.import.duplicates }, { imported: 1, merged: 2, duplicates: 0 });
     assert.equal((await call('GET', '/api/prospects')).data.count, 3, 'no duplicates created');
+
+    // Clay-style exports: several "Find Work Email" columns with ✅/❌ text, franchise agents sharing a domain.
+    const clayish = await call('POST', '/api/prospecting/imports', { categoryId: 'insurance', machineId: 'cousins-wappapello', findPhones: false, rows: [
+      { business: 'Judson Mayfield - Missouri Farm Bureau Insurance', website: 'https://agents.mofbinsurance.com/mo-judson', phone: '+1 573-238-2654', email: ['❌ No Email Found', '✅ judson@mofbinsurance.com (status: accept_all)', '❌ No email found'], address: '151 MO-34, Marble Hill, MO 63764, USA', reviews: '12', rating: '4.9' },
+      { business: 'Chrissy Davault – Missouri Farm Bureau Insurance', website: 'https://agents.mofbinsurance.com/mo-marlbe-hill-chrissy-davault', phone: ['❌ No phone', '+1 573-238-2654'], email: ['', '✅ chrissy@mofbinsurance.com (status: accept_all)'], address: '151 MO-34, Marble Hill, MO 63764, USA' },
+      { business: 'Shelter Insurance - Kevin Moore', email: 'smoore@shelterinsurance.com', website: 'https://www.shelterinsurance.com/kmoore?utm_source=GMB' },
+      { business: 'Stafford-Leavitt', website: 'https://www.leavitt.com/stafford?utm_source=GMBlisting' },
+      { business: 'Stafford-Leavitt Insurance', website: 'https://www.leavitt.com/stafford/', email: ['❌ No Email Found', '✅ insurance@leavitt.com'] },
+      { business: 'Farm Bureau Insurance', phone: '573-000-0000' },
+    ] });
+    assert.equal(clayish.status, 200, JSON.stringify(clayish.data));
+    assert.deepEqual({ imported: clayish.data.import.imported, merged: clayish.data.import.merged }, { imported: 5, merged: 1 }, 'two agents at one office stay separate; the two Leavitt rows merge; "Farm Bureau Insurance" does not swallow its agents');
+    const chrissy = clayish.data.prospects.find((p) => /Chrissy/.test(p.business));
+    assert.equal(chrissy.contacts[0].email, 'chrissy@mofbinsurance.com', 'email extracted from the ✅ … (status: accept_all) cell across several columns');
+    assert.equal(chrissy.contacts[0].name, 'Chrissy Davault', 'person lifted out of "Person – Brand" name');
+    assert.equal(chrissy.contacts[0].firstName, 'Chrissy');
+    assert.equal(chrissy.phone, '(573) 238-2654', '"No phone" skipped, real number taken');
+    const kevin = clayish.data.prospects.find((p) => /Shelter/.test(p.business));
+    assert.equal(kevin.contacts[0].name, 'Kevin Moore');
+    assert.equal(kevin.website, 'https://www.shelterinsurance.com/kmoore', 'tracking query string stripped');
+    const leavitt = clayish.data.prospects.find((p) => /Leavitt/.test(p.business));
+    assert.equal(leavitt.contacts[0]?.email, 'insurance@leavitt.com', 'second Leavitt row filled the first one in');
     const novaMerged = bulk.data.merged.find((p) => p.domain === 'novalawaz.com');
     assert.equal(novaMerged.phone, '(602) 555-0142', 'blank phone filled');
     assert.equal(novaMerged.contacts[0].name, 'Ryan Tait');
