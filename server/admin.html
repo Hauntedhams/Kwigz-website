@@ -221,9 +221,20 @@
     .art-thumb .art-del { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border-radius: 50%; border: 0; background: rgba(0,0,0,0.6); color: #fff; font-size: 0.7rem; line-height: 18px; cursor: pointer; padding: 0; }
     .art-gen { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
     .art-gen input { flex: 1; min-width: 200px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; font-size: 0.82rem; }
-    .import-box { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--line); }
-    .import-box h3 { font-size: 0.95rem; margin: 0 0 6px; }
-    .import-box h3 .sub { font-weight: 500; color: var(--muted); font-size: 0.8rem; margin-left: 6px; }
+    .import-card { border: 2px solid var(--ink); }
+    .import-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .import-head h2 { margin: 0; }
+    .import-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin-bottom: 10px; }
+    .import-row .field label, .filter-grid .field label { font-size: 0.7rem; }
+    .import-history { margin-top: 14px; }
+    .import-history summary { cursor: pointer; font-size: 0.8rem; font-weight: 700; color: var(--muted); }
+    .status-chips .chip .n { opacity: 0.6; font-weight: 600; margin-left: 3px; }
+    .filter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px 12px; margin-bottom: 10px; }
+    .filter-grid select, .filter-grid input { width: 100%; }
+    .filter-grid .field.on select, .filter-grid .field.on input { border-color: var(--ink); background: #fff7ed; }
+    .filter-foot { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; font-size: 0.82rem; color: var(--muted); }
+    .filter-foot b { color: var(--ink); }
+    @media (max-width: 1100px) { .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .import-row { grid-template-columns: 1fr; } }
     .import-inputs { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
     .file-btn { cursor: pointer; }
     #importText { width: 100%; min-height: 90px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; resize: vertical; background: #fff; }
@@ -347,7 +358,7 @@
     <button class="nav-btn" data-tab="leads"><svg class="site-icon"><use href="/icons.svg#document"/></svg> Leads <span class="count" id="navLeadCount">0</span></button>
     <button class="nav-btn" data-tab="advertisers"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Advertisers <span class="count" id="navCampCount">0</span></button>
     <button class="nav-btn" data-tab="calendar"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg> Calendar</button>
-    <button class="nav-btn" data-tab="prospecting"><svg class="site-icon"><use href="/icons.svg#sparkles"/></svg> Prospecting <span class="count" id="navProspectCount">0</span></button>
+    <button class="nav-btn" data-tab="prospecting"><svg class="site-icon"><use href="/icons.svg#sparkles"/></svg> Prospects <span class="count" id="navProspectCount">0</span></button>
     <button class="nav-btn" data-tab="outreach"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Outreach <span class="count" id="navOutreachCount">0</span></button>
     <button class="nav-btn" data-tab="machines"><svg class="site-icon"><use href="/icons.svg#store"/></svg> Machines <span class="count" id="navMachineCount">0</span></button>
     <div class="side-foot">
@@ -428,60 +439,71 @@
     <!-- PROSPECTING -->
     <section data-panel="prospecting" hidden>
       <div class="page-head">
-        <div><h1>Prospecting</h1><p>Find local advertisers with Clay, generate the outreach, send it, and get reminded to follow up.</p></div>
-        <div class="head-actions"><span class="badge" id="clayStatus">Checking Clay…</span></div>
+        <div><h1>Prospects</h1><p id="prospectSub">Every business you've imported, in one list. Filter it, write the outreach, send, follow up.</p></div>
+        <div class="head-actions"><button class="btn" id="prospectExport">Export CSV</button><button class="btn btn-primary" id="importOpen">+ Import list</button></div>
+      </div>
+
+      <div class="card import-card" id="importCard" hidden>
+        <div class="import-head"><h2>Import a list <span class="sub">CSV / TSV from Google Maps, Clay or a spreadsheet — or paste rows</span></h2><button class="btn btn-sm" id="importClose">Close</button></div>
+        <div class="import-row">
+          <div class="field"><label>Category for these businesses</label><select id="importCategory"></select></div>
+          <div class="field"><label>Machine they'd advertise on</label><select id="importMachine"></select></div>
+          <label class="btn file-btn">Choose CSV / TSV file<input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden /></label>
+        </div>
+        <textarea id="importText" placeholder="…or paste here (first row = headers, or one business per line)&#10;Name	Phone	Website	Address&#10;Suzuki Law Offices	(602) 682-5270	suzukilawoffices.com	2929 E Camelback Rd, Phoenix, AZ 85016"></textarea>
+        <div id="importPreview" hidden></div>
+        <div class="row-actions" style="margin-top:8px;"><button class="btn btn-primary" id="importBtn" disabled>Import</button><span class="hint" id="importHint" style="color:var(--muted);font-size:0.78rem;">Columns are auto-matched; businesses you already have are filled in, not duplicated. Missing phones and logos are pulled from their websites.</span></div>
+        <details class="import-history" id="importHistory"><summary>Past imports</summary><div id="importList" class="import-list"></div></details>
       </div>
 
       <div class="card">
-        <h2>Step 1 · Generate leads <span class="sub">Clay finds businesses near the machine, their address, owners &amp; emails</span></h2>
-        <div class="gen-row">
-          <div class="field"><label>Category</label><select id="genCategory"></select></div>
-          <div class="field"><label>Machine</label><select id="genMachine"></select></div>
-          <div class="field"><label>How many</label><select id="genLimit"></select></div>
-          <div class="field"><label>Within</label><select id="genRadius"></select></div>
-          <button class="btn btn-primary" id="genBtn">Generate leads</button>
+        <div class="chips status-chips" id="prospectChips"></div>
+        <div class="filter-grid">
+          <div class="field"><label>Category</label><select id="fCategory"></select></div>
+          <div class="field"><label>Machine</label><select id="fMachine"></select></div>
+          <div class="field"><label>Place</label><select id="fPlace"></select></div>
+          <div class="field"><label>Touched</label><select id="fTouched">
+            <option value="">Any</option>
+            <option value="untouched">Not contacted yet</option>
+            <option value="touched">Contacted (any way)</option>
+            <option value="email">Emailed</option>
+            <option value="sms">Texted</option>
+            <option value="linkedin">LinkedIn messaged</option>
+            <option value="call">Called</option>
+            <option value="follow-up">Followed up</option>
+            <option value="!email">Not emailed yet</option>
+            <option value="!sms">Not texted yet</option>
+            <option value="!linkedin">Not on LinkedIn yet</option>
+            <option value="!call">Not called yet</option>
+          </select></div>
+          <div class="field"><label>Contact info</label><select id="fHas">
+            <option value="">Any</option>
+            <option value="email">Has email</option>
+            <option value="phone">Has phone</option>
+            <option value="both">Has email + phone</option>
+            <option value="linkedin">Has LinkedIn</option>
+            <option value="no-email">Missing email</option>
+            <option value="none">No email or phone</option>
+          </select></div>
+          <div class="field"><label>From import</label><select id="fImport"></select></div>
+          <div class="field"><label>Sort</label><select id="fSort">
+            <option value="newest">Newest first</option>
+            <option value="score">Best fit</option>
+            <option value="name">Name A–Z</option>
+            <option value="followup">Follow-up date</option>
+            <option value="distance">Closest to machine</option>
+            <option value="touches">Most touched</option>
+          </select></div>
+          <div class="field"><label>Search</label><input id="fSearch" type="search" placeholder="Business, contact, email, city…" /></div>
         </div>
-        <label class="check"><input type="checkbox" id="genEmails" checked /> Also find the owner's work email <span class="hint" id="genCostHint" style="margin:0;"></span></label>
-        <div class="progress" id="genProgress" hidden></div>
-        <div class="run-list" id="runList"></div>
-
-        <div class="import-box">
-          <h3>Or import your own list <span class="sub">free — paste from Google Maps / a spreadsheet, or drop a CSV</span></h3>
-          <p class="hint" style="margin:0 0 10px;">Uses the Category and Machine picked above. Any columns work: business name, phone, website, address, email, owner, LinkedIn, lat/lng, rating… We'll auto-match them and you can fix the mapping before importing. Missing phones are read off their websites afterwards; logos come from their site.</p>
-          <div class="import-inputs">
-            <label class="btn file-btn">Choose CSV / TSV file<input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden /></label>
-            <span class="hint" style="margin:0;">or paste below (tab- or comma-separated, first row = headers, or one business per line)</span>
-          </div>
-          <textarea id="importText" placeholder="Name	Phone	Website	Address&#10;Suzuki Law Offices	(602) 682-5270	suzukilawoffices.com	2929 E Camelback Rd, Phoenix, AZ 85016"></textarea>
-          <div id="importPreview" hidden></div>
-          <div class="row-actions" style="margin-top:8px;"><button class="btn btn-primary" id="importBtn" disabled>Import</button><span class="hint" id="importHint" style="color:var(--muted);font-size:0.78rem;"></span></div>
-          <div id="importList" class="import-list"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>Step 2 · Generate outreach &amp; send <span class="sub">emails, texts, LinkedIn notes and a mockup of their ad on the machine</span></h2>
-        <div class="chips" id="prospectChips">
-          <button class="chip active" data-pstatus="">All</button>
-          <button class="chip" data-pstatus="new">New</button>
-          <button class="chip" data-pstatus="drafted">Ready to send</button>
-          <button class="chip" data-pstatus="due">Follow-up due</button>
-          <button class="chip" data-pstatus="contacted">Contacted</button>
-          <button class="chip" data-pstatus="replied">Replied</button>
-          <button class="chip" data-pstatus="won">Won</button>
-          <button class="chip" data-pstatus="lost">Lost / skipped</button>
-          <select class="inline" id="prospectCategory"><option value="">All categories</option></select>
-          <select class="inline" id="prospectSource"><option value="">Clay + imports</option><option value="clay">Found with Clay</option><option value="import">Imported</option></select>
-          <input class="inline search" id="prospectSearch" type="search" placeholder="Search business, contact, city…" />
-        </div>
-        <div class="row-actions" style="margin-bottom:12px;"><button class="btn btn-primary" id="draftBtn">Generate outreach</button><span class="hint" id="draftHint" style="color:var(--muted);font-size:0.78rem;"></span></div>
+        <div class="filter-foot"><span id="filterCount"></span><button class="btn btn-sm" id="fClear" hidden>Clear filters</button><span style="flex:1;"></span><button class="btn btn-primary btn-sm" id="draftBtn">Generate outreach</button></div>
         <div class="tbl-wrap">
           <table>
             <thead><tr><th>Business</th><th>Decision-maker</th><th>Contact info</th><th>Fit</th><th>Status</th><th>Follow-up</th></tr></thead>
             <tbody id="prospectRows"></tbody>
           </table>
         </div>
-        <div class="empty" id="prospectEmpty" hidden>No prospects yet — pick a category above and click <b>Generate leads</b>.</div>
+        <div class="empty" id="prospectEmpty" hidden></div>
       </div>
     </section>
 
@@ -608,7 +630,9 @@
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
   let leads = [], campaigns = [], stripe = { enabled: false, mode: 'test', webhook: false };
   let prospects = [], prospecting = { clay: { configured: false }, gemini: { configured: false }, categories: [], machines: [], defaults: { limit: 15, maxLimit: 20, radiusMiles: 20, followUpDays: 2 }, creditEstimates: {}, activeRun: null, recentRuns: [] };
-  let pStatus = '', pCategory = '', pQuery = '', pSource = '', pImport = '', openProspectId = null, draftTab = 'email', runPollTimer = null;
+  const PF_DEFAULT = { status: '', category: '', machine: '', place: '', touched: '', has: '', importId: '', sort: 'newest', q: '' };
+  let pf = { ...PF_DEFAULT, ...(() => { try { return JSON.parse(localStorage.getItem('kwigz-prospect-filters') || '{}'); } catch { return {}; } })() };
+  let openProspectId = null, draftTab = 'email';
   let oStatus = 'todo', oCategory = '', oMachine = '', oQuery = '';
   let leadType = '', leadStatus = '', leadQuery = '', openLeadId = null;
   let calMonth = new Date(); calMonth.setDate(1);
@@ -739,7 +763,6 @@
       prospects = (p.prospects || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       if (ps) prospecting = ps;
       renderAll();
-      if (prospecting.activeRun) pollRun(prospecting.activeRun.id);
     } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
   }
   $('#refreshBtn').addEventListener('click', () => { load(); toast('Refreshed'); });
@@ -1132,108 +1155,95 @@
   const mailHref = (to, subject, body) => `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   const linkedinSearchUrl = (p) => `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(p.business)}`;
 
-  function renderProspectingControls() {
-    const sel = $('#genCategory');
-    const keep = sel.value;
-    sel.innerHTML = ADS.categories.map((c) => { const cfg = prospecting.categories.find((x) => x.id === c.id); return `<option value="${c.id}" ${cfg && !cfg.configured ? 'disabled' : ''}>${esc(c.label)}${cfg?.prospects ? ` (${cfg.prospects})` : ''}</option>`; }).join('');
-    if (keep) sel.value = keep;
-    if (!$('#genMachine').options.length) {
-      $('#genMachine').innerHTML = ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
-      $('#genLimit').innerHTML = [5, 10, 15, 20].filter((n) => n <= (prospecting.defaults.maxLimit || 20)).map((n) => `<option value="${n}" ${n === prospecting.defaults.limit ? 'selected' : ''}>${n} leads</option>`).join('');
-      $('#genRadius').innerHTML = [10, 15, 20, 25, 35].map((n) => `<option value="${n}" ${n === prospecting.defaults.radiusMiles ? 'selected' : ''}>${n} miles</option>`).join('');
-      $('#prospectCategory').innerHTML = `<option value="">All categories</option>${ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('')}`;
+  // ---------- prospects: filters ----------
+  const placeOf = (p) => (p.city || (p.address || '').match(/,\s*([A-Za-z .'-]+),\s*[A-Z]{2}\b/)?.[1] || '').trim();
+  const touchCount = (p, ch) => (p.outreach || []).filter((o) => (ch === 'follow-up' ? o.followUp : o.channel === ch)).length;
+  const hasLinkedIn = (p) => Boolean(p.linkedinUrl || (p.contacts || []).some((c) => c.linkedinUrl));
+  function matchesFilters(p, skip = '') {
+    const f = pf;
+    if (skip !== 'status' && f.status) {
+      if (f.status === 'due') { if (!followUpDue(p)) return false; }
+      else if (f.status === 'lost') { if (!['lost', 'skipped'].includes(p.status)) return false; }
+      else if (p.status !== f.status) return false;
     }
-    updateCostHint();
-    const st = $('#clayStatus');
-    if (!prospecting.clay?.configured) { st.textContent = 'Clay not connected — set CLAY_API_KEY on the server'; st.className = 'badge red'; $('#genBtn').disabled = true; }
-    else if (prospecting.credits) { st.textContent = `Clay · ${fmtN(prospecting.credits.balance)} credits left`; st.className = 'badge green'; }
-    else { st.textContent = 'Clay connected'; st.className = 'badge green'; }
+    if (f.category && p.categoryId !== f.category) return false;
+    if (f.machine && p.machineId !== f.machine) return false;
+    if (f.place && placeOf(p).toLowerCase() !== f.place.toLowerCase()) return false;
+    if (f.touched) {
+      const n = (p.outreach || []).length;
+      if (f.touched === 'untouched' && n) return false;
+      else if (f.touched === 'touched' && !n) return false;
+      else if (f.touched.startsWith('!') && touchCount(p, f.touched.slice(1))) return false;
+      else if (!['untouched', 'touched'].includes(f.touched) && !f.touched.startsWith('!') && !touchCount(p, f.touched)) return false;
+    }
+    if (f.has) {
+      const e = allEmails(p).length > 0, ph = allPhones(p).length > 0;
+      if (f.has === 'email' && !e) return false;
+      if (f.has === 'phone' && !ph) return false;
+      if (f.has === 'both' && !(e && ph)) return false;
+      if (f.has === 'linkedin' && !hasLinkedIn(p)) return false;
+      if (f.has === 'no-email' && e) return false;
+      if (f.has === 'none' && (e || ph)) return false;
+    }
+    if (f.importId) { const im = (prospecting.imports || []).find((x) => x.id === f.importId); if (p.importId !== f.importId && !(im?.mergedIds || []).includes(p.id)) return false; }
+    if (f.q && !`${p.business} ${placeOf(p)} ${p.address || ''} ${p.domain || ''} ${allEmails(p).map((e) => e.value).join(' ')} ${allPhones(p).map((e) => e.value).join(' ')} ${(p.contacts || []).map((c) => `${c.name} ${c.title}`).join(' ')} ${p.notes || ''}`.toLowerCase().includes(f.q.toLowerCase())) return false;
+    return true;
   }
-  function updateCostHint() {
-    const n = Number($('#genLimit').value) || 15;
-    const ce = prospecting.creditEstimates || {};
-    const enrich = Math.min(60, n * 3) * (ce.enrichCompany || 0.5);
-    const emails = $('#genEmails').checked ? n * (ce.workEmail || 1.1) : 0;
-    $('#genCostHint').textContent = `— about ${Math.round(enrich + emails)} Clay credits for this run`;
+  const SORTS = {
+    newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
+    score: (a, b) => (b.score ?? -1) - (a.score ?? -1),
+    name: (a, b) => a.business.localeCompare(b.business),
+    followup: (a, b) => (a.nextFollowUpAt || '9999').localeCompare(b.nextFollowUpAt || '9999'),
+    distance: (a, b) => (a.distanceMiles ?? 9999) - (b.distanceMiles ?? 9999),
+    touches: (a, b) => (b.outreach || []).length - (a.outreach || []).length,
+  };
+  function filteredProspects() { return prospects.filter((p) => matchesFilters(p)).sort(SORTS[pf.sort] || SORTS.newest); }
+  function setFilter(patch) {
+    pf = { ...pf, ...patch };
+    try { localStorage.setItem('kwigz-prospect-filters', JSON.stringify(pf)); } catch {}
+    renderProspecting();
   }
-  $('#genLimit').addEventListener('change', updateCostHint);
-  $('#genEmails').addEventListener('change', updateCostHint);
-  $('#genCategory').addEventListener('change', () => { if (importParsed) renderImportPreview(); });
-  $('#genMachine').addEventListener('change', () => { if (importParsed) renderImportPreview(); });
+  const resetFilters = (patch = {}) => { $('#fSearch').value = patch.q || ''; setFilter({ ...PF_DEFAULT, sort: pf.sort, ...patch }); };
 
+  function renderProspectFilters() {
+    const opts = (list, current, all) => `<option value="">${all}</option>${list.map(([v, l, n]) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(l)}${n != null ? ` (${n})` : ''}</option>`).join('')}`;
+    const count = (fn) => prospects.filter(fn).length;
+    $('#fCategory').innerHTML = opts(ADS.categories.map((c) => [c.id, c.label, count((p) => p.categoryId === c.id)]).filter(([, , n]) => n || pf.category), pf.category, 'All categories');
+    $('#fMachine').innerHTML = opts(ADS.machines.map((m) => [m.id, m.name, count((p) => p.machineId === m.id)]), pf.machine, 'All machines');
+    const places = {}; prospects.forEach((p) => { const pl = placeOf(p); if (pl) places[pl] = (places[pl] || 0) + 1; });
+    $('#fPlace').innerHTML = opts(Object.entries(places).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, n]) => [k, k, n]), pf.place, 'All places');
+    $('#fImport').innerHTML = opts((prospecting.imports || []).map((im) => [im.id, `${im.filename.replace(/\.(csv|tsv|txt)$/i, '').slice(0, 38)} · ${fmtDate(iso(new Date(im.importedAt)))}`, im.imported + (im.merged || 0)]), pf.importId, 'Any import');
+    $('#fTouched').value = pf.touched; $('#fHas').value = pf.has; $('#fSort').value = pf.sort;
+    if (document.activeElement !== $('#fSearch')) $('#fSearch').value = pf.q;
+    const on = { fCategory: pf.category, fMachine: pf.machine, fPlace: pf.place, fTouched: pf.touched, fHas: pf.has, fImport: pf.importId, fSearch: pf.q };
+    Object.entries(on).forEach(([id, v]) => $(`#${id}`).closest('.field').classList.toggle('on', Boolean(v)));
+    const chips = [['', 'All'], ['new', 'New'], ['drafted', 'Ready to send'], ['due', 'Follow-up due'], ['contacted', 'Contacted'], ['replied', 'Replied'], ['won', 'Won'], ['lost', 'Lost / skipped']];
+    const base = prospects.filter((p) => matchesFilters(p, 'status'));
+    const n = (k) => (k === '' ? base.length : k === 'due' ? base.filter(followUpDue).length : k === 'lost' ? base.filter((p) => ['lost', 'skipped'].includes(p.status)).length : base.filter((p) => p.status === k).length);
+    $('#prospectChips').innerHTML = chips.map(([k, l]) => `<button class="chip ${pf.status === k ? 'active' : ''}" data-pstatus="${k}">${l}<span class="n">${n(k)}</span></button>`).join('');
+    // Import panel selectors
+    if (!$('#importCategory').options.length) {
+      $('#importCategory').innerHTML = ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+      $('#importMachine').innerHTML = ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
+      try { const last = JSON.parse(localStorage.getItem('kwigz-import-target') || '{}'); if (last.categoryId) $('#importCategory').value = last.categoryId; if (last.machineId) $('#importMachine').value = last.machineId; } catch {}
+    }
+  }
   async function loadCredits() {
-    try { const c = await api('/api/prospecting/credits'); if (c.configured) { prospecting.credits = c; renderProspectingControls(); } } catch {}
-  }
-
-  function renderRun(run) {
-    const box = $('#genProgress');
-    if (!run) { box.hidden = true; return; }
-    box.hidden = false;
-    const active = !['done', 'failed'].includes(run.status);
-    box.className = `progress ${run.status === 'failed' ? 'failed' : run.status === 'done' ? 'done' : ''}`;
-    const steps = ['queued', 'searching', 'enriching', 'contacts', 'emails', 'phones', 'done'];
-    const idx = Math.max(0, steps.indexOf(run.status));
-    const frac = run.progress?.total ? run.progress.done / run.progress.total : 0;
-    const pct = run.status === 'done' ? 100 : run.status === 'failed' ? 100 : Math.round(((idx + frac) / (steps.length - 1)) * 100);
-    const c = run.counts || {};
-    box.innerHTML = `<div class="step"><span>${esc(run.step || run.status)}${active ? ' …' : ''}</span><span>${esc(catById(run.categoryId).label)} · ${esc(machineById(run.machineId).name)} · ${run.radiusMiles} mi</span></div>
-      <div class="bar"><span style="width:${pct}%;${run.status === 'failed' ? 'background:var(--red);' : run.status === 'done' ? 'background:var(--green);' : ''}"></span></div>
-      <div class="meta">${run.error ? `<b style="color:var(--red);">${esc(run.error)}</b> · ` : ''}${c.candidates ? `${c.candidates} found · ` : ''}${c.inRadius ? `${c.inRadius} within radius · ` : ''}${c.saved ? `<b>${c.saved} saved</b> · ${c.contacts} contacts · ${c.emailsFound} emails · ${c.phonesFound} phones · ` : ''}${run.creditsUsed ? `~${run.creditsUsed} credits used` : ''}${active && run.progress?.total ? ` · ${run.progress.done}/${run.progress.total}` : ''}</div>`;
-    $('#genBtn').disabled = active || !prospecting.clay?.configured;
-  }
-  function renderRunList() {
-    $('#runList').innerHTML = (prospecting.recentRuns || []).filter((r) => r.id !== prospecting.activeRun?.id).slice(0, 6).map((r) => `<span class="run-pill">${esc(catById(r.categoryId).label)} · ${r.status === 'done' ? `${r.counts?.saved ?? 0} leads` : esc(r.status)} · ${timeAgo(r.startedAt)}</span>`).join('');
-  }
-  async function pollRun(id) {
-    clearTimeout(runPollTimer);
-    try {
-      const { run } = await api(`/api/prospecting/runs/${encodeURIComponent(id)}`);
-      prospecting.activeRun = run;
-      renderRun(run);
-      if (!['done', 'failed'].includes(run.status)) { runPollTimer = setTimeout(() => pollRun(id), 2000); return; }
-      prospecting.activeRun = null;
-      toast(run.status === 'done' ? `${run.counts.saved} new ${catById(run.categoryId).label} leads` : `Lead search failed: ${run.error}`);
-      const ps = await api('/api/prospecting/status').catch(() => null);
-      if (ps) { prospecting = { ...ps, credits: prospecting.credits }; }
-      const p = await api('/api/prospects');
-      prospects = p.prospects.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-      if (run.status === 'done') { pStatus = 'new'; pCategory = run.categoryId; $('#prospectCategory').value = pCategory; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'new')); }
-      renderAll(); renderRun(run); loadCredits();
-    } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
-  }
-  $('#genBtn').addEventListener('click', async () => {
-    const body = { categoryId: $('#genCategory').value, machineId: $('#genMachine').value, limit: Number($('#genLimit').value), radiusMiles: Number($('#genRadius').value), findEmails: $('#genEmails').checked };
-    $('#genBtn').disabled = true;
-    try { const { run } = await api('/api/prospecting/runs', { method: 'POST', body: JSON.stringify(body) }); prospecting.activeRun = run; renderRun(run); pollRun(run.id); }
-    catch (err) { toast(err.message); $('#genBtn').disabled = false; }
-  });
-
-  function filteredProspects() {
-    return prospects.filter((p) => {
-      if (pStatus === 'due') { if (!followUpDue(p)) return false; }
-      else if (pStatus === 'lost') { if (!['lost', 'skipped'].includes(p.status)) return false; }
-      else if (pStatus && p.status !== pStatus) return false;
-      if (pCategory && p.categoryId !== pCategory) return false;
-      if (pImport) { const im = (prospecting.imports || []).find((x) => x.id === pImport); if (p.importId !== pImport && !(im?.mergedIds || []).includes(p.id)) return false; }
-      else if (pSource === 'import' && p.source !== 'import') return false;
-      else if (pSource === 'clay' && p.source === 'import') return false;
-      if (pQuery && !`${p.business} ${p.city} ${p.domain} ${(p.contacts || []).map((c) => `${c.name} ${c.title} ${c.email}`).join(' ')}`.toLowerCase().includes(pQuery)) return false;
-      return true;
-    });
+    try { const c = await api('/api/prospecting/credits'); if (c.configured) prospecting.credits = c; } catch {}
   }
 
   function renderProspecting() {
-    renderProspectingControls();
-    renderRun(prospecting.activeRun);
-    renderRunList();
+    renderProspectFilters();
     renderImportList();
     const rows = filteredProspects();
+    const active = Object.entries(pf).filter(([k, v]) => k !== 'sort' && v).length;
+    $('#filterCount').innerHTML = `Showing <b>${rows.length}</b> of ${prospects.length} prospect${prospects.length === 1 ? '' : 's'}${active ? ` · ${active} filter${active === 1 ? '' : 's'} on` : ''}`;
+    $('#fClear').hidden = !active;
     const newCount = rows.filter((p) => p.status === 'new').length;
-    const newAll = prospects.filter((p) => p.status === 'new').length;
-    $('#draftBtn').disabled = !newCount && !newAll;
-    $('#draftBtn').textContent = newCount ? `Generate outreach for ${newCount} new lead${newCount === 1 ? '' : 's'}` : newAll ? `Generate outreach for ${newAll} new lead${newAll === 1 ? '' : 's'}` : 'Generate outreach';
-    $('#draftHint').textContent = newCount || newAll ? 'Writes the email, text and LinkedIn note for each lead and creates their mockup link. Free — no Clay credits.' : prospects.length ? 'Every lead has drafts. Open one below to send it.' : '';
-    $('#prospectEmpty').innerHTML = prospects.length ? 'No prospects match this filter.' : 'No prospects yet — pick a category above and click <b>Generate leads</b>.';
+    $('#draftBtn').disabled = !newCount;
+    $('#draftBtn').textContent = newCount ? `Generate outreach for ${newCount} new` : 'Generate outreach';
+    $('#draftBtn').title = 'Writes the email, text and LinkedIn note (plus the mockup link) for the new leads in this view.';
+    $('#prospectEmpty').innerHTML = prospects.length ? 'No prospects match these filters.' : 'No prospects yet — click <b>+ Import list</b> at the top to add your first list.';
     $('#prospectEmpty').hidden = rows.length > 0;
     $('#prospectRows').innerHTML = rows.map((p) => {
       const c = primaryContact(p);
@@ -1399,17 +1409,27 @@
   const getDraft = (p, path) => path.split('.').reduce((o, k) => (o == null ? o : o[k]), p.drafts);
 
   $('#draftBtn').addEventListener('click', async () => {
-    const visibleNew = filteredProspects().filter((p) => p.status === 'new').map((p) => p.id);
-    const ids = visibleNew.length ? visibleNew : prospects.filter((p) => p.status === 'new').map((p) => p.id);
+    const ids = filteredProspects().filter((p) => p.status === 'new').map((p) => p.id);
     if (!ids.length) return;
     $('#draftBtn').disabled = true;
-    try { const r = await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids }) }); toast(`Outreach written for ${r.count} lead${r.count === 1 ? '' : 's'}`); pStatus = 'drafted'; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'drafted')); await refreshProspects(); }
+    try { const r = await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids }) }); toast(`Outreach written for ${r.count} lead${r.count === 1 ? '' : 's'}`); pf.status = 'drafted'; await refreshProspects(); }
     catch (err) { toast(err.message); $('#draftBtn').disabled = false; }
   });
-  $$('#prospectChips .chip').forEach((b) => b.addEventListener('click', () => { pStatus = b.dataset.pstatus; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x === b)); renderProspecting(); }));
-  $('#prospectCategory').addEventListener('change', (e) => { pCategory = e.target.value; renderProspecting(); });
-  $('#prospectSource').addEventListener('change', (e) => { pSource = e.target.value; pImport = ''; renderProspecting(); });
-  $('#prospectSearch').addEventListener('input', (e) => { pQuery = e.target.value.trim().toLowerCase(); renderProspecting(); });
+  $('#prospectChips').addEventListener('click', (e) => { const b = e.target.closest('[data-pstatus]'); if (b) setFilter({ status: b.dataset.pstatus }); });
+  [['#fCategory', 'category'], ['#fMachine', 'machine'], ['#fPlace', 'place'], ['#fTouched', 'touched'], ['#fHas', 'has'], ['#fImport', 'importId'], ['#fSort', 'sort']].forEach(([sel, key]) => $(sel).addEventListener('change', (e) => setFilter({ [key]: e.target.value })));
+  let searchTimer; $('#fSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => setFilter({ q: e.target.value.trim() }), 150); });
+  $('#fClear').addEventListener('click', () => resetFilters());
+  $('#importOpen').addEventListener('click', () => { const c = $('#importCard'); c.hidden = !c.hidden; if (!c.hidden) { renderProspectFilters(); c.scrollIntoView({ block: 'start', behavior: 'smooth' }); } });
+  $('#importClose').addEventListener('click', () => { $('#importCard').hidden = true; });
+  $('#prospectExport').addEventListener('click', () => {
+    const rows = filteredProspects();
+    const cols = ['Business', 'Category', 'Machine', 'Place', 'Address', 'Website', 'Contact', 'Title', 'Emails', 'Phones', 'LinkedIn', 'Status', 'Touches', 'Next follow-up', 'Rating', 'Reviews', 'Score', 'Distance (mi)', 'Notes'];
+    const csv = [cols, ...rows.map((p) => { const c = primaryContact(p) || {}; return [p.business, catById(p.categoryId).label, machineById(p.machineId).name, placeOf(p), p.address || '', p.website || '', c.name || '', c.title || '', allEmails(p).map((e) => e.value).join('; '), allPhones(p).map((e) => e.value).join('; '), c.linkedinUrl || p.linkedinUrl || '', P_STATUS_LABEL[p.status] || p.status, (p.outreach || []).length, p.nextFollowUpAt || '', p.rating || '', p.reviews || '', p.score ?? '', p.distanceMiles ?? '', p.notes || '']; })]
+      .map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    Object.assign(document.createElement('a'), { href: url, download: `kwigz-prospects-${todayISO}.csv` }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  });
 
   // ---------- import your own list ----------
   const IMPORT_LABELS = { '': '— skip —', business: 'Business name', phone: 'Phone', website: 'Website', email: 'Email', address: 'Address', city: 'City', contactName: 'Owner / contact name', contactTitle: 'Contact title', linkedinUrl: 'Contact LinkedIn', companyLinkedin: 'Company LinkedIn', lat: 'Latitude', lng: 'Longitude', rating: 'Google rating', reviews: 'Review count', category: 'Category / type', notes: 'Notes', logoUrl: 'Logo URL', mapsUrl: 'Google Maps URL' };
@@ -1483,7 +1503,7 @@
       <div class="map-grid">${headers.map((h, i) => { const ex = rows.slice(0, 3).map((r) => r[i]).filter(Boolean).join(' · '); return `<div class="mp ${mapping[i] ? 'ok' : ''}"><b title="${esc(h)}">${esc(h)}</b><span class="ex" title="${esc(ex)}">${esc(ex) || '<i>empty</i>'}</span><select data-map-col="${i}">${Object.entries(IMPORT_LABELS).map(([k, l]) => `<option value="${k}" ${mapping[i] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`; }).join('')}</div>`;
     const ok = mapping.includes('business');
     $('#importBtn').disabled = !ok;
-    const cat = catById($('#genCategory').value), m = machineById($('#genMachine').value);
+    const cat = catById($('#importCategory').value), m = machineById($('#importMachine').value);
     const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
     const has = (field, test) => rows.filter((r) => mapping.some((f, i) => f === field && test(r[i] || ''))).length;
     const nEmail = has('email', (v) => EMAIL_RE.test(v) && !/placeholder@/i.test(v)), nPhone = has('phone', (v) => v.replace(/\D/g, '').length >= 10);
@@ -1513,22 +1533,24 @@
     const objs = rows.map((r) => { const o = {}; mapping.forEach((f, i) => { if (!f || !r[i]) return; (o[f] ||= []).push(r[i]); }); return o; }).filter((o) => o.business);
     $('#importBtn').disabled = true; $('#importBtn').textContent = 'Importing…';
     try {
-      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ categoryId: $('#genCategory').value, machineId: $('#genMachine').value, rows: objs, raw, filename }) });
+      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ categoryId: $('#importCategory').value, machineId: $('#importMachine').value, rows: objs, raw, filename }) });
+      try { localStorage.setItem('kwigz-import-target', JSON.stringify({ categoryId: $('#importCategory').value, machineId: $('#importMachine').value })); } catch {}
       const mf = r.import.mergedFields || {}; const mfTxt = Object.entries(mf).map(([k, v]) => `${v} ${k}`).slice(0, 4).join(', ');
       toast(`${r.import.imported} new${r.import.merged ? ` · ${r.import.merged} existing lead${r.import.merged === 1 ? '' : 's'} filled in${mfTxt ? ` (${mfTxt})` : ''}` : ''}${r.import.duplicates ? ` · ${r.import.duplicates} already complete` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
       $('#importText').value = ''; $('#importPreview').hidden = true; importParsed = null; $('#importBtn').textContent = 'Import'; $('#importHint').textContent = '';
-      pStatus = 'new'; pSource = ''; pImport = r.import.id; pCategory = ''; $('#prospectCategory').value = ''; $('#prospectSource').value = '';
-      $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === 'new'));
+      pf = { ...PF_DEFAULT, sort: pf.sort, importId: r.import.id }; try { localStorage.setItem('kwigz-prospect-filters', JSON.stringify(pf)); } catch {}
+      $('#importCard').hidden = true;
       const ps = await api('/api/prospecting/status').catch(() => null); if (ps) prospecting = { ...ps, credits: prospecting.credits };
       await refreshProspects();
     } catch (err) { toast(err.message); $('#importBtn').disabled = false; $('#importBtn').textContent = 'Import'; }
   });
   function renderImportList() {
     const list = prospecting.imports || [];
-    $('#importList').innerHTML = list.slice(0, 8).map((im) => `<div class="import-item">
-        <span class="badge ${pImport === im.id ? 'purple' : ''}">${esc(catById(im.categoryId).label)}</span>
+    $('#importHistory').querySelector('summary').textContent = `Past imports (${list.length})`;
+    $('#importList').innerHTML = list.slice(0, 20).map((im) => `<div class="import-item">
+        <span class="badge ${pf.importId === im.id ? 'purple' : ''}">${esc(catById(im.categoryId).label)}</span>
         <span class="sp"><b>${esc(im.filename)}</b> <span class="t">· ${im.imported} new${im.merged ? `, ${im.merged} filled in` : ''}${im.duplicates ? `, ${im.duplicates} dup` : ''}${im.phonesLookedUp ? `, ${im.phonesLookedUp} phones found` : ''} · ${esc(machineById(im.machineId).name)} · ${timeAgo(im.importedAt)}</span></span>
-        <button class="btn btn-sm ${pImport === im.id ? 'btn-primary' : ''}" data-import="${esc(im.id)}" data-ia="view">${pImport === im.id ? 'Showing' : 'View leads'}</button>
+        <button class="btn btn-sm ${pf.importId === im.id ? 'btn-primary' : ''}" data-import="${esc(im.id)}" data-ia="view">${pf.importId === im.id ? 'Showing' : 'View leads'}</button>
         ${im.file ? `<button class="btn btn-sm" data-import="${esc(im.id)}" data-ia="file">Open file</button>` : ''}
         <button class="btn btn-sm btn-danger" data-import="${esc(im.id)}" data-ia="delete" title="Removes the import record and file. Leads stay.">×</button>
       </div>`).join('');
@@ -1537,9 +1559,9 @@
     const t = e.target.closest('[data-import]'); if (!t) return;
     const id = t.dataset.import, ia = t.dataset.ia;
     try {
-      if (ia === 'view') { pImport = pImport === id ? '' : id; pStatus = ''; pSource = ''; $('#prospectSource').value = ''; $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === '')); renderProspecting(); $('#prospectRows')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      if (ia === 'view') { $('#importCard').hidden = true; resetFilters({ importId: pf.importId === id ? '' : id }); $('#prospectRows')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
       if (ia === 'file') { const r = await fetch(`/api/prospecting/imports/${encodeURIComponent(id)}/file`, { headers: authHeaders() }); if (!r.ok) return toast('File not found'); const url = URL.createObjectURL(await r.blob()); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000); }
-      if (ia === 'delete') { if (!confirm('Remove this import record and its file? The leads stay in your list.')) return; await api(`/api/prospecting/imports/${encodeURIComponent(id)}`, { method: 'DELETE' }); prospecting.imports = (prospecting.imports || []).filter((x) => x.id !== id); if (pImport === id) pImport = ''; renderProspecting(); toast('Import removed'); }
+      if (ia === 'delete') { if (!confirm('Remove this import record and its file? The leads stay in your list.')) return; await api(`/api/prospecting/imports/${encodeURIComponent(id)}`, { method: 'DELETE' }); prospecting.imports = (prospecting.imports || []).filter((x) => x.id !== id); if (pf.importId === id) pf.importId = ''; renderProspecting(); toast('Import removed'); }
     } catch (err) { toast(err.message); }
   });
 
@@ -1748,8 +1770,7 @@
     if (t.matches('input, textarea, select') || (t.dataset.pa === 'toggle' && e.target.closest('a, button, input, select, textarea'))) return;
     const pa = t.dataset.pa;
     if (pa === 'goto' || pa === 'goto-status') {
-      switchTab('prospecting'); pStatus = pa === 'goto' ? '' : t.dataset.pstatus; pCategory = ''; pQuery = ''; pSource = ''; pImport = ''; $('#prospectSearch').value = ''; $('#prospectCategory').value = ''; $('#prospectSource').value = '';
-      $$('#prospectChips .chip').forEach((x) => x.classList.toggle('active', x.dataset.pstatus === pStatus));
+      switchTab('prospecting'); pf = { ...PF_DEFAULT, sort: pf.sort, status: pa === 'goto' ? '' : t.dataset.pstatus };
       if (pa === 'goto') { openProspectId = t.dataset.pid; const p = prospects.find((x) => x.id === openProspectId); draftTab = p && p.outreach.length ? p.outreach[p.outreach.length - 1].channel : 'email'; if (draftTab === 'other') draftTab = 'email'; }
       renderProspecting(); $(`tr[data-pid="${CSS.escape(openProspectId || '')}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }); return;
     }

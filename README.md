@@ -92,7 +92,7 @@ Password-protected, single-page, no build step.
   *Stop billing* on Stripe-billed campaigns. *+ Book* on any open slot.
 - **Calendar** — month timeline of all campaigns (click a bar to edit), plus key
   dates: starts, renewals, expirations. *Renew +30d* clones a campaign.
-- **Prospecting** — outbound lead generation: Clay search or a free import of your own Google Maps list. See below.
+- **Prospects** — every outbound lead in one filterable list; **+ Import list** at the top brings in Google Maps / Clay CSVs. See below.
 - **Outreach** — per-business checklist of email / text / LinkedIn / call / follow-up touches. See below.
 
 ### Campaign workflow
@@ -154,9 +154,25 @@ show live in the tab; businesses already saved or ruled out are never paid for
 twice. Clay's search filters by city, not radius, so the metro list in the config
 should cover every city inside the radius you use.
 
-### Step 1 (free) · Import your own list
+### Prospects tab · filters
 
-Below the Clay controls, **Or import your own list** takes a CSV/TSV file or a
+The admin no longer shows Clay's "Generate leads" controls (lists are built by
+hand in Clay / Google Maps and imported); the server endpoints remain for API use.
+The tab is one list of every prospect with a filter bar: **status** chips with
+live counts (All, New, Ready to send, Follow-up due, Contacted, Replied, Won,
+Lost), **Category**, **Machine**, **Place** (city, from the lead or its address),
+**Touched** (not contacted yet / contacted / emailed / texted / LinkedIn / called /
+followed up, and "not emailed yet" etc.), **Contact info** (has email / phone /
+both / LinkedIn, missing email, nothing), **From import**, **Sort** (newest, best
+fit, name, follow-up date, closest, most touched) and free-text **Search** across
+name, contacts, emails, phones, address and notes. Filters persist in the browser;
+*Clear filters* resets them. *Generate outreach* applies to the new leads in the
+current view; **Export CSV** downloads the current view.
+
+### Import a list
+
+**+ Import list** (top right) opens the import panel: pick the category and
+machine for the file, then choose a CSV/TSV file or
 paste from Google Maps / a spreadsheet — any columns, with or without a header row.
 Columns are auto-matched (business name, phone, website, address, email, owner,
 contact title, LinkedIn, lat/lng, rating, reviews, category, notes, logo URL, Maps
@@ -167,7 +183,7 @@ Email (2)"… all map to *Email* and the first real address wins; cells such as
 literally. "Person – Brand" names ("Chrissy Davault – Missouri Farm Bureau
 Insurance") lift the person out as the contact. The preview tells you how many
 rows actually carry an email / phone before you import. Rows
-become prospects (badged *Imported*) for the category/machine selected above and
+become prospects (badged *Imported*) for the category/machine selected in the panel and
 flow through exactly the same Step 2: drafts, preview page, AI art, Outreach tab.
 Businesses already in your list are **merged, not duplicated**. Matching is by
 name (ignoring "LLC / PLLC / The / Law Firm"…, and "Rinehart Insurance" ⊂
