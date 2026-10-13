@@ -110,6 +110,10 @@
     .kv { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 20px; font-size: 0.82rem; margin-bottom: 14px; }
     .kv div { display: flex; gap: 8px; }
     .kv span { color: var(--muted); min-width: 110px; }
+    .kv-input-wrap { display: flex; align-items: center; gap: 6px; width: 100%; max-width: 340px; }
+    .kv-input-wrap input { flex: 1; min-width: 0; }
+    .btn-link-icon { padding: 4px 8px; font-size: 0.82rem; line-height: 1; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text); border: 1px solid var(--line); background: #fff; flex-shrink: 0; }
+    .btn-link-icon:hover { border-color: var(--red); color: var(--red); background: var(--red-soft); }
     .notes { width: 100%; min-height: 70px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; resize: vertical; outline: none; font-size: 0.85rem; background: #fff; }
     .notes:focus { border-color: var(--red); }
     .row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
@@ -814,6 +818,15 @@
 
   // ---------- helpers ----------
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const cleanUrl = (u) => {
+    const s = String(u || '').trim();
+    if (!s) return '';
+    return /^https?:\/\//i.test(s) ? s : `https://${s}`;
+  };
+  const linkBtn = (u, title = 'Open link') => {
+    const target = cleanUrl(u);
+    return target ? `<a class="btn-link-icon" href="${esc(target)}" target="_blank" rel="noopener" title="${esc(title)}">↗</a>` : '';
+  };
   const fmtN = (n) => Math.round(Number(n) || 0).toLocaleString('en-US');
   const money = (n) => '$' + fmtN(n);
   const icon = (name) => `<svg class="site-icon" aria-hidden="true"><use href="/icons.svg#${name}"/></svg>`;
@@ -1045,7 +1058,16 @@
 
   function leadDetailPanel(l) {
     const skip = new Set(['id', 'status', 'notes', 'updatedAt', 'type', 'ip', 'page', 'submittedAt', 'path', 'altEmails', 'altPhones']);
-    const kv = Object.entries(l).filter(([k, v]) => !skip.has(k) && v !== '' && v != null).map(([k, v]) => `<div><span>${esc(k)}</span><b>${k === 'bannerFile' ? `<a href="/api/uploads/${esc(v)}" target="_blank" data-auth-link>${esc(v)}</a>` : esc(v)}</b></div>`).join('');
+    const isUrlVal = (k, v) => /website|maps?url|link|url/i.test(k) || (/^https?:\/\//i.test(String(v || '').trim()));
+    const kv = Object.entries(l).filter(([k, v]) => !skip.has(k) && v !== '' && v != null).map(([k, v]) => {
+      let valHtml = esc(v);
+      if (k === 'bannerFile') {
+        valHtml = `<a href="/api/uploads/${esc(v)}" target="_blank" data-auth-link>${esc(v)}</a>`;
+      } else if (isUrlVal(k, v)) {
+        valHtml = `<span class="kv-input-wrap"><span>${esc(v)}</span>${linkBtn(v, `Open ${k}`)}</span>`;
+      }
+      return `<div><span>${esc(k)}</span><b>${valHtml}</b></div>`;
+    }).join('');
     const banner = l.bannerFile ? `<img class="banner-thumb" data-banner="${esc(l.bannerFile)}" alt="Banner" />` : '';
     const linked = campaignForLead(l);
     const actions = [
@@ -1458,7 +1480,11 @@
     const d = p.drafts;
     const followUp = p.outreach.length > 0;
     const sent = (ch) => p.outreach.filter((o) => o.channel === ch).length;
-    const field = (label, key, value, placeholder = '', type = 'text') => `<div><span>${label}</span><b><input class="inline" type="${type}" style="width:100%;max-width:340px;" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" /></b></div>`;
+    const field = (label, key, value, placeholder = '', type = 'text') => {
+      const isUrl = ['website', 'mapsUrl', 'linkedinUrl'].includes(key);
+      const openBtn = isUrl && value ? linkBtn(value, `Open ${label}`) : '';
+      return `<div><span>${label}</span><b><span class="kv-input-wrap"><input class="inline" type="${type}" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" />${openBtn}</span></b></div>`;
+    };
     const info = [
       field('Business', 'business', p.business),
       field('Website', 'website', p.website, 'https://…'),
@@ -1784,8 +1810,11 @@
     const followUp = (loc.outreach || []).length > 0;
     const sent = (ch) => touched(loc, ch);
 
-    const field = (label, key, val, placeholder = '') =>
-      `<div><span>${label}</span><b><input class="inline" style="width:100%;max-width:340px;" value="${esc(val ?? '')}" placeholder="${placeholder}" data-loc-field="${key}" data-lid="${esc(loc.id)}" /></b></div>`;
+    const field = (label, key, val, placeholder = '') => {
+      const isUrl = ['website', 'mapsUrl'].includes(key);
+      const openBtn = isUrl && val ? linkBtn(val, `Open ${label}`) : '';
+      return `<div><span>${label}</span><b><span class="kv-input-wrap"><input class="inline" value="${esc(val ?? '')}" placeholder="${placeholder}" data-loc-field="${key}" data-lid="${esc(loc.id)}" />${openBtn}</span></b></div>`;
+    };
 
     const details = [
       field('Venue Type', 'venueType', loc.venueType || loc.categoryId, 'e.g. Bar, Sports Bar, Arcade'),
