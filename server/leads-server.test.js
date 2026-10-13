@@ -808,3 +808,89 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+test('machine locations: import, direct creation, placement drafts, walk-in/visit tracking, and CSV export', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-locations-'));
+  let instance;
+  try {
+    instance = await start(dataDir, { SITE_URL: 'https://kwigz.test' });
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
+    const call = async (method, p, body) => {
+      const res = await fetch(`${instance.base}${p}`, { method, headers: auth, body: body ? JSON.stringify(body) : undefined });
+      return { status: res.status, data: await res.json() };
+    };
+
+    // 1. Import potential host businesses (Machine Locations, not advertisers)
+    const venueRows = [
+      { business: 'Cobra Arcade Bar', venueType: 'Arcade / Bar', phone: '(602) 555-0188', website: 'cobraarcadebar.com', address: '801 N 2nd St, Phoenix, AZ 85004', city: 'Phoenix', rating: '4.8', reviews: '1250', contactName: 'Ariel Bracamonte', contactTitle: 'Owner / Operator', email: 'ariel@cobraarcadebar.com' },
+      { business: 'Copper Blues Rock Pub', venueType: 'Bar & Grill', phone: '(602) 555-0199', website: 'copperblueslive.com', address: '50 W Jefferson St, Phoenix, AZ 85003', city: 'Phoenix', rating: '4.5', reviews: '680' },
+    ];
+    const imp = await call('POST', '/api/prospecting/imports', { targetType: 'location', categoryId: 'venue', machineId: 'phoenix-placement', rows: venueRows, filename: 'venues-phoenix.csv', findPhones: false });
+    assert.equal(imp.status, 200, JSON.stringify(imp.data));
+    assert.equal(imp.data.import.targetType, 'location');
+    assert.equal(imp.data.import.imported, 2);
+
+    const cobra = imp.data.prospects.find((p) => p.business === 'Cobra Arcade Bar');
+    assert.equal(cobra.leadType, 'location');
+    assert.equal(cobra.venueType, 'Arcade / Bar');
+    assert.equal(cobra.contacts[0].name, 'Ariel Bracamonte');
+    assert.equal(cobra.contacts[0].title, 'Owner / Operator');
+    assert.ok(cobra.score >= 70, 'scored well based on contact, rating, and address');
+
+    // 2. Add manual location directly
+    const manualLoc = await call('POST', '/api/prospects', {
+      leadType: 'location',
+      business: 'Dueling Pianos Tavern',
+      venueType: 'Bar / Music Venue',
+      city: 'Tempe',
+      address: '700 S Mill Ave, Tempe, AZ 85281',
+      phone: '(480) 555-0211',
+      website: 'duelingpianostempe.com',
+      contactName: 'Sarah Jenkins',
+      contactTitle: 'General Manager',
+      email: 'sarah@duelingpianostempe.com',
+      notes: 'High foot traffic near college campus, 4ft open wall by entrance',
+    });
+    assert.equal(manualLoc.status, 201);
+    assert.equal(manualLoc.data.prospect.leadType, 'location');
+    assert.equal(manualLoc.data.prospect.venueType, 'Bar / Music Venue');
+
+    // 3. Generate machine placement drafts
+    const gen = await call('POST', '/api/prospects/generate', { ids: [cobra.id] });
+    assert.equal(gen.status, 200);
+    const { prospects } = (await call('GET', '/api/prospects')).data;
+    const cobraUpdated = prospects.find((p) => p.id === cobra.id);
+    assert.equal(cobraUpdated.status, 'drafted');
+    assert.match(cobraUpdated.drafts.email.subject, /Free machine placement \+ revenue share/);
+    assert.match(cobraUpdated.drafts.email.body, /Passive revenue.*monthly revenue share/i);
+    assert.match(cobraUpdated.drafts.sms, /place free, automated machines/i);
+    assert.match(cobraUpdated.drafts.callScript, /Owner \/ Manager Pitch for Cobra Arcade Bar/);
+
+    // 4. Log in-person walk-in visit touch
+    const visitTouch = await call('POST', `/api/prospects/${cobra.id}/outreach`, {
+      channel: 'visit',
+      note: 'Stopped by at 3pm, spoke with GM Dave. Showed photo of SlimWall unit. Loved revenue-share model.',
+      followUpDays: 3,
+    });
+    assert.equal(visitTouch.status, 200);
+    assert.equal(visitTouch.data.prospect.status, 'contacted');
+    assert.equal(visitTouch.data.prospect.outreach[0].channel, 'visit');
+    assert.match(visitTouch.data.prospect.outreach[0].note, /SlimWall unit/);
+    const expectedDue = new Date(); expectedDue.setDate(expectedDue.getDate() + 3);
+    assert.equal(visitTouch.data.prospect.nextFollowUpAt, expectedDue.toISOString().slice(0, 10));
+
+    // 5. Locations CSV export
+    const csvRes = await fetch(`${instance.base}/api/locations.csv`, { headers: auth });
+    assert.equal(csvRes.status, 200);
+    assert.equal(csvRes.headers.get('content-type'), 'text/csv; charset=utf-8');
+    const csvText = await csvRes.text();
+    assert.match(csvText, /"Business","Venue Type"/);
+    assert.match(csvText, /"Cobra Arcade Bar","Arcade \/ Bar"/);
+    assert.match(csvText, /"Dueling Pianos Tavern","Bar \/ Music Venue"/);
+    assert.doesNotMatch(csvText, /Nova Law Group/);
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+

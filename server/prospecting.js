@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const templates = require('./outreach-templates');
 
 const PROSPECT_STATUSES = ['new', 'drafted', 'contacted', 'replied', 'won', 'lost', 'skipped'];
-const OUTREACH_CHANNELS = ['email', 'sms', 'linkedin', 'call', 'other'];
+const OUTREACH_CHANNELS = ['email', 'sms', 'linkedin', 'call', 'visit', 'other'];
 const RUN_ACTIVE = ['queued', 'searching', 'enriching', 'contacts', 'emails', 'phones'];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -260,6 +260,17 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     return { score: Math.round(s), scoreNotes: notes };
   }
 
+  function scoreLocation(p) {
+    let s = 50;
+    const notes = [];
+    if (p.phone) { s += 15; notes.push('has phone'); }
+    if (p.website) { s += 10; notes.push('has website'); }
+    if (p.address) { s += 10; notes.push('has address'); }
+    if (p.contacts?.length) { s += 15; notes.push('has contact'); }
+    if (p.rating && p.rating >= 4.0) { s += 10; notes.push(`${p.rating}★ rating`); }
+    return { score: Math.min(100, Math.round(s)), scoreNotes: notes };
+  }
+
   function pickSpecialty(p) {
     const cat = catConfig(p.categoryId) || config.categories.other;
     const kws = (cat.keywords || []).map((k) => k.toLowerCase());
@@ -420,7 +431,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
 
   // Free alternative to Clay: the admin pastes/uploads a list; rows become prospects with
   // source:'import' and flow through the same drafts → mockup → AI art → outreach pipeline.
-  const IMPORT_FIELDS = ['business', 'phone', 'website', 'email', 'address', 'city', 'contactName', 'contactTitle', 'linkedinUrl', 'companyLinkedin', 'lat', 'lng', 'rating', 'reviews', 'category', 'notes', 'logoUrl', 'mapsUrl'];
+  const IMPORT_FIELDS = ['business', 'phone', 'website', 'email', 'address', 'city', 'contactName', 'contactTitle', 'linkedinUrl', 'companyLinkedin', 'lat', 'lng', 'rating', 'reviews', 'category', 'venueType', 'notes', 'logoUrl', 'mapsUrl'];
   const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
   const URL_RE = /https?:\/\/[^\s"'<>)]+|(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s"'<>)]*)?/i;
   // A field may come from several columns (Clay exports "Find Work Email", "Find Work Email (2)"…).
@@ -442,11 +453,20 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   }
   const faviconFor = (domain) => `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=256`;
 
-  function importProspects({ categoryId, machineId, rows, filename = '', raw = '', findPhones = true } = {}) {
-    const machine = machineById(clean(machineId, 80));
-    if (!machine) throw new Error('Unknown machine');
-    const category = categoryById(clean(categoryId, 40));
-    if (!category) throw new Error('Unknown category');
+  function importProspects({ categoryId, machineId, rows, filename = '', raw = '', findPhones = true, targetType = 'advertiser', leadType } = {}) {
+    const isLocation = targetType === 'location' || leadType === 'location';
+    let machine = null;
+    let category = null;
+
+    if (isLocation) {
+      machine = (machineId ? machineById(clean(machineId, 80)) : null) || { id: clean(machineId, 80) || '', name: clean(machineId, 80) || 'Target Area', city: '', adHoursPerDay: 16 };
+      category = (categoryId ? categoryById(clean(categoryId, 40)) : null) || { id: clean(categoryId, 40) || 'venue', label: clean(categoryId, 40) || 'Host Venue', icon: 'store' };
+    } else {
+      machine = machineById(clean(machineId, 80));
+      if (!machine) throw new Error('Unknown machine');
+      category = categoryById(clean(categoryId, 40));
+      if (!category) throw new Error('Unknown category');
+    }
     if (!Array.isArray(rows) || !rows.length) throw new Error('No rows to import');
     if (rows.length > 500) throw new Error('Import at most 500 businesses at a time');
     const hasGeo = Number.isFinite(machine.lat) && Number.isFinite(machine.lng);
@@ -490,8 +510,11 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       const contactName = row.contactName || '';
       const contacts = contactName || email || row.linkedinUrl ? [{ name: contactName || row.business, firstName: contactName ? firstNameOf(contactName) : '', title: row.contactTitle || (contactName ? '' : 'Business'), linkedinUrl: /linkedin\.com\/in\//.test(row.linkedinUrl) ? row.linkedinUrl : '', city: row.city, email, emailSource: email ? 'import' : '', mobile: '' }] : [];
       const city = row.city || (row.address.match(/,\s*([A-Za-z .'-]+),\s*[A-Z]{2}\b/) || [])[1] || machine.city || '';
+      const venueType = clean(row.venueType || (isLocation ? (row.category || category.label) : ''), 60);
       const p = {
         id: newId('P'), source: 'import', importId, clayCompanyId: null,
+        leadType: isLocation ? 'location' : 'advertiser',
+        venueType,
         business: row.business, domain, website: domain ? (/^https?:\/\//.test(row.website) ? row.website : `https://${domain}`) : '',
         linkedinUrl: /linkedin\.com\/company\//.test(row.companyLinkedin) ? row.companyLinkedin : '',
         industry: row.category, size: '', revenue: '', description: row.notes, city: clean(city, 80), state: '', postalCode: '', address: row.address,
@@ -502,7 +525,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
         runId: '', categoryId: category.id, machineId: machine.id, status: 'new', drafts: null, previewToken: '', outreach: [], nextFollowUpAt: '', notes: '', createdAt: ts, updatedAt: ts,
       };
       p.distanceMiles = hasGeo && geo ? Math.round(haversineMiles(machine.lat, machine.lng, lat, lng) * 10) / 10 : null;
-      const sc = score(p, category.id, config.defaults.radiusMiles);
+      const sc = isLocation ? scoreLocation(p) : score(p, category.id, config.defaults.radiusMiles);
       if (p.rating) { sc.score += Math.round(Math.min(10, (p.rating - 3.5) * 8)); sc.scoreNotes.push(`${p.rating}★${p.reviews ? ` (${p.reviews})` : ''}`); }
       p.score = sc.score; p.scoreNotes = sc.scoreNotes;
       added.push(p);
@@ -519,9 +542,9 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       fs.writeFileSync(path.join(IMPORT_DIR, file), raw);
     }
     const uniqueMerged = [...new Set(mergedIds)];
-    const record = { id: importId, filename: safeName, file, importedAt: ts, categoryId: category.id, machineId: machine.id, rows: rows.length, imported: added.length, merged: uniqueMerged.length, mergedFields, duplicates, skipped, prospectIds: added.map((p) => p.id), mergedIds: uniqueMerged, phonesLookedUp: 0 };
+    const record = { id: importId, filename: safeName, file, importedAt: ts, targetType: isLocation ? 'location' : 'advertiser', categoryId: category.id, machineId: machine.id, rows: rows.length, imported: added.length, merged: uniqueMerged.length, mergedFields, duplicates, skipped, prospectIds: added.map((p) => p.id), mergedIds: uniqueMerged, phonesLookedUp: 0 };
     const imports = readImports(); imports.push(record); writeImports(imports.slice(-100));
-    log(`[prospecting] import ${importId}: ${added.length} new ${category.id} leads, ${uniqueMerged.length} merged from ${safeName} (${duplicates} dup, ${skipped} skipped)`);
+    log(`[prospecting] import ${importId}: ${added.length} new ${isLocation ? 'machine locations' : category.id + ' leads'}, ${uniqueMerged.length} merged from ${safeName} (${duplicates} dup, ${skipped} skipped)`);
     // Fill in missing phones from their websites in the background — free, but slow.
     if (findPhones) fillImportedPhones(importId, [...added, ...prospects.filter((p) => uniqueMerged.includes(p.id))].filter((p) => !p.phone && p.website).map((p) => p.id)).catch((err) => log(`[prospecting] import phone lookup failed: ${err.message}`));
     return { import: record, prospects: added, merged: prospects.filter((p) => uniqueMerged.includes(p.id)) };
@@ -564,6 +587,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       if (hasGeo) p.distanceMiles = Math.round(haversineMiles(machine.lat, machine.lng, lat, lng) * 10) / 10;
     }
     if (row.category && !(p.specialties || []).length) { p.specialties = [row.category]; filled.push('category'); }
+    if (row.venueType && !p.venueType) { p.venueType = row.venueType; filled.push('venueType'); }
     if (row.notes && !p.description) { p.description = row.notes; filled.push('notes'); }
     // Contacts: match by name or email, fill their blanks; otherwise add the person.
     const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email) ? row.email.toLowerCase() : '';
@@ -631,8 +655,8 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   function previewUrl(p) { return `${siteUrl}/preview/${p.previewToken}`; }
 
   function mockupSpec(p) {
-    const machine = machineById(p.machineId) || { name: p.machineId, city: '', address: '' };
-    const category = categoryById(p.categoryId) || { id: p.categoryId, label: p.categoryId, icon: 'sparkles' };
+    const machine = machineById(p.machineId) || { name: p.machineId || 'KWIGZ Machine', city: p.city || '', address: '', adHoursPerDay: 16 };
+    const category = categoryById(p.categoryId) || { id: p.categoryId || 'venue', label: p.venueType || p.categoryId || 'Host Venue', icon: 'store' };
     const pitch = (catConfig(p.categoryId) || config.categories.other).pitch;
     return {
       business: p.business, tagline: pickSpecialty(p) || pitch.tagline, cta: pitch.cta, phone: p.phone || '', city: p.city || '', website: p.domain || '',
@@ -660,7 +684,19 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     for (const p of targets) {
       if (!p.previewToken) p.previewToken = crypto.randomBytes(12).toString('hex');
       const ctx = draftContext(p);
-      p.drafts = { email: templates.email(ctx), followUpEmail: templates.followUpEmail(ctx), sms: templates.sms(ctx), followUpSms: templates.followUpSms(ctx), linkedin: templates.linkedin(ctx), generatedAt: ts };
+      if (p.leadType === 'location') {
+        p.drafts = {
+          email: templates.locationEmail(ctx),
+          followUpEmail: templates.locationFollowUpEmail(ctx),
+          sms: templates.locationSms(ctx),
+          followUpSms: templates.locationFollowUpSms(ctx),
+          linkedin: templates.linkedin(ctx),
+          callScript: templates.locationCallScript(ctx),
+          generatedAt: ts,
+        };
+      } else {
+        p.drafts = { email: templates.email(ctx), followUpEmail: templates.followUpEmail(ctx), sms: templates.sms(ctx), followUpSms: templates.followUpSms(ctx), linkedin: templates.linkedin(ctx), generatedAt: ts };
+      }
       if (p.status === 'new') p.status = 'drafted';
       p.updatedAt = ts;
     }
@@ -675,6 +711,11 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     const p = prospects.find((x) => x.id === id);
     if (!p) return null;
     if (body.status !== undefined) { if (!PROSPECT_STATUSES.includes(body.status)) throw new Error('Invalid status'); p.status = body.status; if (['won', 'lost', 'skipped', 'replied'].includes(p.status)) p.nextFollowUpAt = ''; }
+    if (body.leadType !== undefined) p.leadType = clean(body.leadType, 30);
+    if (body.venueType !== undefined) p.venueType = clean(body.venueType, 60);
+    if (body.wallSpace !== undefined) p.wallSpace = clean(body.wallSpace, 60);
+    if (body.age21 !== undefined) p.age21 = clean(body.age21, 20);
+    if (body.machineSize !== undefined) p.machineSize = clean(body.machineSize, 40);
     if (body.notes !== undefined) p.notes = clean(body.notes, 4000);
     if (body.nextFollowUpAt !== undefined) { const v = clean(body.nextFollowUpAt, 10); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('nextFollowUpAt must be YYYY-MM-DD'); p.nextFollowUpAt = v; }
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
@@ -703,8 +744,54 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       if (d.sms !== undefined) p.drafts.sms = String(d.sms).slice(0, 1000);
       if (d.followUpSms !== undefined) p.drafts.followUpSms = String(d.followUpSms).slice(0, 1000);
       if (d.linkedin) p.drafts.linkedin = { note: String(d.linkedin.note || '').slice(0, 300), message: String(d.linkedin.message || '').slice(0, 4000) };
+      if (d.callScript !== undefined) p.drafts.callScript = String(d.callScript).slice(0, 3000);
     }
     p.updatedAt = nowISO();
+    writeProspects(prospects);
+    return p;
+  }
+
+  function addProspect(body) {
+    if (!body || !clean(body.business, 160)) throw new Error('Business name is required');
+    const ts = nowISO();
+    const id = newId('P');
+    const isLocation = body.leadType === 'location' || body.targetType === 'location';
+    const domain = normalizeDomain(body.website);
+    const ph = normalizePhone(body.phone);
+    const contactName = clean(body.contactName, 120);
+    const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email) ? body.email.toLowerCase() : '';
+    const contacts = contactName || email ? [{
+      name: contactName || clean(body.business, 160),
+      firstName: contactName ? firstNameOf(contactName) : '',
+      title: clean(body.contactTitle, 120) || (isLocation ? 'Owner / Manager' : 'Business'),
+      email, emailSource: 'manual', mobile: '',
+      linkedinUrl: clean(body.linkedinUrl, 300),
+    }] : [];
+    const p = {
+      id, source: 'manual', importId: '', clayCompanyId: null,
+      leadType: isLocation ? 'location' : 'advertiser',
+      venueType: clean(body.venueType || (isLocation ? (body.category || 'Venue') : ''), 60),
+      business: clean(body.business, 160),
+      domain,
+      website: domain ? (/^https?:\/\//.test(body.website) ? body.website : `https://${domain}`) : '',
+      linkedinUrl: clean(body.linkedinUrl, 300),
+      industry: clean(body.industry || body.venueType || '', 120),
+      size: '', revenue: '', description: clean(body.notes, 1000),
+      city: clean(body.city, 80), state: clean(body.state, 40), postalCode: '',
+      address: clean(body.address, 200),
+      lat: null, lng: null, specialties: [],
+      logoUrl: domain ? faviconFor(domain) : '',
+      rating: Number(body.rating) || null, reviews: Number(body.reviews) || null, mapsUrl: clean(body.mapsUrl, 400),
+      contacts, phone: ph ? ph.display : clean(body.phone, 40), phoneE164: ph ? ph.e164 : '', phoneSource: 'manual',
+      runId: '', categoryId: clean(body.categoryId, 40) || (isLocation ? 'venue' : 'other'),
+      machineId: clean(body.machineId, 80) || '',
+      status: clean(body.status, 30) || 'new',
+      drafts: null, previewToken: '', outreach: [], nextFollowUpAt: clean(body.nextFollowUpAt, 10) || '',
+      notes: clean(body.notes, 2000), createdAt: ts, updatedAt: ts,
+      score: 75, scoreNotes: ['manually added'],
+    };
+    const prospects = readProspects();
+    prospects.push(p);
     writeProspects(prospects);
     return p;
   }
@@ -905,7 +992,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   }
 
   return {
-    status, startRun, readRuns, readProspects, patchProspect, deleteProspect, generateDrafts, logOutreach, unlogOutreach, findMobile, mockupSpec, previewByToken, logoFor, previewUrl,
+    status, startRun, readRuns, readProspects, patchProspect, deleteProspect, addProspect, generateDrafts, logOutreach, unlogOutreach, findMobile, mockupSpec, previewByToken, logoFor, previewUrl,
     generateArt, deleteArt, artFile, artPrompt,
     importProspects, readImports, importFile, deleteImport, IMPORT_FIELDS, linkCampaign, unlinkCampaign,
     PROSPECT_STATUSES, OUTREACH_CHANNELS,

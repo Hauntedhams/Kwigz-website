@@ -358,6 +358,7 @@
     <button class="nav-btn" data-tab="leads"><svg class="site-icon"><use href="/icons.svg#document"/></svg> Leads <span class="count" id="navLeadCount">0</span></button>
     <button class="nav-btn" data-tab="advertisers"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Advertisers <span class="count" id="navCampCount">0</span></button>
     <button class="nav-btn" data-tab="calendar"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg> Calendar</button>
+    <button class="nav-btn" data-tab="locations"><svg class="site-icon"><use href="/icons.svg#map-pin"/></svg> Machine Locations <span class="count" id="navLocationCount">0</span></button>
     <button class="nav-btn" data-tab="prospecting"><svg class="site-icon"><use href="/icons.svg#sparkles"/></svg> Prospects <span class="count" id="navProspectCount">0</span></button>
     <button class="nav-btn" data-tab="outreach"><svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Outreach <span class="count" id="navOutreachCount">0</span></button>
     <button class="nav-btn" data-tab="machines"><svg class="site-icon"><use href="/icons.svg#store"/></svg> Machines <span class="count" id="navMachineCount">0</span></button>
@@ -436,24 +437,163 @@
       <div class="card"><h2>Key dates this month <span class="sub">starts, renewals &amp; expirations</span></h2><div class="dates-list" id="keyDates"></div></div>
     </section>
 
+    <!-- MACHINE LOCATIONS -->
+    <section data-panel="locations" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Machine Locations</h1>
+          <p id="locationSub">Potential host businesses &amp; venues to place KWIGZ claw machines and SlimWall units in (NOT advertisers). Track venue pitches, walk-in visits, revenue-share offers, and follow-ups.</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn" id="locationExportBtn"><svg class="site-icon"><use href="/icons.svg#document"/></svg> Export Locations CSV</button>
+          <button class="btn" id="locationImportOpenBtn"><svg class="site-icon"><use href="/icons.svg#map-pin"/></svg> Import locations</button>
+          <button class="btn btn-primary" id="addLocationBtn">+ Add location</button>
+        </div>
+      </div>
+
+      <div class="import-mount" id="locationImportMount"></div>
+
+      <div class="stats" id="locationStats" style="margin-bottom:20px;"></div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;">
+          <div class="chips" id="locViewTabs">
+            <button type="button" class="chip active" data-loc-view="list">All Locations (<span id="locListCount">0</span>)</button>
+            <button type="button" class="chip" data-loc-view="followups">Follow-ups Due (<span id="locFollowupCount">0</span>)</button>
+            <button type="button" class="chip" data-loc-view="outreach">Outreach &amp; Walk-ins (<span id="locOutreachCount">0</span>)</button>
+          </div>
+          <div class="chips status-chips" id="locationChips"></div>
+        </div>
+
+        <div class="filter-grid" id="locFilterGrid">
+          <div class="field"><label>Venue Type</label><select id="fLocVenueType"></select></div>
+          <div class="field"><label>Market / Area</label><select id="fLocPlace"></select></div>
+          <div class="field"><label>Contacted / Visited</label><select id="fLocTouched">
+            <option value="">Any</option>
+            <option value="untouched">Not contacted yet</option>
+            <option value="visited">Walk-in visit completed</option>
+            <option value="called">Called</option>
+            <option value="emailed">Emailed</option>
+            <option value="texted">Texted</option>
+            <option value="followup-due">Follow-up due / overdue</option>
+          </select></div>
+          <div class="field"><label>Contact info</label><select id="fLocHas">
+            <option value="">Any</option>
+            <option value="phone">Has phone</option>
+            <option value="email">Has email</option>
+            <option value="contact">Has owner / GM contact</option>
+            <option value="missing">Missing contact info</option>
+          </select></div>
+          <div class="field"><label>Sort</label><select id="fLocSort">
+            <option value="score">Best placement fit</option>
+            <option value="followup">Follow-up date</option>
+            <option value="newest">Newest first</option>
+            <option value="name">Name A–Z</option>
+            <option value="reviews">Most Google reviews</option>
+          </select></div>
+          <div class="field" style="grid-column: span 3;"><label>Search</label><input id="fLocSearch" type="search" placeholder="Business name, venue type, manager, address, city, phone…" /></div>
+        </div>
+
+        <div class="filter-foot">
+          <span id="locFilterCount"></span>
+          <button class="btn btn-sm" id="fLocClear" hidden>Clear filters</button>
+          <span style="flex:1;"></span>
+          <button class="btn btn-primary btn-sm" id="locDraftBtn">Generate placement pitches</button>
+        </div>
+
+        <!-- TABLE VIEW -->
+        <div id="locListView">
+          <div class="tbl-wrap">
+            <table class="prospect-table">
+              <thead>
+                <tr>
+                  <th>Venue / Business</th>
+                  <th>Decision-Maker</th>
+                  <th>Contact Info</th>
+                  <th>Fit Score</th>
+                  <th>Placement Status</th>
+                  <th>Next Follow-up</th>
+                </tr>
+              </thead>
+              <tbody id="locationRows"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="locationEmpty" hidden>No machine locations found matching filters.</div>
+        </div>
+
+        <!-- OUTREACH & WALK-IN CHECKLIST VIEW -->
+        <div id="locOutreachView" hidden>
+          <div class="tbl-wrap">
+            <table class="outreach-tbl">
+              <thead>
+                <tr>
+                  <th>Venue</th>
+                  <th>Owner / GM &amp; Phone</th>
+                  <th class="c">Walk-in Visit</th>
+                  <th class="c">Phone Call</th>
+                  <th class="c">Pitch Email</th>
+                  <th class="c">SMS Text</th>
+                  <th>Next Follow-up</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="locOutreachRows"></tbody>
+            </table>
+          </div>
+          <div class="empty" id="locOutreachEmpty" hidden>No venues currently in the outreach queue.</div>
+        </div>
+      </div>
+    </section>
+
     <!-- PROSPECTING -->
     <section data-panel="prospecting" hidden>
       <div class="page-head">
-        <div><h1>Prospects</h1><p id="prospectSub">Every business you've imported, in one list. Filter it, write the outreach, send, follow up.</p></div>
+        <div><h1>Prospects (Advertisers)</h1><p id="prospectSub">Every advertiser you've imported, in one list. Filter it, preview screen mockup, write the outreach, send, follow up.</p></div>
         <div class="head-actions"><button class="btn" id="prospectExport">Export CSV</button><button class="btn btn-primary" id="importOpen">+ Import list</button></div>
       </div>
 
-      <div class="card import-card" id="importCard" hidden>
-        <div class="import-head"><h2>Import a list <span class="sub">CSV / TSV from Google Maps, Clay or a spreadsheet — or paste rows</span></h2><button class="btn btn-sm" id="importClose">Close</button></div>
-        <div class="import-row">
-          <div class="field"><label>Category for these businesses</label><select id="importCategory"></select></div>
-          <div class="field"><label>Machine they'd advertise on</label><select id="importMachine"></select></div>
-          <label class="btn file-btn">Choose CSV / TSV file<input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden /></label>
+      <div class="import-mount" id="prospectingImportMount">
+        <div class="card import-card" id="importCard" hidden>
+          <div class="import-head">
+            <div>
+              <h2 id="importCardTitle">Import a list</h2>
+              <span class="sub" id="importCardSub">CSV / TSV from Google Maps, Clay or a spreadsheet — or paste rows</span>
+            </div>
+            <button class="btn btn-sm" id="importClose">Close</button>
+          </div>
+
+          <!-- TOGGLE SWITCH FOR MACHINE LOCATIONS OR ADVERTISERS -->
+          <div class="import-lead-type-toggle" style="margin: 10px 0 14px; padding: 12px 14px; background: var(--bg); border: 1.5px solid var(--line); border-radius: 12px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+              <label style="font-size:0.75rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px; color:var(--muted); margin:0;">Lead List Type (Toggle)</label>
+              <span id="importTargetBadge" class="badge green">Machine Locations</span>
+            </div>
+            <div class="chips" id="importTargetToggle" style="margin-bottom:8px;">
+              <button type="button" class="chip active" data-target-type="location" id="targetLocationBtn" style="font-weight:700; padding:6px 14px;">
+                <svg class="site-icon"><use href="/icons.svg#map-pin"/></svg> Machine Locations (Host Venues to Put Machines In)
+              </button>
+              <button type="button" class="chip" data-target-type="advertiser" id="targetAdvertiserBtn" style="font-weight:700; padding:6px 14px;">
+                <svg class="site-icon"><use href="/icons.svg#megaphone"/></svg> Advertisers (Businesses Buying Screen Ads)
+              </button>
+            </div>
+            <div id="importTargetExplanation" style="font-size:0.78rem; color:#4b5563; line-height:1.4;">
+              <b>Machine Locations Mode:</b> Importing host businesses (bars, restaurants, arcades, bowling alleys) where KWIGZ will place claw machines or SlimWall vending units for free with monthly revenue sharing. NOT advertisers.
+            </div>
+          </div>
+
+          <div class="import-row">
+            <div class="field"><label id="importCategoryLabel">Venue Type for these businesses</label><select id="importCategory"></select></div>
+            <div class="field"><label id="importMachineLabel">Target Territory / Placement Route</label><select id="importMachine"></select></div>
+            <label class="btn file-btn">Choose CSV / TSV file<input type="file" id="importFile" accept=".csv,.tsv,.txt,text/csv,text/tab-separated-values,text/plain" hidden /></label>
+          </div>
+          <textarea id="importText" placeholder="…or paste here (first row = headers, or one business per line)&#10;Name	Phone	Website	Address&#10;Copper Blues Rock Pub	(602) 555-0199	copperblueslive.com	50 W Jefferson St, Phoenix, AZ 85003"></textarea>
+          <div id="importPreview" hidden></div>
+          <div class="row-actions" style="margin-top:8px;">
+            <button class="btn btn-primary" id="importBtn" disabled>Import</button>
+            <span class="hint" id="importHint" style="color:var(--muted);font-size:0.78rem;">Columns are auto-matched; businesses you already have are filled in, not duplicated. Missing phones and logos are pulled from their websites.</span>
+          </div>
+          <details class="import-history" id="importHistory"><summary>Past imports</summary><div id="importList" class="import-list"></div></details>
         </div>
-        <textarea id="importText" placeholder="…or paste here (first row = headers, or one business per line)&#10;Name	Phone	Website	Address&#10;Suzuki Law Offices	(602) 682-5270	suzukilawoffices.com	2929 E Camelback Rd, Phoenix, AZ 85016"></textarea>
-        <div id="importPreview" hidden></div>
-        <div class="row-actions" style="margin-top:8px;"><button class="btn btn-primary" id="importBtn" disabled>Import</button><span class="hint" id="importHint" style="color:var(--muted);font-size:0.78rem;">Columns are auto-matched; businesses you already have are filled in, not duplicated. Missing phones and logos are pulled from their websites.</span></div>
-        <details class="import-history" id="importHistory"><summary>Past imports</summary><div id="importList" class="import-list"></div></details>
       </div>
 
       <div class="card">
@@ -562,6 +702,41 @@
 
   </main>
 </div>
+
+<!-- ADD LOCATION MODAL -->
+<dialog id="locationModal">
+  <form class="modal" id="locationForm" method="dialog">
+    <h3 id="locationModalTitle">Add Machine Location (Host Venue)</h3>
+    <p class="hint">Add a local business or venue to place a KWIGZ claw machine or SlimWall vending unit in (NOT an advertiser). We install free and share monthly revenue with them.</p>
+    <div class="form-grid">
+      <div class="field full"><label>Business / Venue name *</label><input name="business" id="locfBusiness" required placeholder="Copper Blues Rock Pub" /></div>
+      <div class="field"><label>Venue type</label><select name="venueType" id="locfVenueType">
+        <option value="Bar / Pub">Bar / Pub / Tavern</option>
+        <option value="Sports Bar & Grill">Sports Bar &amp; Grill</option>
+        <option value="Arcade / Family Fun">Arcade / Family Fun</option>
+        <option value="Brewery / Taproom">Brewery / Taproom</option>
+        <option value="Bowling Alley">Bowling Alley / Billiards</option>
+        <option value="Hotel / Resort">Hotel / Resort Lounge</option>
+        <option value="Barber / Salon">Barber / Salon</option>
+        <option value="Laundromat">Laundromat</option>
+        <option value="Other Venue">Other Host Venue</option>
+      </select></div>
+      <div class="field"><label>City / Market</label><input name="city" id="locfCity" placeholder="Phoenix" /></div>
+      <div class="field full"><label>Street address</label><input name="address" id="locfAddress" placeholder="50 W Jefferson St, Phoenix, AZ 85003" /></div>
+      <div class="field"><label>Phone number</label><input name="phone" id="locfPhone" placeholder="(602) 555-0199" /></div>
+      <div class="field"><label>Website</label><input name="website" id="locfWebsite" placeholder="copperblueslive.com" /></div>
+      <div class="field"><label>Owner / GM name</label><input name="contactName" id="locfContactName" placeholder="Mike Henderson" /></div>
+      <div class="field"><label>Contact title</label><input name="contactTitle" id="locfContactTitle" placeholder="General Manager" /></div>
+      <div class="field full"><label>Contact email</label><input name="email" id="locfEmail" type="email" placeholder="mike@copperblueslive.com" /></div>
+      <div class="field full"><label>Floor space &amp; notes</label><textarea name="notes" id="locfNotes" rows="2" placeholder="e.g. 3ft wall space by entrance, busy weekend crowd, 21+"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <span class="modal-error" id="locationError"></span>
+      <button type="button" class="btn" id="locationCancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="locationSave">Save location</button>
+    </div>
+  </form>
+</dialog>
 
 <!-- CAMPAIGN MODAL -->
 <dialog id="campaignModal">
@@ -770,8 +945,9 @@
   function renderAll() {
     $('#navLeadCount').textContent = leads.filter((l) => l.status === 'new').length;
     $('#navCampCount').textContent = campaigns.filter(isLive).length;
-    $('#navProspectCount').textContent = prospects.filter((p) => ['new', 'drafted'].includes(p.status) || followUpDue(p)).length;
-    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting(); renderOutreach(); renderMachines();
+    $('#navProspectCount').textContent = prospects.filter((p) => p.leadType !== 'location' && (['new', 'drafted'].includes(p.status) || followUpDue(p))).length;
+    if ($('#navLocationCount')) $('#navLocationCount').textContent = prospects.filter((p) => p.leadType === 'location' && (['new', 'drafted'].includes(p.status) || followUpDue(p))).length;
+    renderOverview(); renderLeads(); renderAdvertisers(); renderCalendar(); renderProspecting(); renderLocations(); renderOutreach(); renderMachines();
   }
 
   // ---------- tabs ----------
@@ -809,9 +985,20 @@
     live.filter((c) => c.status === 'pending' && c.paymentStatus === 'paid' && c.creativeStatus === 'approved').forEach((c) => items.push({ badge: ['Ready to go live', 'green'], text: `<b>${esc(c.business)}</b> is paid &amp; approved — assign it in VapeTM, then activate`, action: `<button class="btn btn-sm btn-primary" data-camp-patch="${c.id}" data-patch='{"status":"active"}'>Activate</button>` }));
     live.filter((c) => c.status === 'active' && c.end <= addDays(todayISO, 7)).forEach((c) => items.push({ badge: ['Renewal due', 'blue'], text: `<b>${esc(c.business)}</b> ends ${fmtDate(c.end)} — reach out to renew`, action: `<button class="btn btn-sm" data-renew-campaign="${c.id}">Renew +30d</button>` }));
     leads.filter((l) => l.type === 'business' && l.status === 'new').slice(0, 5).forEach((l) => items.push({ badge: ['Send offer', 'green'], text: `<b>${esc(l.venue || l.email)}</b> qualified (${esc(l.machineSize || 'medium')} machine) · ${timeAgo(l.receivedAt)}`, action: `<a class="btn btn-sm" href="mailto:${esc(l.email)}">Email</a>` }));
-    prospects.filter(followUpDue).sort((a, b) => a.nextFollowUpAt.localeCompare(b.nextFollowUpAt)).slice(0, 8).forEach((p) => items.push({ badge: ['Follow up', 'amber'], text: `<b>${esc(p.business)}</b> · ${esc(catById(p.categoryId).label)} · last touch ${p.outreach.length ? timeAgo(p.outreach[p.outreach.length - 1].at) : '—'} via ${esc(p.outreach[p.outreach.length - 1]?.channel || '—')}${p.nextFollowUpAt < todayISO ? ` · <span style="color:var(--red);font-weight:700;">overdue</span>` : ''}`, action: `<button class="btn btn-sm btn-primary" data-pa="goto" data-pid="${esc(p.id)}">Open</button>` }));
-    const readyToSend = prospects.filter((p) => p.status === 'drafted').length;
+    prospects.filter(followUpDue).sort((a, b) => a.nextFollowUpAt.localeCompare(b.nextFollowUpAt)).slice(0, 8).forEach((p) => {
+      const isLoc = p.leadType === 'location';
+      items.push({
+        badge: [isLoc ? 'Venue follow-up' : 'Follow up', 'amber'],
+        text: `<b>${esc(p.business)}</b> · ${esc(isLoc ? (p.venueType || p.categoryId || 'Host Venue') : catById(p.categoryId).label)} · last touch ${p.outreach.length ? timeAgo(p.outreach[p.outreach.length - 1].at) : '—'} via ${esc(p.outreach[p.outreach.length - 1]?.channel || '—')}${p.nextFollowUpAt < todayISO ? ` · <span style="color:var(--red);font-weight:700;">overdue</span>` : ''}`,
+        action: isLoc
+          ? `<button class="btn btn-sm btn-primary" data-loc-action="goto" data-lid="${esc(p.id)}">Open</button>`
+          : `<button class="btn btn-sm btn-primary" data-pa="goto" data-pid="${esc(p.id)}">Open</button>`
+      });
+    });
+    const readyToSend = prospects.filter((p) => p.leadType !== 'location' && p.status === 'drafted').length;
     if (readyToSend) items.push({ badge: ['Outreach ready', 'purple'], text: `<b>${readyToSend}</b> prospect${readyToSend === 1 ? '' : 's'} with drafts waiting to be sent`, action: `<button class="btn btn-sm" data-pa="goto-status" data-pstatus="drafted">Open</button>` });
+    const readyLocPitches = prospects.filter((p) => p.leadType === 'location' && p.status === 'drafted').length;
+    if (readyLocPitches) items.push({ badge: ['Venue pitches', 'green'], text: `<b>${readyLocPitches}</b> machine location${readyLocPitches === 1 ? '' : 's'} with placement pitches ready`, action: `<button class="btn btn-sm" data-loc-action="goto-tab">Open Locations</button>` });
     $('#attention').innerHTML = items.length
       ? items.map((i) => `<div class="date-item" style="margin-bottom:8px;"><span class="badge ${i.badge[1]}">${i.badge[0]}</span><span style="flex:1;">${i.text}</span>${i.action}</div>`).join('')
       : '<div class="empty">All caught up.</div>';
@@ -1160,6 +1347,7 @@
   const touchCount = (p, ch) => (p.outreach || []).filter((o) => (ch === 'follow-up' ? o.followUp : o.channel === ch)).length;
   const hasLinkedIn = (p) => Boolean(p.linkedinUrl || (p.contacts || []).some((c) => c.linkedinUrl));
   function matchesFilters(p, skip = '') {
+    if (p.leadType === 'location') return false;
     const f = pf;
     if (skip !== 'status' && f.status) {
       if (f.status === 'due') { if (!followUpDue(p)) return false; }
@@ -1207,10 +1395,11 @@
 
   function renderProspectFilters() {
     const opts = (list, current, all) => `<option value="">${all}</option>${list.map(([v, l, n]) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(l)}${n != null ? ` (${n})` : ''}</option>`).join('')}`;
-    const count = (fn) => prospects.filter(fn).length;
+    const advList = prospects.filter((p) => p.leadType !== 'location');
+    const count = (fn) => advList.filter(fn).length;
     $('#fCategory').innerHTML = opts(ADS.categories.map((c) => [c.id, c.label, count((p) => p.categoryId === c.id)]).filter(([, , n]) => n || pf.category), pf.category, 'All categories');
     $('#fMachine').innerHTML = opts(ADS.machines.map((m) => [m.id, m.name, count((p) => p.machineId === m.id)]), pf.machine, 'All machines');
-    const places = {}; prospects.forEach((p) => { const pl = placeOf(p); if (pl) places[pl] = (places[pl] || 0) + 1; });
+    const places = {}; advList.forEach((p) => { const pl = placeOf(p); if (pl) places[pl] = (places[pl] || 0) + 1; });
     $('#fPlace').innerHTML = opts(Object.entries(places).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, n]) => [k, k, n]), pf.place, 'All places');
     $('#fImport').innerHTML = opts((prospecting.imports || []).map((im) => [im.id, `${im.filename.replace(/\.(csv|tsv|txt)$/i, '').slice(0, 38)} · ${fmtDate(iso(new Date(im.importedAt)))}`, im.imported + (im.merged || 0)]), pf.importId, 'Any import');
     $('#fTouched').value = pf.touched; $('#fHas').value = pf.has; $('#fSort').value = pf.sort;
@@ -1218,7 +1407,7 @@
     const on = { fCategory: pf.category, fMachine: pf.machine, fPlace: pf.place, fTouched: pf.touched, fHas: pf.has, fImport: pf.importId, fSearch: pf.q };
     Object.entries(on).forEach(([id, v]) => $(`#${id}`).closest('.field').classList.toggle('on', Boolean(v)));
     const chips = [['', 'All'], ['new', 'New'], ['drafted', 'Ready to send'], ['due', 'Follow-up due'], ['contacted', 'Contacted'], ['replied', 'Replied'], ['won', 'Won'], ['lost', 'Lost / skipped']];
-    const base = prospects.filter((p) => matchesFilters(p, 'status'));
+    const base = advList.filter((p) => matchesFilters(p, 'status'));
     const n = (k) => (k === '' ? base.length : k === 'due' ? base.filter(followUpDue).length : k === 'lost' ? base.filter((p) => ['lost', 'skipped'].includes(p.status)).length : base.filter((p) => p.status === k).length);
     $('#prospectChips').innerHTML = chips.map(([k, l]) => `<button class="chip ${pf.status === k ? 'active' : ''}" data-pstatus="${k}">${l}<span class="n">${n(k)}</span></button>`).join('');
     // Import panel selectors
@@ -1236,14 +1425,15 @@
     renderProspectFilters();
     renderImportList();
     const rows = filteredProspects();
+    const advCount = prospects.filter((p) => p.leadType !== 'location').length;
     const active = Object.entries(pf).filter(([k, v]) => k !== 'sort' && v).length;
-    $('#filterCount').innerHTML = `Showing <b>${rows.length}</b> of ${prospects.length} prospect${prospects.length === 1 ? '' : 's'}${active ? ` · ${active} filter${active === 1 ? '' : 's'} on` : ''}`;
+    $('#filterCount').innerHTML = `Showing <b>${rows.length}</b> of ${advCount} advertiser prospect${advCount === 1 ? '' : 's'}${active ? ` · ${active} filter${active === 1 ? '' : 's'} on` : ''}`;
     $('#fClear').hidden = !active;
     const newCount = rows.filter((p) => p.status === 'new').length;
     $('#draftBtn').disabled = !newCount;
     $('#draftBtn').textContent = newCount ? `Generate outreach for ${newCount} new` : 'Generate outreach';
     $('#draftBtn').title = 'Writes the email, text and LinkedIn note (plus the mockup link) for the new leads in this view.';
-    $('#prospectEmpty').innerHTML = prospects.length ? 'No prospects match these filters.' : 'No prospects yet — click <b>+ Import list</b> at the top to add your first list.';
+    $('#prospectEmpty').innerHTML = advCount ? 'No prospects match these filters.' : 'No prospects yet — click <b>+ Import list</b> at the top to add your first list.';
     $('#prospectEmpty').hidden = rows.length > 0;
     $('#prospectRows').innerHTML = rows.map((p) => {
       const c = primaryContact(p);
@@ -1431,12 +1621,477 @@
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   });
 
+  // ---------- machine locations ----------
+  const LOC_FILTERS_DEFAULT = { view: 'list', status: '', venueType: '', place: '', touched: '', has: '', sort: 'score', q: '', importId: '' };
+  let locFilters = { ...LOC_FILTERS_DEFAULT };
+  let openLocationId = null, locDraftTab = 'visit';
+
+  function matchesLocFilters(p, skip = '') {
+    if (p.leadType !== 'location') return false;
+    const f = locFilters;
+    if (f.view === 'followups' && !followUpDue(p)) return false;
+    if (skip !== 'status' && f.status) {
+      if (f.status === 'due') { if (!followUpDue(p)) return false; }
+      else if (f.status === 'lost') { if (!['lost', 'skipped'].includes(p.status)) return false; }
+      else if (p.status !== f.status) return false;
+    }
+    if (f.venueType) {
+      const vt = (p.venueType || p.categoryId || '').toLowerCase();
+      if (vt !== f.venueType.toLowerCase() && !vt.includes(f.venueType.toLowerCase())) return false;
+    }
+    if (f.place && placeOf(p).toLowerCase() !== f.place.toLowerCase()) return false;
+    if (f.touched) {
+      const n = (p.outreach || []).length;
+      if (f.touched === 'untouched' && n) return false;
+      else if (f.touched === 'visited' && !touchCount(p, 'visit')) return false;
+      else if (f.touched === 'called' && !touchCount(p, 'call')) return false;
+      else if (f.touched === 'emailed' && !touchCount(p, 'email')) return false;
+      else if (f.touched === 'texted' && !touchCount(p, 'sms')) return false;
+      else if (f.touched === 'followup-due' && !followUpDue(p)) return false;
+    }
+    if (f.has) {
+      const e = allEmails(p).length > 0, ph = allPhones(p).length > 0, c = (p.contacts || []).length > 0;
+      if (f.has === 'phone' && !ph) return false;
+      if (f.has === 'email' && !e) return false;
+      if (f.has === 'contact' && !c) return false;
+      if (f.has === 'missing' && (e && ph && c)) return false;
+    }
+    if (f.importId) {
+      const im = (prospecting.imports || []).find((x) => x.id === f.importId);
+      if (p.importId !== f.importId && !(im?.mergedIds || []).includes(p.id)) return false;
+    }
+    if (f.q && !`${p.business} ${p.venueType || ''} ${p.categoryId || ''} ${placeOf(p)} ${p.address || ''} ${allEmails(p).map((e) => e.value).join(' ')} ${allPhones(p).map((e) => e.value).join(' ')} ${(p.contacts || []).map((c) => `${c.name} ${c.title}`).join(' ')} ${p.notes || ''}`.toLowerCase().includes(f.q.toLowerCase())) return false;
+    return true;
+  }
+
+  const LOC_SORTS = {
+    score: (a, b) => (b.score ?? -1) - (a.score ?? -1),
+    followup: (a, b) => (a.nextFollowUpAt || '9999').localeCompare(b.nextFollowUpAt || '9999'),
+    newest: (a, b) => b.createdAt.localeCompare(a.createdAt),
+    name: (a, b) => a.business.localeCompare(b.business),
+    reviews: (a, b) => (Number(b.reviews) || 0) - (Number(a.reviews) || 0),
+  };
+  function filteredLocations() {
+    return prospects.filter((p) => matchesLocFilters(p)).sort(LOC_SORTS[locFilters.sort] || LOC_SORTS.score);
+  }
+  function setLocFilter(patch) {
+    locFilters = { ...locFilters, ...patch };
+    renderLocations();
+  }
+  const resetLocFilters = (patch = {}) => {
+    $('#fLocSearch').value = patch.q || '';
+    setLocFilter({ ...LOC_FILTERS_DEFAULT, sort: locFilters.sort, ...patch });
+  };
+
+  function renderLocations() {
+    const allLocs = prospects.filter((p) => p.leadType === 'location');
+    const newLocs = allLocs.filter((p) => p.status === 'new').length;
+    const dueLocs = allLocs.filter(followUpDue).length;
+    const visitedLocs = allLocs.filter((p) => (p.outreach || []).some((o) => o.channel === 'visit')).length;
+    const wonLocs = allLocs.filter((p) => p.status === 'won').length;
+
+    $('#locationStats').innerHTML = [
+      ['Machine Locations', allLocs.length, 'host venues to place machines in', 'accent'],
+      ['New / Untouched', newLocs, 'awaiting initial pitch or walk-in', newLocs ? 'accent' : ''],
+      ['Follow-ups Due', dueLocs, 'venues requiring follow-up touch', dueLocs ? 'amber' : ''],
+      ['Walk-in Visits', visitedLocs, 'in-person venue visits logged', ''],
+      ['Machines Placed', wonLocs, 'venues signed &amp; machines placed', wonLocs ? 'green' : ''],
+    ].map(([label, value, hint, cls = '']) => `<div class="stat ${cls}"><div class="label">${label}</div><div class="value">${value}</div><div class="hint">${hint}</div></div>`).join('');
+
+    $('#locListCount').textContent = allLocs.length;
+    $('#locFollowupCount').textContent = dueLocs;
+    $('#locOutreachCount').textContent = allLocs.filter((p) => ['contacted', 'drafted', 'new'].includes(p.status)).length;
+
+    // View tabs
+    $$('#locViewTabs button').forEach((b) => b.classList.toggle('active', b.dataset.locView === locFilters.view));
+
+    // Status chips
+    const base = allLocs.filter((p) => matchesLocFilters(p, 'status'));
+    const n = (k) => (k === '' ? base.length : k === 'due' ? base.filter(followUpDue).length : k === 'lost' ? base.filter((p) => ['lost', 'skipped'].includes(p.status)).length : base.filter((p) => p.status === k).length);
+    const chips = [['', 'All'], ['new', 'New'], ['contacted', 'Pitched / In discussion'], ['due', 'Follow-up due'], ['replied', 'Surveying space'], ['won', 'Won (Placed)'], ['lost', 'Lost / skipped']];
+    $('#locationChips').innerHTML = chips.map(([k, l]) => `<button class="chip ${locFilters.status === k ? 'active' : ''}" data-loc-status-chip="${k}">${l}<span class="n">${n(k)}</span></button>`).join('');
+
+    // Dropdown filters
+    const venueTypes = {}; allLocs.forEach((p) => { const vt = p.venueType || p.categoryId; if (vt) venueTypes[vt] = (venueTypes[vt] || 0) + 1; });
+    const opts = (list, current, all) => `<option value="">${all}</option>${list.map(([v, l, c]) => `<option value="${esc(v)}" ${v === current ? 'selected' : ''}>${esc(l)}${c != null ? ` (${c})` : ''}</option>`).join('')}`;
+    $('#fLocVenueType').innerHTML = opts(Object.entries(venueTypes).map(([k, c]) => [k, k, c]), locFilters.venueType, 'All venue types');
+    const places = {}; allLocs.forEach((p) => { const pl = placeOf(p); if (pl) places[pl] = (places[pl] || 0) + 1; });
+    $('#fLocPlace').innerHTML = opts(Object.entries(places).sort((a, b) => b[1] - a[1]).map(([k, c]) => [k, k, c]), locFilters.place, 'All markets / areas');
+    $('#fLocTouched').value = locFilters.touched;
+    $('#fLocHas').value = locFilters.has;
+    $('#fLocSort').value = locFilters.sort;
+    if (document.activeElement !== $('#fLocSearch')) $('#fLocSearch').value = locFilters.q;
+
+    const rows = filteredLocations();
+    const active = Object.entries(locFilters).filter(([k, v]) => k !== 'sort' && k !== 'view' && v).length;
+    $('#locFilterCount').innerHTML = `Showing <b>${rows.length}</b> of ${allLocs.length} machine location${allLocs.length === 1 ? '' : 's'}${active ? ` · ${active} filter${active === 1 ? '' : 's'} on` : ''}`;
+    $('#fLocClear').hidden = !active;
+
+    const newLocCount = rows.filter((p) => p.status === 'new').length;
+    $('#locDraftBtn').disabled = !newLocCount;
+    $('#locDraftBtn').textContent = newLocCount ? `Generate placement pitches (${newLocCount} new)` : 'Generate placement pitches';
+
+    if (locFilters.view === 'outreach') {
+      $('#locListView').hidden = true;
+      $('#locOutreachView').hidden = false;
+      $('#locOutreachEmpty').hidden = rows.length > 0;
+      $('#locOutreachRows').innerHTML = rows.map((loc) => {
+        const c = primaryContact(loc);
+        const due = followUpDue(loc);
+        const hasVisit = (loc.outreach || []).some((o) => o.channel === 'visit');
+        const hasCall = (loc.outreach || []).some((o) => o.channel === 'call');
+        const hasEmail = (loc.outreach || []).some((o) => o.channel === 'email');
+        const hasSms = (loc.outreach || []).some((o) => o.channel === 'sms');
+        const pkPhone = pickPhone(loc);
+        const pkEmail = pickEmail(loc);
+
+        return `<tr class="p-row ${due ? 'is-due' : ''}">
+          <td class="who"><button data-loc-action="toggle" data-lid="${esc(loc.id)}" style="background:none;border:none;padding:0;text-align:left;cursor:pointer;font-weight:700;color:var(--text);">${esc(loc.business)}</button><span>${esc(loc.venueType || loc.categoryId || 'Host Venue')}${loc.city ? ` · ${esc(loc.city)}` : ''}</span></td>
+          <td><b>${esc(c?.name || 'Manager on duty')}</b><br/><span style="color:var(--muted);font-size:0.75rem;">${esc(pkPhone?.value || 'no phone')}</span></td>
+          <td class="c">${hasVisit ? '<span class="badge green">✓ Visited</span>' : `<button class="btn btn-sm" data-loc-action="quick-visit" data-lid="${esc(loc.id)}">+ Log Visit</button>`}</td>
+          <td class="c">${hasCall ? '<span class="badge blue">✓ Called</span>' : `<button class="btn btn-sm" data-loc-action="quick-call" data-lid="${esc(loc.id)}">📞 Call</button>`}</td>
+          <td class="c">${hasEmail ? '<span class="badge purple">✓ Emailed</span>' : pkEmail ? `<button class="btn btn-sm" data-loc-action="send-loc-email" data-lid="${esc(loc.id)}">✉ Email</button>` : '—'}</td>
+          <td class="c">${hasSms ? '<span class="badge amber">✓ Texted</span>' : pkPhone ? `<button class="btn btn-sm" data-loc-action="send-loc-sms" data-lid="${esc(loc.id)}">💬 SMS</button>` : '—'}</td>
+          <td><input class="inline" type="date" value="${esc(loc.nextFollowUpAt)}" data-loc-followup="${esc(loc.id)}" style="font-size:0.75rem;padding:3px 6px;" /></td>
+          <td><span class="badge ${P_STATUS_COLOR[loc.status] || ''}">${P_STATUS_LABEL[loc.status] || loc.status}</span></td>
+        </tr>`;
+      }).join('');
+    } else {
+      $('#locListView').hidden = false;
+      $('#locOutreachView').hidden = true;
+      $('#locationEmpty').hidden = rows.length > 0;
+      $('#locationRows').innerHTML = rows.map((loc) => {
+        const c = primaryContact(loc);
+        const due = followUpDue(loc);
+        const email = pickEmail(loc)?.value || '';
+        const phone = pickPhone(loc);
+        const moreE = Math.max(0, allEmails(loc).length - 1), moreP = Math.max(0, allPhones(loc).length - 1);
+        return `<tr class="p-row ${due ? 'is-due' : loc.status === 'new' ? 'is-new' : ''}" data-lid="${esc(loc.id)}" data-loc-action="toggle">
+          <td class="who"><strong>${esc(loc.business)}</strong><span><span class="badge green" style="font-size:0.6rem;padding:1px 6px;margin-right:4px;">${esc(loc.venueType || loc.categoryId || 'Host Venue')}</span>${loc.city ? ` · ${esc(loc.city)}` : ''}${loc.rating ? ` · ${loc.rating}★` : ''}${loc.reviews ? ` (${fmtN(loc.reviews)})` : ''}</span></td>
+          <td class="who">${c ? `<strong style="font-weight:600;">${esc(c.name)}</strong><span>${esc(c.title || 'Owner / GM')}</span>` : '<span>Owner / GM</span>'}</td>
+          <td class="contact">${email ? `<a href="mailto:${esc(email)}">${esc(email)}</a>${moreE ? `<span style="display:inline;color:var(--muted);font-size:0.7rem;"> +${moreE}</span>` : ''}` : '<span>no email</span>'}${phone ? `<a href="tel:${esc(phone.e164 || phone.value)}">${esc(phone.value)}</a>${moreP ? `<span style="display:inline;color:var(--muted);font-size:0.7rem;"> +${moreP}</span>` : ''}` : '<span>no phone</span>'}</td>
+          <td><span class="score ${loc.score >= 70 ? 'hi' : loc.score >= 50 ? 'mid' : ''}" title="${esc((loc.scoreNotes || []).join(' · '))}">${loc.score ?? '—'}</span></td>
+          <td><span class="badge ${P_STATUS_COLOR[loc.status] || ''}">${P_STATUS_LABEL[loc.status] || loc.status}</span>${loc.outreach?.length ? `<div style="color:var(--muted);font-size:0.72rem;margin-top:3px;">${loc.outreach.length} touch${loc.outreach.length === 1 ? '' : 'es'}</div>` : ''}</td>
+          <td style="white-space:nowrap;">${due ? `<span class="badge amber dot">Due ${fmtDate(loc.nextFollowUpAt)}</span>` : loc.nextFollowUpAt && loc.status === 'contacted' ? fmtDate(loc.nextFollowUpAt) : '—'}</td>
+        </tr>${openLocationId === loc.id ? `<tr class="detail"><td colspan="6">${locDetail(loc)}</td></tr>` : ''}`;
+      }).join('');
+    }
+  }
+
+  function locDetail(loc) {
+    const c = primaryContact(loc);
+    const d = loc.drafts;
+    const followUp = (loc.outreach || []).length > 0;
+    const sent = (ch) => touched(loc, ch);
+
+    const field = (label, key, val, placeholder = '') =>
+      `<div><span>${label}</span><b><input class="inline" style="width:100%;max-width:340px;" value="${esc(val ?? '')}" placeholder="${placeholder}" data-loc-field="${key}" data-lid="${esc(loc.id)}" /></b></div>`;
+
+    const details = [
+      field('Venue Type', 'venueType', loc.venueType || loc.categoryId, 'e.g. Bar, Sports Bar, Arcade'),
+      field('Full address', 'address', loc.address, 'street, city, state, zip'),
+      field('City / Area', 'city', loc.city, 'e.g. Phoenix, Scottsdale'),
+      field('Website', 'website', loc.website, 'https://…'),
+      field('Phone', 'phone', loc.phone, '(602) 555-0199'),
+      field('Google Maps', 'mapsUrl', loc.mapsUrl, 'https://maps.google.com/…'),
+      field('Space confirmed', 'wallSpace', loc.wallSpace || '', 'e.g. 3ft wall space confirmed'),
+      field('Age 21+', 'age21', loc.age21 || '', 'e.g. Yes 21+ only, or All Ages'),
+      field('Target Machine Size', 'machineSize', loc.machineSize || '', 'e.g. Medium Claw or SlimWall'),
+      loc.rating ? `<div><span>Google Rating</span><b>${loc.rating}★${loc.reviews ? ` · ${fmtN(loc.reviews)} reviews` : ''}</b></div>` : '',
+    ].filter(Boolean).join('');
+
+    const contacts = (loc.contacts || []).map((ct, i) => `<div class="contact-card contact-edit">
+        <div class="cc-head">
+          <input class="inline" value="${esc(ct.name)}" placeholder="Full name" data-loc-cfield="name" data-lid="${esc(loc.id)}" data-idx="${i}" />
+          <input class="inline" value="${esc(ct.title || '')}" placeholder="Title (Owner, GM…)" data-loc-cfield="title" data-lid="${esc(loc.id)}" data-idx="${i}" />
+          ${i === 0 ? '<span class="badge green" style="font-size:0.62rem;">primary</span>' : ''}
+          <button class="btn btn-sm btn-danger" data-loc-action="contact-del" data-lid="${esc(loc.id)}" data-idx="${i}" title="Remove contact">×</button>
+        </div>
+        <div><input type="email" placeholder="email address" value="${esc(ct.email || '')}" data-loc-cfield="email" data-lid="${esc(loc.id)}" data-idx="${i}" /></div>
+        <div><input type="tel" placeholder="direct / mobile phone" value="${esc(ct.mobile || '')}" data-loc-cfield="mobile" data-lid="${esc(loc.id)}" data-idx="${i}" /></div>
+        <div class="cc-actions">
+          ${ct.mobile ? `<a class="btn btn-sm" href="tel:${esc(ct.mobile)}">Call mobile</a>` : ''}
+          ${ct.email ? `<a class="btn btn-sm" href="mailto:${esc(ct.email)}">Email</a>` : ''}
+        </div>
+      </div>`).join('') + `<button class="btn btn-sm" data-loc-action="contact-add" data-lid="${esc(loc.id)}" style="margin-top:8px;">+ Add decision-maker</button>`;
+
+    // Outreach pitch copy / scripts
+    const tabs = [
+      ['visit', `Walk-in Pitch${sent('visit') ? ` ✓${sent('visit')}` : ''}`],
+      ['call', `Phone Script${sent('call') ? ` ✓${sent('call')}` : ''}`],
+      ['email', `Email Pitch${sent('email') ? ` ✓${sent('email')}` : ''}`],
+      ['sms', `SMS Text${sent('sms') ? ` ✓${sent('sms')}` : ''}`],
+    ];
+    const tabBar = `<div class="draft-tabs">${tabs.map(([k, l]) => `<button class="chip ${locDraftTab === k ? 'active' : ''}" data-loc-action="tab" data-lid="${esc(loc.id)}" data-tab="${k}">${l}</button>`).join('')}${followUp ? '<span class="hint" style="align-self:center;color:var(--muted);font-size:0.74rem;">Showing follow-up versions</span>' : ''}</div>`;
+
+    const em = followUp ? (d?.followUpEmail || {}) : (d?.email || {});
+    const emailTo = pickEmail(loc)?.value || '';
+    const phoneTo = pickPhone(loc)?.value || '';
+
+    let draftContent = '';
+    if (locDraftTab === 'visit') {
+      draftContent = `<div style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:10px;font-size:0.83rem;line-height:1.5;">
+        <b style="color:var(--text);display:block;margin-bottom:4px;">🎯 In-Person Walk-in Strategy for ${esc(loc.business)}:</b>
+        <ul style="margin:0;padding-left:18px;color:#374151;">
+          <li>Ask for the <b>Owner or General Manager</b> (${esc(c?.name || 'on-duty manager')}).</li>
+          <li><b>Core Hook:</b> "We install claw machines and SlimWall vending units in top venues with <b>zero upfront cost</b> to you and share monthly profit."</li>
+          <li><b>Space required:</b> Needs only <b>3 feet of space</b> and a standard 110V wall outlet.</li>
+          <li><b>Hands-off:</b> KWIGZ handles all delivery, installation, coin/cash/card processing, inventory restocking, and maintenance.</li>
+        </ul>
+      </div>
+      <label>Walk-in Notes (e.g. met GM Mike, saw 3ft wall space by bar, follow-up Thursday)</label>
+      <input class="inline" style="width:100%;margin-bottom:8px;" id="locVisitNote" placeholder="Enter notes from walk-in visit…" />
+      <div class="send-row">
+        <span class="hint">Logs an in-person walk-in visit and automatically sets follow-up for 2 days out.</span>
+        <button class="btn btn-sm btn-primary" data-loc-action="log-visit" data-lid="${esc(loc.id)}">✓ Log Walk-in Visit</button>
+      </div>`;
+    } else if (locDraftTab === 'call') {
+      const script = d?.callScript || [
+        `Owner / Manager Pitch for ${loc.business}:`,
+        `"Hi, may I speak with the owner or GM? Hi ${c?.firstName || c?.name || '[Name]'}, my name is with KWIGZ."`,
+        `"We partner with top local venues like ${loc.business} to place premium entertainment and vending machines at zero cost. We handle all delivery, stocking, and maintenance, and pay your venue a monthly revenue share."`,
+        `"It takes just 3 feet of space and adds hands-free profit to your floor."`,
+        `"I'll be in your area this week — would a 5-minute walk-in work to check out your space and see if it's a fit?"`,
+      ].join('\n\n');
+      draftContent = `<label>Phone Script for ${esc(loc.business)}</label>
+        <textarea style="min-height:130px;" readonly>${esc(script)}</textarea>
+        <label style="margin-top:8px;">Call notes</label>
+        <input class="inline" style="width:100%;margin-bottom:8px;" id="locCallNote" placeholder="Left voicemail / Spoke with GM / Callback scheduled…" />
+        <div class="send-row">
+          ${phoneTo ? `<a class="btn btn-sm" href="tel:${esc(phoneTo)}">📞 Call ${esc(phoneTo)}</a>` : ''}
+          <button class="btn btn-sm" data-loc-action="copy-loc-draft" data-lid="${esc(loc.id)}" data-what="call">Copy script</button>
+          <button class="btn btn-sm btn-primary" data-loc-action="log-call" data-lid="${esc(loc.id)}">Log Phone Call</button>
+        </div>`;
+    } else if (locDraftTab === 'email') {
+      const subject = em.subject || `Free machine placement + revenue share for ${loc.business}?`;
+      const body = em.body || `Hi ${c?.name || loc.business} team,\n\nI run KWIGZ — we place premium automated machines (custom claw machines and modern SlimWall vending) in top local venues at zero upfront or ongoing cost to you.\n\nYour venue earns monthly revenue share, and we handle all delivery, restocking, and maintenance.\n\nWould you have 5 minutes this week for a quick chat to see if ${loc.business} is a fit?`;
+      draftContent = `<label>To</label><input value="${esc(emailTo)}" placeholder="Contact email" readonly />
+        <label style="margin-top:6px;">Subject</label><input value="${esc(subject)}" data-loc-draft-key="subject" />
+        <label style="margin-top:6px;">Email body</label><textarea style="min-height:140px;" data-loc-draft-key="body">${esc(body)}</textarea>
+        <div class="send-row">
+          <span class="hint">Opens your email client with pitch prefilled, logs touch, and sets follow-up.</span>
+          <button class="btn btn-sm" data-loc-action="copy-loc-draft" data-lid="${esc(loc.id)}" data-what="email">Copy email</button>
+          <button class="btn btn-sm btn-primary" data-loc-action="send-loc-email" data-lid="${esc(loc.id)}" ${emailTo ? '' : 'disabled'}>Send email</button>
+        </div>`;
+    } else if (locDraftTab === 'sms') {
+      const txt = followUp ? (d?.followUpSms || `Following up from KWIGZ about placing a machine at ${loc.business}. Zero cost to you, monthly revenue share. Open to a 2-min chat?`) : (d?.sms || `Hi, this is with KWIGZ. We place free claw and vending machines in top local venues with monthly revenue share. Interested in having one placed at ${loc.business}? Zero cost to you.`);
+      draftContent = `<label>To</label><input value="${esc(phoneTo)}" placeholder="Mobile / Phone number" readonly />
+        <label style="margin-top:6px;">Text message</label><textarea style="min-height:90px;" data-loc-draft-key="sms">${esc(txt)}</textarea>
+        <div class="send-row">
+          <button class="btn btn-sm" data-loc-action="copy-loc-draft" data-lid="${esc(loc.id)}" data-what="sms">Copy text</button>
+          <button class="btn btn-sm btn-primary" data-loc-action="send-loc-sms" data-lid="${esc(loc.id)}" ${phoneTo ? '' : 'disabled'}>Send text</button>
+        </div>`;
+    }
+
+    const outreachHistory = (loc.outreach || []).length
+      ? `<div class="timeline">${[...(loc.outreach || [])].reverse().map((o) => `<div><span class="badge ${o.channel === 'visit' ? 'green' : o.channel === 'call' ? 'blue' : o.channel === 'email' ? 'purple' : 'amber'}">${esc(o.channel)}</span> <span class="t">${timeAgo(o.at)} (${fmtDate(o.at.slice(0, 10))})</span>${o.note ? ` — ${esc(o.note)}` : ''}</div>`).join('')}</div>`
+      : '<p style="color:var(--muted);font-size:0.8rem;margin:6px 0;">No outreach logged yet. Log a walk-in, call, or email to track follow-ups.</p>';
+
+    return `<div class="p-detail">
+      <div class="p-left">
+        <div class="p-top-actions">
+          <label style="font-weight:700;font-size:0.75rem;">Placement Status</label>
+          <select class="inline" data-loc-status="${esc(loc.id)}">
+            ${[['new', 'New Venue'], ['contacted', 'In Discussion / Pitched'], ['replied', 'Interested / Surveying Space'], ['won', 'Won (Machine Placed)'], ['lost', 'Lost / Not Interested']].map(([val, label]) => `<option value="${val}" ${loc.status === val ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+          <label style="font-weight:700;font-size:0.75rem;margin-left:10px;">Next Follow-up</label>
+          <input class="inline" type="date" value="${esc(loc.nextFollowUpAt)}" data-loc-followup="${esc(loc.id)}" />
+          <span style="flex:1;"></span>
+          ${loc.status !== 'won' ? `<button class="btn btn-sm btn-primary" data-loc-action="mark-won" data-lid="${esc(loc.id)}">✓ Mark Machine Placed</button>` : '<span class="badge green">Machine Placed ✓</span>'}
+          <button class="btn btn-sm btn-danger" data-loc-action="delete" data-lid="${esc(loc.id)}" title="Delete this machine location">Delete</button>
+        </div>
+
+        <h4 style="margin-top:10px;">Venue Information</h4>
+        <div class="kv">${details}</div>
+
+        <h4 style="margin-top:14px;">Decision-Maker &amp; Contacts</h4>
+        <div class="contacts">${contacts}</div>
+
+        <h4 style="margin-top:14px;">Notes</h4>
+        <textarea class="notes" data-loc-notes="${esc(loc.id)}" placeholder="Venue manager notes, foot traffic observations, machine dimensions, follow-up commitments…">${esc(loc.notes || '')}</textarea>
+      </div>
+
+      <div class="p-right">
+        <h4 style="margin-top:0;">Placement Outreach &amp; Pitch Scripts</h4>
+        ${tabBar}
+        <div class="draft" style="margin-top:8px;">${draftContent}</div>
+
+        <h4 style="margin-top:16px;">Outreach &amp; Walk-in History (${(loc.outreach || []).length})</h4>
+        ${outreachHistory}
+      </div>
+    </div>`;
+  }
+
+  // Machine locations event listeners
+  $$('#locViewTabs button').forEach((b) => b.addEventListener('click', () => setLocFilter({ view: b.dataset.locView })));
+  $('#locationChips').addEventListener('click', (e) => { const b = e.target.closest('[data-loc-status-chip]'); if (b) setLocFilter({ status: b.dataset.locStatusChip }); });
+  [['#fLocVenueType', 'venueType'], ['#fLocPlace', 'place'], ['#fLocTouched', 'touched'], ['#fLocHas', 'has'], ['#fLocSort', 'sort']].forEach(([sel, key]) => $(sel).addEventListener('change', (e) => setLocFilter({ [key]: e.target.value })));
+  let locSearchTimer;
+  $('#fLocSearch').addEventListener('input', (e) => {
+    clearTimeout(locSearchTimer);
+    locSearchTimer = setTimeout(() => setLocFilter({ q: e.target.value.trim() }), 150);
+  });
+  $('#fLocClear').addEventListener('click', () => resetLocFilters());
+
+  $('#locDraftBtn').addEventListener('click', async () => {
+    const ids = filteredLocations().filter((p) => p.status === 'new').map((p) => p.id);
+    if (!ids.length) return;
+    $('#locDraftBtn').disabled = true;
+    try {
+      const r = await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids }) });
+      toast(`Placement pitches written for ${r.count} location${r.count === 1 ? '' : 's'}`);
+      await refreshProspects();
+    } catch (err) {
+      toast(err.message);
+      $('#locDraftBtn').disabled = false;
+    }
+  });
+
+  $('#locationExportBtn').addEventListener('click', () => {
+    const rows = filteredLocations();
+    const cols = ['Business', 'Venue Type', 'Address', 'City', 'Phone', 'Website', 'Contact Name', 'Contact Title', 'Contact Email', 'Contact Mobile', 'Status', 'Score', 'Touches', 'Last Touch', 'Next Follow-up', 'Notes'];
+    const csv = [cols, ...rows.map((loc) => {
+      const c = primaryContact(loc) || {};
+      const lastTouch = (loc.outreach || [])[loc.outreach.length - 1];
+      return [
+        loc.business,
+        loc.venueType || loc.categoryId || 'Host Venue',
+        loc.address || '',
+        loc.city || '',
+        loc.phone || '',
+        loc.website || '',
+        c.name || '',
+        c.title || '',
+        c.email || (loc.altEmails || [])[0]?.value || '',
+        c.mobile || '',
+        P_STATUS_LABEL[loc.status] || loc.status,
+        loc.score ?? '',
+        (loc.outreach || []).length,
+        lastTouch ? `${lastTouch.channel} (${fmtDate(lastTouch.at.slice(0, 10))})` : '',
+        loc.nextFollowUpAt || '',
+        loc.notes || ''
+      ];
+    })].map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    Object.assign(document.createElement('a'), { href: url, download: `kwigz-machine-locations-${todayISO}.csv` }).click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    toast(`Exported ${rows.length} machine location${rows.length === 1 ? '' : 's'}`);
+  });
+
+  $('#addLocationBtn').addEventListener('click', () => {
+    $('#locationForm').reset();
+    $('#locationError').textContent = '';
+    $('#locationModal').showModal();
+  });
+  $('#locationCancel').addEventListener('click', () => $('#locationModal').close());
+  $('#locationForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    $('#locationError').textContent = '';
+    $('#locationSave').disabled = true;
+    try {
+      const data = {
+        leadType: 'location',
+        business: $('#locfBusiness').value.trim(),
+        venueType: $('#locfVenueType').value,
+        city: $('#locfCity').value.trim(),
+        address: $('#locfAddress').value.trim(),
+        phone: $('#locfPhone').value.trim(),
+        website: $('#locfWebsite').value.trim(),
+        contactName: $('#locfContactName').value.trim(),
+        contactTitle: $('#locfContactTitle').value.trim(),
+        email: $('#locfEmail').value.trim(),
+        notes: $('#locfNotes').value.trim(),
+      };
+      const res = await api('/api/prospects', { method: 'POST', body: JSON.stringify(data) });
+      toast(`Added machine location: ${res.prospect.business}`);
+      $('#locationModal').close();
+      await refreshProspects();
+      setLocFilter({ q: '' });
+    } catch (err) {
+      $('#locationError').textContent = err.message || 'Failed to save location';
+    } finally {
+      $('#locationSave').disabled = false;
+    }
+  });
+
   // ---------- import your own list ----------
-  const IMPORT_LABELS = { '': '— skip —', business: 'Business name', phone: 'Phone', website: 'Website', email: 'Email', address: 'Address', city: 'City', contactName: 'Owner / contact name', contactTitle: 'Contact title', linkedinUrl: 'Contact LinkedIn', companyLinkedin: 'Company LinkedIn', lat: 'Latitude', lng: 'Longitude', rating: 'Google rating', reviews: 'Review count', category: 'Category / type', notes: 'Notes', logoUrl: 'Logo URL', mapsUrl: 'Google Maps URL' };
+  let importTargetType = 'location';
+
+  const VENUE_TYPE_OPTIONS = [
+    ['Bar / Pub', 'Bar / Pub / Tavern'],
+    ['Sports Bar', 'Sports Bar & Grill'],
+    ['Arcade / Family Fun', 'Arcade / Family Fun Center'],
+    ['Brewery', 'Brewery / Taproom'],
+    ['Bowling Alley', 'Bowling Alley / Billiards'],
+    ['Restaurant', 'Restaurant / Diner'],
+    ['Nightclub', 'Nightclub / Lounge'],
+    ['Hotel Lounge', 'Hotel / Resort Lounge'],
+    ['Laundromat', 'Laundromat'],
+    ['Barber / Salon', 'Barber / Salon'],
+    ['Other Venue', 'Other Host Venue'],
+  ];
+
+  function setImportTargetType(type) {
+    importTargetType = type;
+    const isLoc = type === 'location';
+    $('#targetLocationBtn')?.classList.toggle('active', isLoc);
+    $('#targetAdvertiserBtn')?.classList.toggle('active', !isLoc);
+
+    const badge = $('#importTargetBadge');
+    if (badge) {
+      badge.className = `badge ${isLoc ? 'green' : 'purple'}`;
+      badge.textContent = isLoc ? 'Machine Locations (Host Venues)' : 'Advertisers (Screen Ads)';
+    }
+
+    if ($('#importCardTitle')) $('#importCardTitle').textContent = isLoc ? 'Import Machine Locations (Host Venues)' : 'Import Advertiser Leads';
+    if ($('#importCardSub')) $('#importCardSub').textContent = isLoc
+      ? 'Import local bars, restaurants & venues where we install machines for free with monthly revenue share (NOT advertisers)'
+      : 'Import local businesses buying 15-second ad slots on machine screens';
+
+    if ($('#importTargetExplanation')) {
+      $('#importTargetExplanation').innerHTML = isLoc
+        ? '<b>Machine Locations Mode:</b> Importing host businesses (bars, restaurants, arcades, bowling alleys) where KWIGZ will place claw machines or SlimWall vending units for free with monthly revenue sharing. <b>NOT advertisers.</b>'
+        : '<b>Advertiser Mode:</b> Importing local businesses (real estate, attorneys, gyms, etc.) buying 15-second ad spots on Kwigz machine screens.';
+    }
+
+    if ($('#importCategoryLabel')) $('#importCategoryLabel').textContent = isLoc ? 'Venue Type for these businesses' : 'Category (one business per category)';
+    if ($('#importMachineLabel')) $('#importMachineLabel').textContent = isLoc ? 'Target Placement Territory / Route' : 'Machine they will advertise on';
+
+    if (isLoc) {
+      $('#importCategory').innerHTML = VENUE_TYPE_OPTIONS.map(([val, label]) => `<option value="${esc(val)}">${esc(label)}</option>`).join('');
+      $('#importMachine').innerHTML = `<option value="all">All Placement Routes (Default)</option>` + ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
+    } else {
+      $('#importCategory').innerHTML = ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+      $('#importMachine').innerHTML = ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
+    }
+
+    if (importParsed) renderImportPreview();
+  }
+
+  function openImportCard(type = 'location') {
+    const card = $('#importCard');
+    const mount = type === 'location' ? $('#locationImportMount') : $('#prospectingImportMount');
+    if (mount && card.parentElement !== mount) {
+      mount.appendChild(card);
+    }
+    setImportTargetType(type);
+    card.hidden = false;
+    card.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  $('#targetLocationBtn')?.addEventListener('click', () => setImportTargetType('location'));
+  $('#targetAdvertiserBtn')?.addEventListener('click', () => setImportTargetType('advertiser'));
+  const locImportOpenBtn = $('#locationImportOpenBtn') || $('#locationImportOpen');
+  if (locImportOpenBtn) locImportOpenBtn.addEventListener('click', () => openImportCard('location'));
+  $('#importOpen').addEventListener('click', () => openImportCard('advertiser'));
+  $('#importClose').addEventListener('click', () => { $('#importCard').hidden = true; });
+
+  const IMPORT_LABELS = { '': '— skip —', business: 'Business name', phone: 'Phone', website: 'Website', email: 'Email', address: 'Address', city: 'City', contactName: 'Owner / contact name', contactTitle: 'Contact title', linkedinUrl: 'Contact LinkedIn', companyLinkedin: 'Company LinkedIn', lat: 'Latitude', lng: 'Longitude', rating: 'Google rating', reviews: 'Review count', category: 'Category / type', venueType: 'Venue type', notes: 'Notes', logoUrl: 'Logo URL', mapsUrl: 'Google Maps URL' };
   const IMPORT_GUESS = [
     [/^(business|company|firm|name|title|place|business ?name|company ?name)$/i, 'business'], [/^(phone|tel|telephone|phone ?number|mobile|number|phone ?\(?\d*\)?|find ?phone.*|.*phone ?number.*)$/i, 'phone'],
     [/^(website|web|site|url|domain|homepage|website ?url)$/i, 'website'], [/^(e-?mail|email ?address)$|\b(work |find |finder |personal )?e-?mails?\b(?!.*(valid|verif|status))/i, 'email'], [/^(address|street|full ?address|location|formatted ?address)$/i, 'address'],
     [/^(city|town|locality)$/i, 'city'], [/^(owner|contact|contact ?name|person|decision ?maker|owner ?name|first ?name|full ?name)$/i, 'contactName'], [/^(contact ?title|job ?title|role|position)$/i, 'contactTitle'],
+    [/^(venue|venue ?type|place ?type|establishment|venue_type)$/i, 'venueType'],
     [/^(linkedin|contact ?linkedin|linkedin ?url|profile)$/i, 'linkedinUrl'], [/^(company ?linkedin|linkedin ?company)$/i, 'companyLinkedin'], [/^(lat|latitude)$/i, 'lat'], [/^(lng|lon|long|longitude)$/i, 'lng'],
     [/^(rating|stars|google ?rating|score|average ?rating)$/i, 'rating'], [/^(reviews?|reviews? ?count|ratings|user ?ratings ?total|num(ber)? ?(of )?reviews|review ?total|total ?reviews)$/i, 'reviews'], [/^(category|type|categories|main ?category|industry|query)$/i, 'category'],
     [/^(notes?|note|description|comment)$/i, 'notes'], [/^(logo|logo ?url|image|photo)$/i, 'logoUrl'], [/^(maps? ?url|google ?maps? ?url|maps ?link|place ?url|link)$/i, 'mapsUrl'],
@@ -1497,19 +2152,25 @@
   function renderImportPreview() {
     const box = $('#importPreview');
     const { headers, rows, mapping } = importParsed;
-    const used = new Set();
+    const isLoc = importTargetType === 'location';
     box.hidden = false;
     box.innerHTML = `<div class="hint" style="margin:10px 0 0;color:var(--muted);font-size:0.78rem;">${rows.length} row${rows.length === 1 ? '' : 's'} · ${importParsed.hasHeader ? 'first row used as headers' : 'no header row detected — matched by content'}. Check each column — several columns can feed the same field (e.g. multiple "Find Work Email" columns); the first real value wins and "No email found" is ignored:</div>
       <div class="map-grid">${headers.map((h, i) => { const ex = rows.slice(0, 3).map((r) => r[i]).filter(Boolean).join(' · '); return `<div class="mp ${mapping[i] ? 'ok' : ''}"><b title="${esc(h)}">${esc(h)}</b><span class="ex" title="${esc(ex)}">${esc(ex) || '<i>empty</i>'}</span><select data-map-col="${i}">${Object.entries(IMPORT_LABELS).map(([k, l]) => `<option value="${k}" ${mapping[i] === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>`; }).join('')}</div>`;
     const ok = mapping.includes('business');
     $('#importBtn').disabled = !ok;
-    const cat = catById($('#importCategory').value), m = machineById($('#importMachine').value);
+    const cat = isLoc ? { label: $('#importCategory').value } : catById($('#importCategory').value);
+    const m = isLoc && $('#importMachine').value === 'all' ? { name: 'All routes' } : machineById($('#importMachine').value);
     const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
     const has = (field, test) => rows.filter((r) => mapping.some((f, i) => f === field && test(r[i] || ''))).length;
     const nEmail = has('email', (v) => EMAIL_RE.test(v) && !/placeholder@/i.test(v)), nPhone = has('phone', (v) => v.replace(/\D/g, '').length >= 10);
     const multi = Object.entries(mapping.reduce((a, f) => { if (f) a[f] = (a[f] || 0) + 1; return a; }, {})).filter(([, n]) => n > 1).map(([f, n]) => `${IMPORT_LABELS[f]} ×${n}`);
-    $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name} · ${nEmail} with an email, ${nPhone} with a phone${multi.length ? ` · merging columns: ${multi.join(', ')}` : ''}. Businesses already in your list aren't duplicated — their blanks get filled in.` : 'Pick which column is the business name.';
-    $('#importBtn').textContent = ok ? `Import ${rows.length} business${rows.length === 1 ? '' : 'es'}` : 'Import';
+    if (isLoc) {
+      $('#importHint').textContent = ok ? `Import ${rows.length} Machine Locations (${cat.label}) · ${nEmail} with an email, ${nPhone} with a phone${multi.length ? ` · merging columns: ${multi.join(', ')}` : ''}. Host businesses for free machine placement & monthly revenue share (NOT advertisers).` : 'Pick which column is the business name.';
+      $('#importBtn').textContent = ok ? `Import ${rows.length} Machine Location${rows.length === 1 ? '' : 's'}` : 'Import';
+    } else {
+      $('#importHint').textContent = ok ? `Import ${rows.length} as ${cat.label} leads for ${m.name} · ${nEmail} with an email, ${nPhone} with a phone${multi.length ? ` · merging columns: ${multi.join(', ')}` : ''}. Businesses already in your list aren't duplicated — their blanks get filled in.` : 'Pick which column is the business name.';
+      $('#importBtn').textContent = ok ? `Import ${rows.length} Advertiser${rows.length === 1 ? '' : 's'}` : 'Import';
+    }
   }
   $('#importText').addEventListener('input', (e) => prepareImport(e.target.value));
   $('#importFile').addEventListener('change', async (e) => {
@@ -1529,17 +2190,36 @@
   });
   $('#importBtn').addEventListener('click', async () => {
     if (!importParsed) return;
+    const isLoc = importTargetType === 'location';
     const { rows, mapping, raw, filename } = importParsed;
     const objs = rows.map((r) => { const o = {}; mapping.forEach((f, i) => { if (!f || !r[i]) return; (o[f] ||= []).push(r[i]); }); return o; }).filter((o) => o.business);
     $('#importBtn').disabled = true; $('#importBtn').textContent = 'Importing…';
     try {
-      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ categoryId: $('#importCategory').value, machineId: $('#importMachine').value, rows: objs, raw, filename }) });
+      const payload = {
+        targetType: isLoc ? 'location' : 'advertiser',
+        leadType: isLoc ? 'location' : 'advertiser',
+        categoryId: $('#importCategory').value,
+        venueType: isLoc ? $('#importCategory').value : '',
+        machineId: $('#importMachine').value || 'all',
+        rows: objs,
+        raw,
+        filename
+      };
+      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify(payload) });
       try { localStorage.setItem('kwigz-import-target', JSON.stringify({ categoryId: $('#importCategory').value, machineId: $('#importMachine').value })); } catch {}
       const mf = r.import.mergedFields || {}; const mfTxt = Object.entries(mf).map(([k, v]) => `${v} ${k}`).slice(0, 4).join(', ');
-      toast(`${r.import.imported} new${r.import.merged ? ` · ${r.import.merged} existing lead${r.import.merged === 1 ? '' : 's'} filled in${mfTxt ? ` (${mfTxt})` : ''}` : ''}${r.import.duplicates ? ` · ${r.import.duplicates} already complete` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
+      toast(`${r.import.imported} new${r.import.merged ? ` · ${r.import.merged} existing ${isLoc ? 'location' : 'lead'}${r.import.merged === 1 ? '' : 's'} filled in${mfTxt ? ` (${mfTxt})` : ''}` : ''}${r.import.duplicates ? ` · ${r.import.duplicates} already complete` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
       $('#importText').value = ''; $('#importPreview').hidden = true; importParsed = null; $('#importBtn').textContent = 'Import'; $('#importHint').textContent = '';
-      pf = { ...PF_DEFAULT, sort: pf.sort, importId: r.import.id }; try { localStorage.setItem('kwigz-prospect-filters', JSON.stringify(pf)); } catch {}
       $('#importCard').hidden = true;
+      if (isLoc) {
+        locFilters = { ...LOC_FILTERS_DEFAULT, importId: r.import.id };
+        try { localStorage.setItem('kwigz-loc-filters', JSON.stringify(locFilters)); } catch {}
+        switchTab('locations');
+      } else {
+        pf = { ...PF_DEFAULT, sort: pf.sort, importId: r.import.id };
+        try { localStorage.setItem('kwigz-prospect-filters', JSON.stringify(pf)); } catch {}
+        switchTab('prospecting');
+      }
       const ps = await api('/api/prospecting/status').catch(() => null); if (ps) prospecting = { ...ps, credits: prospecting.credits };
       await refreshProspects();
     } catch (err) { toast(err.message); $('#importBtn').disabled = false; $('#importBtn').textContent = 'Import'; }
@@ -1547,21 +2227,46 @@
   function renderImportList() {
     const list = prospecting.imports || [];
     $('#importHistory').querySelector('summary').textContent = `Past imports (${list.length})`;
-    $('#importList').innerHTML = list.slice(0, 20).map((im) => `<div class="import-item">
-        <span class="badge ${pf.importId === im.id ? 'purple' : ''}">${esc(catById(im.categoryId).label)}</span>
-        <span class="sp"><b>${esc(im.filename)}</b> <span class="t">· ${im.imported} new${im.merged ? `, ${im.merged} filled in` : ''}${im.duplicates ? `, ${im.duplicates} dup` : ''}${im.phonesLookedUp ? `, ${im.phonesLookedUp} phones found` : ''} · ${esc(machineById(im.machineId).name)} · ${timeAgo(im.importedAt)}</span></span>
-        <button class="btn btn-sm ${pf.importId === im.id ? 'btn-primary' : ''}" data-import="${esc(im.id)}" data-ia="view">${pf.importId === im.id ? 'Showing' : 'View leads'}</button>
+    $('#importList').innerHTML = list.slice(0, 20).map((im) => {
+      const isLoc = im.targetType === 'location';
+      const isSelected = isLoc ? locFilters.importId === im.id : pf.importId === im.id;
+      const mName = im.machineId === 'all' ? 'All routes' : (machineById(im.machineId)?.name || im.machineId);
+      return `<div class="import-item">
+        <span class="badge ${isLoc ? 'green' : 'purple'}">${isLoc ? 'Venue' : 'Ad'}: ${esc(catById(im.categoryId).label)}</span>
+        <span class="sp"><b>${esc(im.filename)}</b> <span class="t">· ${im.imported} new${im.merged ? `, ${im.merged} filled in` : ''}${im.duplicates ? `, ${im.duplicates} dup` : ''}${im.phonesLookedUp ? `, ${im.phonesLookedUp} phones found` : ''} · ${esc(mName)} · ${timeAgo(im.importedAt)}</span></span>
+        <button class="btn btn-sm ${isSelected ? 'btn-primary' : ''}" data-import="${esc(im.id)}" data-ia="view" data-type="${isLoc ? 'location' : 'advertiser'}">${isSelected ? 'Showing' : isLoc ? 'View venues' : 'View leads'}</button>
         ${im.file ? `<button class="btn btn-sm" data-import="${esc(im.id)}" data-ia="file">Open file</button>` : ''}
-        <button class="btn btn-sm btn-danger" data-import="${esc(im.id)}" data-ia="delete" title="Removes the import record and file. Leads stay.">×</button>
-      </div>`).join('');
+        <button class="btn btn-sm btn-danger" data-import="${esc(im.id)}" data-ia="delete" title="Removes the import record and file. Businesses stay.">×</button>
+      </div>`;
+    }).join('');
   }
   document.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-import]'); if (!t) return;
-    const id = t.dataset.import, ia = t.dataset.ia;
+    const id = t.dataset.import, ia = t.dataset.ia, type = t.dataset.type;
     try {
-      if (ia === 'view') { $('#importCard').hidden = true; resetFilters({ importId: pf.importId === id ? '' : id }); $('#prospectRows')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+      if (ia === 'view') {
+        $('#importCard').hidden = true;
+        if (type === 'location') {
+          setLocFilter({ importId: locFilters.importId === id ? '' : id });
+          switchTab('locations');
+          $('#locationRows')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        } else {
+          resetFilters({ importId: pf.importId === id ? '' : id });
+          switchTab('prospecting');
+          $('#prospectRows')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+      }
       if (ia === 'file') { const r = await fetch(`/api/prospecting/imports/${encodeURIComponent(id)}/file`, { headers: authHeaders() }); if (!r.ok) return toast('File not found'); const url = URL.createObjectURL(await r.blob()); window.open(url, '_blank', 'noopener'); setTimeout(() => URL.revokeObjectURL(url), 60000); }
-      if (ia === 'delete') { if (!confirm('Remove this import record and its file? The leads stay in your list.')) return; await api(`/api/prospecting/imports/${encodeURIComponent(id)}`, { method: 'DELETE' }); prospecting.imports = (prospecting.imports || []).filter((x) => x.id !== id); if (pf.importId === id) pf.importId = ''; renderProspecting(); toast('Import removed'); }
+      if (ia === 'delete') {
+        if (!confirm('Remove this import record and its file? The businesses stay in your list.')) return;
+        await api(`/api/prospecting/imports/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        prospecting.imports = (prospecting.imports || []).filter((x) => x.id !== id);
+        if (pf.importId === id) pf.importId = '';
+        if (locFilters.importId === id) locFilters.importId = '';
+        renderProspecting();
+        renderLocations();
+        toast('Import removed');
+      }
     } catch (err) { toast(err.message); }
   });
 
@@ -1765,6 +2470,152 @@
   });
 
   document.addEventListener('click', async (e) => {
+    const lt = e.target.closest('[data-loc-action]');
+    if (lt) {
+      if (lt.matches('input, textarea, select') || (lt.dataset.locAction === 'toggle' && e.target.closest('a, button, input, select, textarea'))) return;
+      const act = lt.dataset.locAction;
+      const id = lt.dataset.lid;
+      const loc = prospects.find((x) => x.id === id);
+
+      if (act === 'goto') {
+        switchTab('locations');
+        openLocationId = id;
+        renderLocations();
+        $(`tr[data-lid="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        return;
+      }
+
+      if (!loc) return;
+
+      try {
+        if (act === 'toggle') {
+          openLocationId = openLocationId === id ? null : id;
+          locDraftTab = 'visit';
+          renderLocations();
+          return;
+        }
+        if (act === 'tab') {
+          locDraftTab = lt.dataset.tab;
+          renderLocations();
+          return;
+        }
+        if (act === 'mark-won') {
+          await patchProspect(id, { status: 'won' }, 'Marked machine placed! ✓');
+          renderAll();
+          return;
+        }
+        if (act === 'delete') {
+          if (!confirm(`Delete ${loc.business} from machine locations?`)) return;
+          await api(`/api/prospects/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          prospects = prospects.filter((x) => x.id !== id);
+          openLocationId = null;
+          renderAll();
+          toast('Venue deleted');
+          return;
+        }
+        if (act === 'quick-visit' || act === 'open-walkin') {
+          openLocationId = id;
+          locDraftTab = 'visit';
+          renderLocations();
+          $(`tr[data-lid="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          return;
+        }
+        if (act === 'quick-call') {
+          openLocationId = id;
+          locDraftTab = 'call';
+          renderLocations();
+          $(`tr[data-lid="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+          return;
+        }
+        if (act === 'check-walkin') {
+          const note = 'In-person scout visit';
+          const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify({ channel: 'visit', note }) });
+          const i = prospects.findIndex((x) => x.id === id);
+          if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+          toast(`Walk-in visit logged · follow up ${fmtDate(prospect.nextFollowUpAt)}`);
+          renderAll();
+          return;
+        }
+        if (act === 'log-visit') {
+          const note = $('#locVisitNote')?.value?.trim() || 'In-person walk-in scout visit';
+          const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify({ channel: 'visit', note }) });
+          const i = prospects.findIndex((x) => x.id === id);
+          if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+          toast(`Walk-in visit logged · follow-up set for ${fmtDate(prospect.nextFollowUpAt)}`);
+          renderAll();
+          return;
+        }
+        if (act === 'log-call') {
+          const note = $('#locCallNote')?.value?.trim() || 'Phone pitch call';
+          const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify({ channel: 'call', note }) });
+          const i = prospects.findIndex((x) => x.id === id);
+          if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+          toast(`Call logged · follow up ${fmtDate(prospect.nextFollowUpAt)}`);
+          renderAll();
+          return;
+        }
+        if (act === 'copy-loc-draft') {
+          const what = lt.dataset.what;
+          const d = loc.drafts || {};
+          const fu = (loc.outreach || []).length > 0;
+          let text = '';
+          if (what === 'call') text = d.callScript || d.locationCallScript || '';
+          else if (what === 'email') {
+            const em = fu ? (d.locationFollowUpEmail || d.followUpEmail || {}) : (d.locationEmail || d.email || {});
+            text = `Subject: ${em.subject}\n\n${em.body}`;
+          } else if (what === 'sms') {
+            text = fu ? (d.locationFollowUpSms || d.followUpSms || '') : (d.locationSms || d.sms || '');
+          }
+          await copyText(text, 'Copied');
+          return;
+        }
+        if (act === 'send-loc-email') {
+          const to = loc.contacts?.[0]?.email || loc.email || (loc.altEmails || [])[0]?.value;
+          if (!to) return toast('No email address on file');
+          const d = loc.drafts || {};
+          const fu = (loc.outreach || []).length > 0;
+          const em = fu ? (d.locationFollowUpEmail || d.followUpEmail || {}) : (d.locationEmail || d.email || {});
+          const subject = $('[data-loc-draft-key="subject"]')?.value || em.subject || `Free machine placement for ${loc.business}`;
+          const body = $('[data-loc-draft-key="body"]')?.value || em.body || '';
+          window.location.href = mailHref(to, subject, body);
+          const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify({ channel: 'email', note: `Emailed: ${subject}` }) });
+          const i = prospects.findIndex((x) => x.id === id);
+          if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+          toast(`Email opened & touch logged · follow up ${fmtDate(prospect.nextFollowUpAt)}`);
+          renderAll();
+          return;
+        }
+        if (act === 'send-loc-sms') {
+          const to = loc.phone || loc.contacts?.[0]?.mobile;
+          const body = $('[data-loc-draft-key="sms"]')?.value || '';
+          if (to) {
+            const href = `sms:${to.replace(/[^\d+]/g, '')}${navigator.userAgent.includes('iPhone') || navigator.userAgent.includes('Mac') ? '&' : '?'}body=${encodeURIComponent(body)}`;
+            window.location.href = href;
+          } else {
+            await copyText(body, 'SMS text copied — no phone number to launch SMS');
+          }
+          const { prospect } = await api(`/api/prospects/${encodeURIComponent(id)}/outreach`, { method: 'POST', body: JSON.stringify({ channel: 'sms', note: 'Sent SMS pitch' }) });
+          const i = prospects.findIndex((x) => x.id === id);
+          if (i !== -1) prospects[i] = { ...prospects[i], ...prospect };
+          toast(`Text sent & touch logged · follow up ${fmtDate(prospect.nextFollowUpAt)}`);
+          renderAll();
+          return;
+        }
+        if (act === 'contact-add') {
+          await patchProspect(id, { contacts: [...(loc.contacts || []), { name: 'Owner / GM', title: 'Manager', email: '', mobile: '' }] }, 'Contact added');
+          renderLocations();
+          return;
+        }
+        if (act === 'contact-del') {
+          const idx = Number(lt.dataset.idx);
+          await patchProspect(id, { contacts: (loc.contacts || []).filter((_, i) => i !== idx) }, 'Contact removed');
+          renderLocations();
+          return;
+        }
+      } catch (err) { toast(err.message); }
+      return;
+    }
+
     const t = e.target.closest('[data-pa]');
     if (!t) return;
     if (t.matches('input, textarea, select') || (t.dataset.pa === 'toggle' && e.target.closest('a, button, input, select, textarea'))) return;
@@ -1841,6 +2692,42 @@
     } catch (err) { toast(err.message); }
   });
   document.addEventListener('change', async (e) => {
+    const lStatus = e.target.closest('[data-loc-status]');
+    if (lStatus) {
+      const id = lStatus.dataset.locStatus;
+      await patchProspect(id, { status: lStatus.value }, 'Status updated');
+      renderAll();
+      return;
+    }
+    const lFu = e.target.closest('[data-loc-followup]');
+    if (lFu) {
+      const id = lFu.dataset.locFollowup;
+      await patchProspect(id, { nextFollowUpAt: lFu.value }, 'Follow-up date saved');
+      renderAll();
+      return;
+    }
+    const lField = e.target.closest('[data-loc-field]');
+    if (lField) {
+      const id = lField.dataset.lid, key = lField.dataset.locField;
+      const loc = prospects.find((x) => x.id === id);
+      if (loc && (loc[key] || '') !== lField.value.trim()) {
+        await patchProspect(id, { [key]: lField.value.trim() }, 'Saved');
+        renderLocations();
+      }
+      return;
+    }
+    const lCField = e.target.closest('[data-loc-cfield]');
+    if (lCField) {
+      const id = lCField.dataset.lid, key = lCField.dataset.locCfield, idx = Number(lCField.dataset.idx);
+      const loc = prospects.find((x) => x.id === id);
+      if (loc) {
+        const contacts = (loc.contacts || []).map((c, i) => i === idx ? { ...c, [key]: lCField.value.trim() } : c);
+        await patchProspect(id, { contacts }, 'Contact saved');
+        renderLocations();
+      }
+      return;
+    }
+
     const t = e.target.closest('[data-pa="followup"], [data-pa="contact-email"], [data-pa="phone"], [data-pa="pfield"], [data-pa="contact-field"], [data-pa="prefer"]');
     if (!t) return;
     const id = t.dataset.pid; const p = prospects.find((x) => x.id === id); if (!p) return;
@@ -1854,6 +2741,16 @@
     } catch (err) { toast(err.message); }
   });
   document.addEventListener('focusout', async (e) => {
+    const lNotes = e.target.closest('[data-loc-notes]');
+    if (lNotes) {
+      const id = lNotes.dataset.locNotes;
+      const loc = prospects.find((x) => x.id === id);
+      if (loc && loc.notes !== lNotes.value) {
+        await patchProspect(id, { notes: lNotes.value }, 'Notes saved');
+      }
+      return;
+    }
+
     const t = e.target.closest('[data-pa="notes"], [data-pa="draft-field"]');
     if (!t) return;
     const id = t.dataset.pid; const p = prospects.find((x) => x.id === id); if (!p) return;

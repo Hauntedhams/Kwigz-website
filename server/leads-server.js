@@ -756,6 +756,12 @@ async function handleProspectingRoute(req, res, p) {
     const prospects = prospecting.readProspects().map((x) => ({ ...x, previewUrl: x.previewToken ? prospecting.previewUrl(x) : '', mockup: prospecting.mockupSpec(x) }));
     return sendJson(res, 200, { ok: true, count: prospects.length, prospects });
   }
+  if (p === '/api/prospects' && req.method === 'POST') {
+    try {
+      const prospect = prospecting.addProspect(await readJsonBody(req));
+      return sendJson(res, 201, { ok: true, prospect: { ...prospect, previewUrl: prospect.previewToken ? prospecting.previewUrl(prospect) : '', mockup: prospecting.mockupSpec(prospect) } });
+    } catch (err) { return prospectingError(res, err); }
+  }
   if (p === '/api/prospects/generate' && req.method === 'POST') {
     try {
       const body = await readJsonBody(req);
@@ -903,6 +909,26 @@ async function route(req, res) {
     }
     if (p === '/api/leads.csv' && req.method === 'GET') {
       return sendFile(res, CSV_FILE, { 'Content-Disposition': `attachment; filename="kwigz-leads-${todayISO()}.csv"`, 'Cache-Control': 'no-store' });
+    }
+    if (p === '/api/locations.csv' && req.method === 'GET') {
+      const all = prospecting.readProspects().filter((x) => x.leadType === 'location');
+      const cols = ['Business', 'Venue Type', 'Address', 'City', 'State', 'Phone', 'Website', 'Contact Name', 'Contact Title', 'Contact Email', 'Contact Mobile', 'Status', 'Score', 'Next Follow-up', 'Last Touch Date', 'Last Touch Channel', 'Touches Count', 'Rating', 'Reviews', 'Notes'];
+      const csv = [cols, ...all.map((loc) => {
+        const c = loc.contacts?.[0] || {};
+        const lastTouch = loc.outreach?.length ? loc.outreach[loc.outreach.length - 1] : null;
+        return [
+          loc.business, loc.venueType || loc.categoryId || '', loc.address || '', loc.city || '', loc.state || '',
+          loc.phone || '', loc.website || '', c.name || '', c.title || '', c.email || '', c.mobile || '',
+          loc.status || 'new', loc.score ?? '', loc.nextFollowUpAt || '', lastTouch?.at || '', lastTouch?.channel || '', (loc.outreach || []).length,
+          loc.rating ?? '', loc.reviews ?? '', loc.notes || loc.description || '',
+        ];
+      })].map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+      res.writeHead(200, {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="kwigz-machine-locations-${todayISO()}.csv"`,
+        'Cache-Control': 'no-store',
+      });
+      return res.end(csv);
     }
     const leadMatch = p.match(/^\/api\/leads\/([^/]+)$/);
     if (leadMatch && req.method === 'PATCH') return handleLeadPatch(req, res, decodeURIComponent(leadMatch[1]));
