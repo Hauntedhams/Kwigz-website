@@ -78,27 +78,39 @@ Render's disk snapshot/backup facilities. A persistent disk is not an offsite ba
 
 ## Admin dashboard (`/admin`)
 
-Password-protected, single-page, no build step.
+Password-protected, single-page, no build step. Three pages:
 
-- **Overview** — new leads, weekly volume, slots filled, monthly ad revenue, and a
-  *Needs attention* queue (applications to review, unpaid campaigns, creatives
-  awaiting approval, campaigns ready to activate, renewals due).
-- **Leads** — filter by type/status, search, click a row for every field, the
-  uploaded banner, notes, and one-click *Create campaign* for advertiser apps.
-  Export CSV.
-- **Advertisers** — per-machine slot board (10 categories), live revenue, actual
-  rotation length, quoted vs. live play estimates, and buttons for
-  *Send payment link / Mark paid → Approve creative → Activate → End*, plus
-  *Stop billing* on Stripe-billed campaigns. *+ Book* on any open slot.
-- **Calendar** — month timeline of all campaigns (click a bar to edit), plus key
-  dates: starts, renewals, expirations. *Renew +30d* clones a campaign.
-- **Prospects** — every outbound lead in one filterable list; **+ Import list** at the top brings in Google Maps / Clay CSVs. See below.
-- **Outreach** — per-business checklist of email / text / LinkedIn / call / follow-up touches. See below.
+- **Machines** — the main screen. Machines are listed on the left (slots used,
+  live revenue, open units); pick one and the right panel shows its advertisers
+  as numbered slot cards, one per ad category: advertiser, budget, rotation
+  units, a progress bar for the campaign (green live, amber pending, red when
+  ≤ 7 days remain), payment / creative badges, and the next action right on the
+  card (*Send pay link / Mark paid → Approve creative → Activate → Renew / End*).
+  Open slots have **Book advertiser**. Chips filter the grid (*All · Live ·
+  Pending · Open · Needs attention*), **Slots / Timeline** toggles a month
+  calendar of all campaigns, and past / cancelled campaigns sit in a collapsible
+  table underneath. **+ Book advertiser** opens the campaign form, which has a
+  *From a lead* picker that fills in the business from your Leads list and links
+  the two (`campaign.prospectId` / `prospect.campaignId`).
+- **Leads** — one centralized list with three segments: **Advertisers**,
+  **Machine locations** (venues to put a machine in) and **Website inbound**
+  (form submissions). Every row has tick-boxes for the points of contact —
+  **Email · Text · LinkedIn · Call · Visit** — a follow-up date and a status
+  dropdown. Tick a box to log that touch (the follow-up reminder sets itself);
+  untick to undo it. The ↗ next to Email / Text / LinkedIn opens your mail app /
+  Messages / their profile with the draft filled in and ticks the box for you.
+  Click a row for the full detail: editable company / venue fields, extra emails
+  and numbers, decision-makers, notes, the outreach drafts (with the screen
+  mockup and AI art for advertisers), history, and *Won → Book campaign* /
+  *Machine placed*. See *Leads page · filters* below.
+- **Import** — a step-by-step import page: what the list is (advertisers or
+  machine locations), category + machine, file or paste, column check, import.
+  Past imports are listed underneath. See *Import a list* below.
 
 ### Campaign workflow
 
-1. Advertiser applies on the site → shows up as a lead and in *Needs attention*.
-2. **Create campaign** (prefilled from the application). Status `pending`
+1. Advertiser applies on the site → shows up under **Leads → Website inbound**.
+2. **Create campaign from this application** (prefilled) in the lead's detail panel. Status `pending`
    immediately **reserves the category** on that machine — the public site
    pulls `/api/availability` and shows it as taken.
    **+ Add campaign**, **+ Book**, and **Renew** create separate records, even
@@ -115,8 +127,8 @@ Password-protected, single-page, no build step.
 
 ## Prospecting — "Generate leads" (Clay)
 
-The **Prospecting** tab finds local businesses to sell ad slots to, writes the
-outreach, and reminds you to follow up. It talks to Clay's Public API
+The prospecting pipeline finds local businesses to sell ad slots to, writes the
+outreach, and reminds you to follow up (surfaced on the **Leads** page). It talks to Clay's Public API
 (`api.clay.com/public/v0`) directly from the server — zero npm dependencies.
 
 ### Setup (once)
@@ -154,25 +166,27 @@ show live in the tab; businesses already saved or ruled out are never paid for
 twice. Clay's search filters by city, not radius, so the metro list in the config
 should cover every city inside the radius you use.
 
-### Prospects tab · filters
+### Leads page · filters
 
 The admin no longer shows Clay's "Generate leads" controls (lists are built by
 hand in Clay / Google Maps and imported); the server endpoints remain for API use.
-The tab is one list of every prospect with a filter bar: **status** chips with
+Each segment of the Leads page is one list with a filter bar: **status** chips with
 live counts (All, New, Ready to send, Follow-up due, Contacted, Replied, Won,
-Lost), **Category**, **Machine**, **Place** (city, from the lead or its address),
-**Touched** (not contacted yet / contacted / emailed / texted / LinkedIn / called /
-followed up, and "not emailed yet" etc.), **Contact info** (has email / phone /
-both / LinkedIn, missing email, nothing), **From import**, **Sort** (newest, best
-fit, name, follow-up date, closest, most touched) and free-text **Search** across
+Lost), **Category** (or **Venue type** for machine locations), **Machine**, **Place**
+(city, from the lead or its address), **Touched** (not contacted yet / contacted /
+emailed / texted / LinkedIn / called / visited / followed up, and "not emailed
+yet" etc.), **Contact info** (has email / phone / both / LinkedIn / a named
+contact, missing email, nothing), **From import**, **Sort** (newest, follow-up
+date, best fit, name, closest, most touched, most reviews) and free-text **Search** across
 name, contacts, emails, phones, address and notes. Filters persist in the browser;
 *Clear filters* resets them. *Generate outreach* applies to the new leads in the
 current view; **Export CSV** downloads the current view.
 
 ### Import a list
 
-**+ Import list** (top right) opens the import panel: pick the category and
-machine for the file, then choose a CSV/TSV file or
+The **Import** page walks through it: pick whether the list is advertisers or
+machine locations, the category (or venue type) and machine for the file, then
+choose a CSV/TSV file or
 paste from Google Maps / a spreadsheet — any columns, with or without a header row.
 Columns are auto-matched (business name, phone, website, address, email, owner,
 contact title, LinkedIn, lat/lng, rating, reviews, category, notes, logo URL, Maps
@@ -184,7 +198,7 @@ literally. "Person – Brand" names ("Chrissy Davault – Missouri Farm Bureau
 Insurance") lift the person out as the contact. The preview tells you how many
 rows actually carry an email / phone before you import. Rows
 become prospects (badged *Imported*) for the category/machine selected in the panel and
-flow through exactly the same Step 2: drafts, preview page, AI art, Outreach tab.
+flow through exactly the same Step 2: drafts, preview page, AI art, touch tick-boxes.
 Businesses already in your list are **merged, not duplicated**. Matching is by
 name (ignoring "LLC / PLLC / The / Law Firm"…, and "Rinehart Insurance" ⊂
 "Rinehart Insurance Agency"), or by website domain *when the names also line
@@ -211,36 +225,34 @@ LinkedIn, Google Maps link, business phone) is an inline input that saves on blu
 work email, mobile, LinkedIn — with *+ Add decision-maker*, *Make primary* and
 remove. The Email and Text drafts' **To** field becomes a dropdown of every
 address / number on file; your pick is remembered (`preferredEmail` /
-`preferredPhone`) and used by the Send buttons and the Outreach tab. Imports feed
+`preferredPhone`) and used by the Send buttons and the row tick-boxes. Imports feed
 these lists too: a *different* email or number for a business you already have is
-added as an extra rather than dropped. Form leads (Leads tab) get the same
+added as an extra rather than dropped. Website leads (the *Website inbound* segment) get the same
 *Extra emails / Extra phone numbers* editors, stored in `lead-meta.json`.
 
-### Outreach tab
+### Touch tick-boxes & follow-ups
 
-**Outreach** is the day-to-day checklist: one row per business with tick-boxes for
-**Email · Text · LinkedIn · Call · Follow-up**, the next follow-up date and a status
-dropdown. Tick a box to log that touch (sets the follow-up reminder); untick to
-undo it (`DELETE /api/prospects/:id/outreach?channel=…`). The ↗ next to Email /
-Text / LinkedIn opens your mail app / Messages / their profile with the draft
-filled in and ticks the box for you. Any touch after the first counts as a
-follow-up. Filters: To contact · Follow-up due · In progress · Replied · Won ·
-Everything, plus category, machine and search. **Export CSV** downloads the
-current view with all tick counts.
+Every row on the Leads page has tick-boxes for **Email · Text · LinkedIn · Call ·
+Visit**, the next follow-up date and a status dropdown. Tick a box to log that
+touch (sets the follow-up reminder `followUpDays` out); untick to undo it
+(`DELETE /api/prospects/:id/outreach?channel=…`). The ↗ next to Email / Text /
+LinkedIn opens your mail app / Messages / their profile with the draft filled in
+and ticks the box for you; Call and Visit are logged from the detail panel with an
+optional note. Any touch after the first counts as a follow-up. Leads with no
+generated drafts yet get sensible default copy so they can still be contacted.
+**Export CSV** downloads the current segment with all tick counts.
 
-### Machines tab (drag & drop booking)
+### Booking from a lead
 
-**Machines** shows every machine in `ads-config.js` as a card: revenue/month
-(live + booked), units sold of `maxUnits`, what's playing now vs. booked-not-live,
-the rotation loop, and which categories are still open. On the right is the pile of
-**leads ready to place** (Replied / Won prospects not yet on a machine; switch to
-*All leads* to place anyone). **Drag a lead onto a machine** → a campaign is created
-at the budget chosen in the header (start = today + `approvalDays`, 30 days), the
-prospect is marked Won and linked (`campaign.prospectId` / `prospect.campaignId`).
-The card refuses a drop if that category is already taken on that machine or the
-units don't fit. **Drag a booked advertiser** onto another machine to move it, or
-onto the *remove* zone to cancel it (Stripe billing is stopped; the prospect goes
-back to Replied and reappears in the pile). **Edit** opens the normal campaign form.
+On the **Machines** page, **Book advertiser** on an open slot (or **+ Book
+advertiser** at the top) opens the campaign form with a *From a lead* picker
+listing Replied / Won / contacted advertiser leads not already on a machine.
+Choosing one fills in the business, contact, email, phone and website and links
+the records (`campaign.prospectId` / `prospect.campaignId`); the lead is marked
+Won when its campaign is live and goes back to Replied if the campaign is
+cancelled or deleted. *Won → Book campaign* in a lead's detail panel does the
+same from the Leads side. The server refuses a booking if that category is
+already taken on that machine for overlapping dates.
 
 ### Step 2 · Generate outreach & send
 
@@ -262,8 +274,8 @@ Open a lead to review/edit the drafts, download the mockup PNGs, then:
 - **Log call** records a phone call.
 
 Each of those logs the touch, flips the lead to *Contacted*, and sets a follow-up
-date (`followUpDays`, default 2). Due follow-ups appear in **Overview → Needs
-attention** and under the *Follow-up due* filter; the drafts switch to their
+date (`followUpDays`, default 2). Due follow-ups are counted on the **Leads**
+page and highlighted under the *Follow-up due* filter; the drafts switch to their
 follow-up versions automatically. **Won → Book campaign** opens the normal campaign
 form prefilled. **Find mobile** runs Clay's mobile lookup (~10 credits) on demand.
 
@@ -340,7 +352,7 @@ the editable payment-link email.
 ### Everyday flow
 
 1. Create the campaign (needs the advertiser's **email**).
-2. In *Needs attention* or on the slot card click **Send payment link**. A
+2. On the slot card (Machines page) click **Send pay link**. A
    dialog shows the link plus a ready-to-send email — **Open in Mail** opens it
    in your mail app prefilled; edit and send. Links are reused on *Resend*.
 3. Advertiser pays on Stripe's hosted page → lands on `payment-complete.html`
