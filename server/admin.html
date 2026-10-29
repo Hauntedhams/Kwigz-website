@@ -342,6 +342,87 @@
       .main { padding: 20px 16px 60px; }
       .two-col, .form-grid { grid-template-columns: 1fr; }
     }
+
+    /* ---------- mobile admin ---------- */
+    #mob { display: none; }
+    @media (max-width: 700px) {
+      #app { display: none !important; }
+      #app:not([hidden]) ~ #mob { display: block; }
+      body.m-desk #app:not([hidden]) { display: block !important; }
+      body.m-desk .side { display: none; }
+      body.m-desk .main { padding: 70px 12px 40px; }
+      body.m-desk .m-tabs, body.m-desk .m-actions { display: none !important; }
+      body.m-desk #mBody { display: none; }
+      .toast { bottom: 90px; }
+      .m-top { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: #fff; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; padding: 0 10px; z-index: 40; }
+      .m-top img { height: 28px; }
+      .m-title { font-weight: 800; font-size: 0.98rem; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .m-icon { width: 40px; height: 40px; border: 0; background: transparent; font-size: 1.5rem; line-height: 1; cursor: pointer; color: var(--ink); border-radius: 10px; flex: none; }
+      .m-star.on { color: #f5a300; }
+      .m-body { padding: 68px 12px 96px; min-height: 100vh; background: var(--bg); }
+      body.m-lead .m-body { padding-bottom: 150px; }
+      .m-tabs { position: fixed; bottom: 0; left: 0; right: 0; height: 64px; background: #fff; border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(3, 1fr); z-index: 40; padding-bottom: env(safe-area-inset-bottom); }
+      body.m-lead .m-tabs { display: none; }
+      .m-tabs button { border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 0.72rem; font-weight: 700; color: var(--muted); cursor: pointer; position: relative; }
+      .m-tabs button.active { color: var(--red); }
+      .m-tabs .site-icon, .m-ico { width: 22px; height: 22px; font-size: 1.2rem; line-height: 22px; }
+      .m-badge { position: absolute; top: 6px; left: 54%; background: var(--red); color: #fff; border-radius: 50px; font-size: 0.65rem; padding: 1px 6px; }
+      .m-badge:empty { display: none; }
+      .m-actions { position: fixed; bottom: 0; left: 0; right: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--line); z-index: 45; }
+      .m-actions button { border: 2px solid; border-radius: 12px; padding: 14px 0; font-weight: 800; font-size: 1rem; background: #fff; cursor: pointer; }
+      .m-yes { color: var(--green); border-color: var(--green); } .m-yes.on { background: var(--green) !important; color: #fff; }
+      .m-maybe { color: #b7791f; border-color: #e0a526; } .m-maybe.on { background: #e0a526 !important; color: #fff; }
+      .m-no { color: var(--red); border-color: var(--red); } .m-no.on { background: var(--red) !important; color: #fff; }
+      .m-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+      .m-card h3 { margin: 0; font-size: 1.05rem; }
+      .m-sub { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
+      .m-row { display: flex; align-items: center; gap: 10px; }
+      .m-row .grow { flex: 1; min-width: 0; }
+      .m-dol { font-weight: 800; color: var(--green); letter-spacing: 1px; white-space: nowrap; }
+      .m-dol i { font-style: normal; color: #cfd3d9; }
+      .m-fill { font-weight: 800; font-size: 0.82rem; padding: 3px 9px; border-radius: 50px; background: #eef0f3; white-space: nowrap; }
+      .m-fill.full { background: #fde8e8; color: var(--red); }
+      .m-fill.some { background: #e6f6ec; color: var(--green); }
+      .m-cat { background: #fff; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
+      .m-cat > summary { list-style: none; padding: 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 700; }
+      .m-cat > summary::-webkit-details-marker { display: none; }
+      .m-cat > summary .grow { flex: 1; min-width: 0; }
+      .m-cat > summary::after { content: '▾'; color: var(--muted); }
+      .m-cat[open] > summary::after { content: '▴'; }
+      .m-cat-body { padding: 0 14px 14px; border-top: 1px solid var(--line); }
+      .m-camp { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 0.88rem; }
+      .m-camp .grow { flex: 1; min-width: 0; }
+      .m-seg { display: flex; gap: 6px; margin-bottom: 10px; overflow-x: auto; }
+      .m-seg button, .m-chip { flex: none; padding: 8px 14px; border-radius: 50px; border: 1px solid var(--line); background: #fff; font-weight: 700; font-size: 0.8rem; color: var(--muted); cursor: pointer; }
+      .m-seg button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+      .m-chip.active { background: var(--red); color: #fff; border-color: var(--red); }
+      .m-chips { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; padding-bottom: 2px; }
+      .m-stat { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+      .m-stat div { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+      .m-stat b { display: block; font-size: 1.15rem; }
+      .m-stat span { font-size: 0.7rem; color: var(--muted); }
+      .m-dots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+      .m-dots i { width: 8px; height: 8px; border-radius: 50%; background: #dfe3e8; }
+      .m-dots i.on { background: var(--green); }
+      .m-info { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+      .m-info a { color: var(--red); font-weight: 700; text-decoration: none; }
+      .m-info div { margin: 6px 0; font-size: 0.92rem; word-break: break-word; }
+      .m-check { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); font-weight: 700; }
+      .m-check input { width: 24px; height: 24px; flex: none; }
+      .m-check .go { margin-left: auto; }
+      .m-h { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 800; margin: 16px 2px 8px; }
+      .m-more { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 12px; overflow-x: auto; }
+      .m-empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+      .m-scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 60; }
+      .m-menu { position: fixed; top: 0; bottom: 0; left: 0; width: 84%; max-width: 330px; background: #fff; z-index: 61; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+      .m-menu[hidden], .m-scrim[hidden] { display: none; }
+      .m-menu-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+      .m-menu-head img { height: 30px; }
+      .m-menu-sec { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 800; margin: 14px 4px 4px; }
+      .m-menu button, .m-menu a { text-align: left; padding: 13px 12px; border: 0; background: #f6f7f9; border-radius: 10px; font: inherit; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer; }
+      .m-menu .m-icon { background: transparent; padding: 0; }
+      .m-board { background: #fff; border: 1px dashed var(--line); border-radius: 14px; padding: 28px 16px; text-align: center; color: var(--muted); }
+    }
   </style>
 </head>
 <body>
@@ -623,6 +704,49 @@
   </div>
 </dialog>
 
+<!-- MOBILE ADMIN (phones only) -->
+<div id="mob">
+  <header class="m-top">
+    <button class="m-icon" id="mMenuBtn" aria-label="Menu">☰</button>
+    <button class="m-icon" id="mBackBtn" aria-label="Back" hidden>‹</button>
+    <img src="/kwigz-logo-nobg.png" alt="KWIGZ" />
+    <span class="m-title" id="mTitle"></span>
+    <button class="m-icon m-star" id="mStarBtn" aria-label="Star" hidden>☆</button>
+  </header>
+  <div class="m-body" id="mBody"></div>
+  <div class="m-actions" id="mActions" hidden>
+    <button class="m-yes" data-m-decide="yes">✓ Yes</button>
+    <button class="m-maybe" data-m-decide="maybe">? Maybe</button>
+    <button class="m-no" data-m-decide="no">✕ No</button>
+  </div>
+  <nav class="m-tabs" id="mTabs">
+    <button data-m-tab="machines"><svg class="site-icon"><use href="/icons.svg#vending"/></svg>Machines</button>
+    <button data-m-tab="leaders"><span class="m-ico">🏆</span>Leaderboard</button>
+    <button data-m-tab="leads"><svg class="site-icon"><use href="/icons.svg#clipboard"/></svg>Leads<span class="m-badge" id="mLeadBadge"></span></button>
+  </nav>
+  <div class="m-scrim" id="mScrim" hidden></div>
+  <aside class="m-menu" id="mMenu" hidden>
+    <div class="m-menu-head"><img src="/kwigz-logo-nobg.png" alt="KWIGZ" /><button class="m-icon" id="mMenuClose" aria-label="Close">✕</button></div>
+    <input class="inline" id="mSearch" type="search" placeholder="Search leads & advertisers…" />
+    <div class="m-menu-sec">Upload</div>
+    <button data-m-menu="import-advertiser">Upload advertiser list</button>
+    <button data-m-menu="import-location">Upload location list</button>
+    <div class="m-menu-sec">Leads</div>
+    <button data-m-menu="add-lead">+ Add lead</button>
+    <button data-m-menu="generate">Generate outreach</button>
+    <button data-m-menu="inbound">Website inbound leads</button>
+    <button data-m-menu="export-leads">Export leads CSV</button>
+    <div class="m-menu-sec">Advertisers</div>
+    <button data-m-menu="book">+ Book advertiser</button>
+    <button data-m-menu="timeline">Calendar / timeline</button>
+    <button data-m-menu="export-campaigns">Export advertisers CSV</button>
+    <div class="m-menu-sec">Account</div>
+    <button data-m-menu="refresh">Refresh</button>
+    <a href="/" target="_blank" rel="noopener">View site</a>
+    <button data-m-menu="logout">Sign out</button>
+  </aside>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="/ads-config.js"></script>
@@ -755,7 +879,8 @@
   // ---------- data ----------
   async function load() {
     try {
-      const [l, c, p, ps] = await Promise.all([api('/api/leads'), api('/api/campaigns'), api('/api/prospects').catch(() => ({ prospects: [] })), api('/api/prospecting/status').catch(() => null)]);
+      const [l, c, p, ps, mc] = await Promise.all([api('/api/leads'), api('/api/campaigns'), api('/api/prospects').catch(() => ({ prospects: [] })), api('/api/prospecting/status').catch(() => null), api('/api/machines').catch(() => ({ machines: [] }))]);
+      (mc.machines || []).forEach((m) => { if (!ADS.machines.some((x) => x.id === m.id)) ADS.machines.push({ ...m, takenCategories: [], custom: true }); });
       leads = l.leads.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
       campaigns = c.campaigns; stripe = c.stripe || stripe;
       prospects = (p.prospects || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -1819,6 +1944,197 @@
       }
     } catch (err) { toast(err.message); }
   });
+
+  // =====================================================================
+  // MOBILE ADMIN — bottom tabs, machine → lead-type dropdowns, full-screen lead page
+  // =====================================================================
+  const isMob = () => window.matchMedia('(max-width: 700px)').matches;
+  let mTab = 'machines', mMachine = null, mLead = null, mDesk = false, mStarOnly = false, mShown = 60;
+  const DOLLARS = { premium: 4, exclusive: 3, limited: 2, open: 1 };
+  const dollars = (cat) => { const n = DOLLARS[cat.tier] || 1; return `<span class="m-dol" title="Price level">${'$'.repeat(n)}<i>${'$'.repeat(4 - n)}</i></span>`; };
+  const fillOf = (m, cat) => {
+    const n = campaignsOn(m.id).filter((c) => c.categoryId === cat.id).length;
+    const max = ADS.tiers[cat.tier]?.maxPerCategory;
+    return { n, max, html: `<span class="m-fill ${max && n >= max ? 'full' : n ? 'some' : ''}">${n}/${max || '∞'}</span>` };
+  };
+  const mStatusBadge = (p) => `<span class="badge ${p.status === 'won' ? 'green' : followUpDue(p) ? 'amber' : ''}">${esc(followUpDue(p) ? 'Follow-up due' : statusLabel(p))}</span>`;
+  const mDots = (p) => `<span class="m-dots">${CHANNELS.map((ch) => `<i class="${touchCount(p, ch) ? 'on' : ''}" title="${esc(CHANNEL_LABEL[ch])}"></i>`).join('')}</span>`;
+
+  function mMachines() {
+    if (!mMachine) {
+      $('#mTitle').textContent = 'Machines';
+      return ADS.machines.map((m) => {
+        const mine = campaignsOn(m.id), used = unitsOf(mine);
+        const mrr = mine.filter(liveNow).reduce((s, c) => s + (Number(c.budget) || 0), 0);
+        return `<button class="m-card" data-m-machine="${esc(m.id)}"><div class="m-row"><div class="grow"><h3>${esc(m.name)}</h3><div class="m-sub">${esc(m.city)}</div></div><span class="m-fill ${used >= ADS.maxUnits ? 'full' : used ? 'some' : ''}">${used}/${ADS.maxUnits}</span></div><div class="m-sub" style="margin-top:8px;">${mine.filter(liveNow).length} live · ${money(mrr)}/mo · ${Math.max(0, ADS.maxUnits - used)} slots open</div></button>`;
+      }).join('') + (mAddOpen ? `<form class="m-card" id="mAddForm" style="cursor:default;"><h3>Add machine</h3>
+        <input class="inline" name="name" placeholder="Location name (e.g. Office)" required style="width:100%;margin-top:10px;" />
+        <input class="inline" name="city" placeholder="City, State" style="width:100%;margin-top:8px;" />
+        <input class="inline" name="address" placeholder="Street address (optional)" style="width:100%;margin-top:8px;" />
+        <input class="inline" name="venueType" placeholder="Venue type (optional)" style="width:100%;margin-top:8px;" />
+        <input class="inline" name="adHoursPerDay" type="number" min="1" max="24" value="14" style="width:100%;margin-top:8px;" title="Ad hours per day" />
+        <div class="m-row" style="margin-top:12px;"><button type="submit" class="btn btn-primary grow">Save machine</button><button type="button" class="btn" data-m-add-cancel>Cancel</button></div></form>` : '<button class="btn" style="width:100%;padding:14px;" data-m-add-machine>+ Add machine</button>');
+    }
+    const m = machineById(mMachine);
+    $('#mTitle').textContent = m.name;
+    const mine = campaignsOn(m.id), used = unitsOf(mine);
+    const attention = mine.filter((c) => needsAttention(c)).length;
+    const rows = slotCats.map((cat) => {
+      const f = fillOf(m, cat);
+      const camps = mine.filter((c) => c.categoryId === cat.id);
+      const body = camps.map((c) => `<div class="m-camp" data-edit-campaign="${c.id}"><div class="grow"><b>${esc(c.business)}</b><div class="m-sub">${esc(c.status)} · ${money(c.budget)} · ${fmtDate(c.start)} – ${fmtDate(c.end)}</div></div><span>›</span></div>`).join('');
+      const full = f.max && f.n >= f.max;
+      return `<details class="m-cat" data-m-cat="${esc(cat.id)}" ${mOpenCat === cat.id ? 'open' : ''}><summary><div class="grow">${esc(cat.label)}</div>${dollars(cat)}${f.html}</summary><div class="m-cat-body">${body || '<div class="m-sub" style="padding:10px 0;">No advertiser yet.</div>'}${full ? '' : `<button class="btn btn-sm btn-dark" style="margin-top:10px;" data-book-slot="${esc(m.id)}" data-cat="${esc(cat.id)}">+ Book advertiser</button>`}</div></details>`;
+    }).join('');
+    return `<div class="m-stat"><div><b>${used}/${ADS.maxUnits}</b><span>slots filled</span></div><div><b>${mine.filter(liveNow).length}</b><span>live now</span></div><div><b>${attention}</b><span>need attention</span></div></div><div class="m-sub" style="margin:0 2px 10px;">${esc(m.address || m.city)}</div>${rows}`;
+  }
+  let mOpenCat = null, mAddOpen = false;
+
+  function mLeaders() {
+    $('#mTitle').textContent = 'Leaderboard';
+    return '<div class="m-board"><div style="font-size:2rem;">🏆</div><h3 style="margin:8px 0 4px;color:var(--ink);">Leaderboard coming soon</h3><div>Salespeople will be ranked here by sales logged.</div></div>';
+  }
+
+  function mLeads() {
+    $('#mTitle').textContent = 'Leads';
+    const seg = (k, l) => `<button class="${lf.seg === k ? 'active' : ''}" data-m-seg="${k}">${l}</button>`;
+    let html = `<div class="m-seg">${seg('advertiser', 'Advertisers')}${seg('location', 'Locations')}${seg('inbound', 'Website')}</div>`;
+    if (lf.seg === 'inbound') {
+      const rows = leads.slice().sort((a, b) => String(b.receivedAt).localeCompare(String(a.receivedAt)));
+      return html + (rows.map((l) => `<button class="m-card" data-m-inlead="${esc(l.id)}"><div class="m-row"><div class="grow"><h3>${esc(leadName(l))}</h3><div class="m-sub">${esc(l.email || '')} · ${timeAgo(l.receivedAt)}</div></div>${typeBadge(l.type)}</div></button>`).join('') || '<div class="m-empty">No website leads yet.</div>');
+    }
+    const L = lf.seg === 'location' ? LOC_STATUS_LABEL : P_STATUS_LABEL;
+    const chips = [['', 'All'], ['new', 'New'], ['due', 'Follow-up'], ['contacted', L.contacted], ['replied', L.replied], ['won', L.won], ['lost', 'Lost']];
+    html += `<div class="m-chips"><button class="m-chip ${mStarOnly ? 'active' : ''}" data-m-star-filter>★ Starred</button>${chips.map(([k, l]) => `<button class="m-chip ${lf.status === k ? 'active' : ''}" data-m-status="${k}">${l}</button>`).join('')}</div>`;
+    if (lf.q) html += `<div class="m-chips"><button class="m-chip active" data-m-clearq>Search: ${esc(lf.q)} ✕</button></div>`;
+    const rows = filteredProspects().filter((p) => !mStarOnly || p.starred).sort((a, b) => Boolean(b.starred) - Boolean(a.starred));
+    html += rows.slice(0, mShown).map((p) => {
+      const cat = ADS.categories.find((c) => c.id === p.categoryId);
+      const sub = [catLabel(p), placeOf(p), p.distanceMiles != null ? `${Math.round(p.distanceMiles)} mi` : ''].filter(Boolean).join(' · ');
+      return `<button class="m-card" data-m-open="${esc(p.id)}"><div class="m-row"><div class="grow"><h3>${p.starred ? '<span style="color:#f5a300;">★</span> ' : ''}${esc(p.business)}</h3><div class="m-sub">${esc(sub)}</div></div>${!isLoc(p) && cat ? dollars(cat) : ''}</div><div class="m-sub" style="margin-top:8px;">${mStatusBadge(p)}${mDots(p)}</div></button>`;
+    }).join('');
+    if (rows.length > mShown) html += `<button class="btn" style="width:100%;" data-m-more>Show more (${rows.length - mShown} left)</button>`;
+    return html + (rows.length ? '' : '<div class="m-empty">No leads match.</div>');
+  }
+
+  function mLeadPage(p) {
+    $('#mTitle').textContent = p.business;
+    const phone = pickPhone(p), email = pickEmail(p), c = primaryContact(p);
+    const info = [
+      c?.name ? `<div><b>${esc(c.name)}</b>${c.title ? ` · ${esc(c.title)}` : ''}</div>` : '',
+      phone ? `<div>📞 <a href="tel:${esc(phone.e164 || phone.value)}">${esc(phone.value)}</a></div>` : '',
+      email ? `<div>✉️ <a href="mailto:${esc(email.value)}">${esc(email.value)}</a></div>` : '',
+      p.address ? `<div>📍 <a href="https://maps.google.com/?q=${encodeURIComponent(p.address)}" target="_blank" rel="noopener">${esc(p.address)}</a>${p.distanceMiles != null ? ` · ${Math.round(p.distanceMiles)} mi drive` : ''}</div>` : '',
+      `<div class="m-sub">${esc(catLabel(p))} · ${mStatusBadge(p)}</div>`,
+    ].join('');
+    const checks = CHANNELS.map((ch) => {
+      const n = touchCount(p, ch);
+      const go = ['email', 'sms', 'linkedin'].includes(ch) ? `<button class="btn btn-sm go" data-pa="send" data-pid="${esc(p.id)}" data-channel="${ch}">Open ↗</button>` : '';
+      return `<label class="m-check"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${n ? 'checked' : ''} />${esc(CHANNEL_LABEL[ch])}${n > 1 ? ` ×${n}` : ''}${go}</label>`;
+    }).join('');
+    return `<div class="m-info">${info}</div><div class="m-h">Outreach checklist</div><div class="m-info" style="padding-top:2px;padding-bottom:2px;">${checks}</div><div class="m-h">Everything else</div><div class="m-more">${prospectDetail(p)}</div>`;
+  }
+
+  function renderMobile() {
+    if (!isMob() || $('#app').hidden) return;
+    document.body.classList.toggle('m-desk', mDesk);
+    const p = mLead && !mLead.inbound ? prospects.find((x) => x.id === mLead.id) : null;
+    const inl = mLead?.inbound ? leads.find((x) => x.id === mLead.id) : null;
+    if (mLead && !p && !inl) mLead = null;
+    document.body.classList.toggle('m-lead', Boolean(mLead));
+    $$('#mTabs button').forEach((b) => b.classList.toggle('active', b.dataset.mTab === mTab));
+    $('#mLeadBadge').textContent = $('#navLeadCount').textContent === '0' ? '' : $('#navLeadCount').textContent;
+    const sub = Boolean(mLead) || (mTab === 'machines' && mMachine) || mDesk;
+    $('#mBackBtn').hidden = !sub; $('#mMenuBtn').hidden = sub;
+    $('#mStarBtn').hidden = !p; $('#mStarBtn').classList.toggle('on', Boolean(p?.starred)); $('#mStarBtn').textContent = p?.starred ? '★' : '☆';
+    $('#mActions').hidden = !p || mDesk;
+    const body = $('#mBody'), top = body.scrollTop;
+    if (p) {
+      body.innerHTML = mLeadPage(p);
+      const fu = p.status === 'contacted' && p.nextFollowUpAt;
+      $$('#mActions button').forEach((b) => b.classList.toggle('on', (b.dataset.mDecide === 'yes' && p.status === 'won') || (b.dataset.mDecide === 'no' && ['lost', 'skipped'].includes(p.status)) || (b.dataset.mDecide === 'maybe' && Boolean(fu))));
+      if (!isLoc(p)) renderMockup(p);
+    } else if (inl) {
+      $('#mTitle').textContent = leadName(inl);
+      body.innerHTML = `<div class="m-more">${leadDetailPanel(inl)}</div>`;
+      hydrateBanners();
+    } else body.innerHTML = mTab === 'machines' ? mMachines() : mTab === 'leaders' ? mLeaders() : mLeads();
+    if (!mLead) body.scrollTop = top;
+  }
+
+  const mGo = (patch) => { if ('tab' in patch) mTab = patch.tab; if ('machine' in patch) mMachine = patch.machine; if ('lead' in patch) mLead = patch.lead; if ('desk' in patch) mDesk = patch.desk; window.scrollTo({ top: 0 }); renderMobile(); };
+  const mDeskOpen = (panel) => { switchTab(panel); mDesk = true; closeMenu(); renderMobile(); };
+  function closeMenu() { $('#mMenu').hidden = true; $('#mScrim').hidden = true; }
+
+  // keep the phone layout in sync with the shared renderers; the desktop lead drawer is never opened on phones
+  const baseRenderLeads = renderLeads, baseRenderMachines = renderMachines;
+  renderLeads = function () {
+    if (isMob() && openProspectId) { mLead = { id: openProspectId }; mTab = 'leads'; mDesk = false; openProspectId = null; }
+    baseRenderLeads(); renderMobile();
+  };
+  renderMachines = function () { baseRenderMachines(); renderMobile(); };
+  window.addEventListener('resize', () => { if (!isMob()) document.body.classList.remove('m-desk', 'm-lead'); else renderMobile(); });
+
+  $('#mTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-m-tab]'); if (b) mGo({ tab: b.dataset.mTab, machine: null, lead: null, desk: false }); });
+  $('#mMenuBtn').addEventListener('click', () => { $('#mMenu').hidden = false; $('#mScrim').hidden = false; });
+  $('#mMenuClose').addEventListener('click', closeMenu);
+  $('#mScrim').addEventListener('click', closeMenu);
+  $('#mBackBtn').addEventListener('click', () => {
+    if (mLead) mGo({ lead: null }); else if (mDesk) mGo({ desk: false }); else mGo({ machine: null });
+  });
+  $('#mStarBtn').addEventListener('click', async () => { const p = mLead && prospects.find((x) => x.id === mLead.id); if (!p) return; try { await patchProspect(p.id, { starred: !p.starred }); renderMobile(); } catch (err) { toast(err.message); } });
+  $('#mSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { lf = { ...lf, q: e.target.value.trim() }; if (lf.seg === 'inbound') lf.seg = 'advertiser'; mShown = 60; mGo({ tab: 'leads', machine: null, lead: null, desk: false }); }, 250); });
+  $('#mSearch').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); closeMenu(); } });
+
+  $('#mActions').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-m-decide]'); const p = mLead && prospects.find((x) => x.id === mLead.id);
+    if (!b || !p) return;
+    try {
+      if (b.dataset.mDecide === 'yes') { await patchProspect(p.id, { status: 'won' }, 'Marked won'); if (!isLoc(p)) campaignFromProspect(prospects.find((x) => x.id === p.id)); }
+      else if (b.dataset.mDecide === 'no') await patchProspect(p.id, { status: 'lost' }, 'Marked lost');
+      else await patchProspect(p.id, { status: 'contacted', nextFollowUpAt: addDays(todayISO, prospecting.defaults.followUpDays || 3) }, 'Maybe — follow-up set');
+      renderAll();
+    } catch (err) { toast(err.message); }
+  });
+
+  $('#mob').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-m-machine], [data-m-seg], [data-m-status], [data-m-star-filter], [data-m-clearq], [data-m-open], [data-m-inlead], [data-m-more], [data-m-menu], [data-m-add-machine], [data-m-add-cancel]');
+    if (!t) return;
+    const d = t.dataset;
+    if (d.mAddMachine !== undefined) { mAddOpen = true; renderMobile(); }
+    else if (d.mAddCancel !== undefined) { mAddOpen = false; renderMobile(); }
+    else if (d.mMachine) mGo({ machine: d.mMachine });
+    else if (d.mSeg) { mShown = 60; lf = { ...lf, seg: d.mSeg, status: '', category: '', importId: '' }; renderLeads(); }
+    else if (d.mStatus !== undefined) { mShown = 60; lf = { ...lf, status: d.mStatus }; renderLeads(); }
+    else if (d.mStarFilter !== undefined) { mStarOnly = !mStarOnly; renderMobile(); }
+    else if (d.mClearq !== undefined) { $('#mSearch').value = ''; lf = { ...lf, q: '' }; renderLeads(); }
+    else if (d.mOpen) mGo({ lead: { id: d.mOpen } });
+    else if (d.mInlead) mGo({ lead: { id: d.mInlead, inbound: true } });
+    else if (d.mMore !== undefined) { mShown += 60; renderMobile(); }
+    else if (d.mMenu) {
+      const a = d.mMenu; closeMenu();
+      if (a === 'import-advertiser' || a === 'import-location') { setImportType(a.split('-')[1]); mDeskOpen('import'); }
+      else if (a === 'add-lead') $('#addLeadBtn').click();
+      else if (a === 'generate') { mGo({ tab: 'leads', machine: null, lead: null, desk: false }); if ($('#draftBtn').disabled) toast('No new leads to draft for'); else $('#draftBtn').click(); }
+      else if (a === 'inbound') { lf = { ...lf, seg: 'inbound' }; mGo({ tab: 'leads', machine: null, lead: null, desk: false }); renderLeads(); }
+      else if (a === 'export-leads') $('#leadExport').click();
+      else if (a === 'book') openCampaign();
+      else if (a === 'timeline') { machView = 'timeline'; selMachine = mMachine || 'all'; mDeskOpen('machines'); renderMachines(); }
+      else if (a === 'export-campaigns') $('#campaignExport').click();
+      else if (a === 'refresh') $('#refreshBtn').click();
+      else if (a === 'logout') $('#logoutBtn').click();
+    }
+  });
+  $('#mBody').addEventListener('submit', async (e) => {
+    if (e.target.id !== 'mAddForm') return;
+    e.preventDefault();
+    try {
+      const r = await api('/api/machines', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+      ADS.machines.push({ ...r.machine, takenCategories: [], custom: true });
+      mAddOpen = false; toast('Machine added'); renderAll();
+    } catch (err) { toast(err.message); }
+  });
+  $('#mBody').addEventListener('toggle', (e) => { const d = e.target.closest?.('[data-m-cat]'); if (d && d.open) mOpenCat = d.dataset.mCat; else if (d && mOpenCat === d.dataset.mCat) mOpenCat = null; }, true);
 
   tryEnter();
 })();

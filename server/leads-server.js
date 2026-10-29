@@ -48,6 +48,7 @@ const CSV_FILE = path.join(DATA_DIR, 'leads.csv');
 const LEAD_META_FILE = path.join(DATA_DIR, 'lead-meta.json');
 const CAMPAIGNS_FILE = path.join(DATA_DIR, 'campaigns.json');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const MACHINES_FILE = path.join(DATA_DIR, 'machines.json');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || process.env.LEADS_TOKEN || '';
 const PRODUCTION = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 if (PRODUCTION && ADMIN_PASSWORD.length < 24) {
@@ -113,6 +114,8 @@ const MIME = {
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 ensureCsvHeader();
+// Machines added from the admin live in machines.json and are never shown on the public site.
+for (const m of readJson(MACHINES_FILE, [])) if (!ADS.machines.some((x) => x.id === m.id)) ADS.machines.push({ ...m, takenCategories: [], custom: true });
 const prospecting = createProspecting({ dataDir: DATA_DIR, ads: ADS, config: prospectingConfig, clay, gemini, siteUrl: SITE_URL, log: console.log });
 
 // ---------- storage helpers ----------
@@ -951,6 +954,19 @@ async function route(req, res) {
       return sendJson(res, 200, { ok: true, campaigns: readCampaigns(), stripe: { enabled: Boolean(STRIPE_SECRET_KEY), mode: STRIPE_MODE, webhook: Boolean(STRIPE_WEBHOOK_SECRET) } });
     }
     if (p === '/api/campaigns' && req.method === 'POST') return handleCampaignPost(req, res);
+    if (p === '/api/machines' && req.method === 'GET') return sendJson(res, 200, { ok: true, machines: readJson(MACHINES_FILE, []) });
+    if (p === '/api/machines' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const name = String(body.name || '').trim().slice(0, 80);
+      if (!name) return sendJson(res, 400, { ok: false, error: 'Machine name is required' });
+      const hours = Math.min(24, Math.max(1, Number(body.adHoursPerDay) || 14));
+      let id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'machine';
+      while (ADS.machines.some((x) => x.id === id)) id += '-2';
+      const machine = { id, name, city: String(body.city || '').trim().slice(0, 80), venueType: String(body.venueType || '').trim().slice(0, 60), address: String(body.address || '').trim().slice(0, 160), adHoursPerDay: hours };
+      writeJson(MACHINES_FILE, [...readJson(MACHINES_FILE, []), machine]);
+      ADS.machines.push({ ...machine, takenCategories: [], custom: true });
+      return sendJson(res, 200, { ok: true, machine });
+    }
     const campMatch = p.match(/^\/api\/campaigns\/([^/]+)$/);
     if (campMatch && req.method === 'PATCH') return handleCampaignPatch(req, res, campMatch[1]);
     if (campMatch && req.method === 'DELETE') return handleCampaignDelete(res, campMatch[1]);

@@ -716,6 +716,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     if (body.wallSpace !== undefined) p.wallSpace = clean(body.wallSpace, 60);
     if (body.age21 !== undefined) p.age21 = clean(body.age21, 20);
     if (body.machineSize !== undefined) p.machineSize = clean(body.machineSize, 40);
+    if (body.starred !== undefined) p.starred = Boolean(body.starred);
     if (body.notes !== undefined) p.notes = clean(body.notes, 4000);
     if (body.nextFollowUpAt !== undefined) { const v = clean(body.nextFollowUpAt, 10); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('nextFollowUpAt must be YYYY-MM-DD'); p.nextFollowUpAt = v; }
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
