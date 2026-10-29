@@ -8,12 +8,14 @@ window.KWIGZ_ADS = {
   approvalDays: 3,       // estimated days from application to going live
   bannerSize: { width: 1080, height: 441 },
 
+  // callOnly tiers show "Schedule a call" on the site instead of prices; the prices
+  // stay here for admin quoting and booking.
   // Pricing tiers (per the KWIGZ sales one-pager). Every advertiser takes 1 of the
   // maxUnits rotation slots; maxPerCategory caps how many advertisers of the same
   // category can share one machine (null = no cap, until the machine is full).
   tiers: {
-    premium:   { label: 'Full Exclusive', prices: [500],           maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
-    exclusive: { label: 'Full Exclusive', prices: [300, 400],      maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
+    premium:   { label: 'Full Exclusive', callOnly: true, prices: [500],           maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
+    exclusive: { label: 'Full Exclusive', callOnly: true, prices: [300, 400],      maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
     limited:   { label: 'Limited',        prices: [150, 200, 250], maxPerCategory: 2,    note: 'Limited to 1–2 advertisers per category on this machine.' },
     open:      { label: 'Multiple OK',    prices: [75, 100, 125],  maxPerCategory: null, note: 'Multiple businesses in your category can advertise here.' },
   },

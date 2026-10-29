@@ -228,15 +228,22 @@ if (qualifier) {
     const budgetNote = document.getElementById('budgetNote');
     const tierBanner = document.getElementById('tierBanner');
     const tierTable = document.getElementById('tierTable');
-    const priceRange = (t) => t.prices.length > 1 ? `${money(t.prices[0])}–${t.prices[t.prices.length - 1]}` : money(t.prices[0]);
+    const priceRange = (t) => t.callOnly ? 'Schedule a call' : t.prices.length > 1 ? `${money(t.prices[0])}–${t.prices[t.prices.length - 1]}` : money(t.prices[0]);
     const renderBudgets = (m) => {
       const tier = ADS.tierFor(answers.categoryId);
       const tierKey = Object.keys(ADS.tiers).find(k => ADS.tiers[k] === tier);
       answers.tier = tier.label;
       const plays = Math.round(estimateMonthlyPlays(m, 1));
-      const popular = tier.prices.length === 3 ? 1 : -1;
+      const popular = !tier.callOnly && tier.prices.length === 3 ? 1 : -1;
+      document.getElementById('planTitle').textContent = tier.callOnly ? 'Your spot is exclusive' : 'Choose your monthly plan';
       tierBanner.innerHTML = `<span class="tier-pill">${tier.label}</span><span>${answers.category} — ${tier.note}</span>`;
-      budgetGrid.innerHTML = tier.prices.map((amount, i) => `
+      budgetGrid.innerHTML = tier.callOnly ? `
+        <button type="button" class="budget-card call-card" id="callCard">
+          <span class="budget-amount call-title">Schedule a call</span>
+          <span class="budget-units">${tier.label}</span>
+          <span class="budget-plays">~${fmt(plays)}</span>
+          <span class="budget-plays-label">scheduled plays / month</span>
+        </button>` : tier.prices.map((amount, i) => `
         <button type="button" class="budget-card ${i === popular ? 'is-popular' : ''}" data-amount="${amount}">
           ${i === popular ? '<span class="budget-pop">Most popular</span>' : ''}
           <span class="budget-amount">${money(amount)}<small>/mo</small></span>
@@ -244,14 +251,31 @@ if (qualifier) {
           <span class="budget-plays">~${fmt(plays)}</span>
           <span class="budget-plays-label">scheduled plays / month</span>
         </button>`).join('');
-      tierTable.innerHTML = Object.entries(ADS.tiers).map(([key, t]) => {
-        const cats = ADS.categories.filter(c => c.tier === key && c.id !== 'other').map(c => c.label).join(' • ');
-        return `<div class="tier-row ${key === tierKey ? 'is-yours' : ''}">
-          <div><span class="tier-price">${priceRange(t)}</span><span class="tier-name">${t.label}${t.maxPerCategory === 2 ? ' (1–2)' : ''}</span></div>
+      // Call-only tiers collapse into one row since neither shows a price.
+      const rows = [];
+      Object.entries(ADS.tiers).forEach(([key, t]) => {
+        const prev = rows[rows.length - 1];
+        if (t.callOnly && prev && prev.t.callOnly) { prev.keys.push(key); return; }
+        rows.push({ keys: [key], t });
+      });
+      tierTable.innerHTML = rows.map(({ keys, t }) => {
+        const cats = ADS.categories.filter(c => keys.includes(c.tier) && c.id !== 'other').map(c => c.label).join(' • ');
+        const key = keys.includes(tierKey) ? tierKey : keys[0];
+        return `<div class="tier-row ${keys.includes(tierKey) ? 'is-yours' : ''}">
+          <div><span class="tier-price ${t.callOnly ? 'is-call' : ''}">${priceRange(t)}</span><span class="tier-name">${t.label}${t.maxPerCategory === 2 ? ' (1–2)' : ''}</span></div>
           <div class="tier-cats">${cats}${key === 'open' ? ' • Other Small Businesses' : ''}</div>
         </div>`;
       }).join('') + '<div class="tier-extra">Exclusive clients can add a 2nd or 3rd spot at a premium — ask us after you apply.</div>';
       budgetNote.textContent = `Estimates assume ${ADS.bannerSeconds}-second banners, ${m.adHoursPerDay} advertising hours/day at ${m.name}, and a fully booked ${ADS.maxUnits}-slot rotation — a lighter rotation means more plays. Scheduled plays are calculated rotations, not guaranteed views.`;
+      if (tier.callOnly) {
+        document.getElementById('callCard').addEventListener('click', () => {
+          answers.budget = undefined;
+          answers.units = undefined;
+          answers.estPlays = plays;
+          showStep('a-call');
+        });
+        return;
+      }
       budgetGrid.querySelectorAll('.budget-card').forEach(card => {
         card.addEventListener('click', () => {
           const b = ADS.budgets.find(x => x.amount === Number(card.dataset.amount));

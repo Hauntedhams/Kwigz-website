@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=9" />
+  <link rel="stylesheet" href="styles.css?v=10" />
   <link rel="stylesheet" href="icons.css?v=1" />
 </head>
 <body class="home">
@@ -237,7 +237,7 @@
         <div class="q-step" data-step="a3">
           <div class="q-progress"><span style="width:60%"></span></div>
           <p class="q-count">Step 3 of 5</p>
-          <h3 class="q-question">Choose your monthly plan</h3>
+          <h3 class="q-question" id="planTitle">Choose your monthly plan</h3>
           <div class="offer-box">
             <h4>The offer</h4>
             <ul>
@@ -251,6 +251,48 @@
           <div class="tier-table" id="tierTable"></div>
           <p class="q-fine" id="budgetNote"></p>
           <button type="button" class="q-back" data-back="a2">← Back</button>
+        </div>
+
+        <div class="q-step" data-step="a-call">
+          <div class="q-progress"><span style="width:80%"></span></div>
+          <p class="q-count">Full Exclusive</p>
+          <h3 class="q-question">Schedule a call</h3>
+          <p class="q-help" id="callHelp">Exclusive spots are priced per business. Leave your details and we'll call you to go over availability and pricing.</p>
+          <form class="lead-form lead-form-wide" id="advertiserCallForm" data-type="advertiser-call-request" novalidate>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="call-business">Business name *</label>
+                <input type="text" id="call-business" name="businessName" placeholder="Desert Ink Tattoo" required autocomplete="organization" />
+              </div>
+              <div class="form-group">
+                <label for="call-contact">Contact name *</label>
+                <input type="text" id="call-contact" name="contactName" placeholder="Jane Doe" required autocomplete="name" />
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="call-phone">Phone *</label>
+                <input type="tel" id="call-phone" name="phone" placeholder="(555) 123-4567" required autocomplete="tel" />
+              </div>
+              <div class="form-group">
+                <label for="call-email">Email *</label>
+                <input type="email" id="call-email" name="email" placeholder="jane@yourbusiness.com" required autocomplete="email" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="call-time">Best time to call <span class="label-opt">(optional)</span></label>
+              <input type="text" id="call-time" name="bestTime" placeholder="Weekdays after 2pm" />
+            </div>
+            <button type="submit" class="btn btn-lg btn-full">Request a Call</button>
+            <p class="lead-error" hidden></p>
+            <p class="lead-fine">No payment and no commitment. We'll reach out within 24 hours.</p>
+          </form>
+          <div class="lead-done q-result" hidden>
+            <div class="success-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#check"></use></svg></div>
+            <h4>Call request received!</h4>
+            <p>We'll call you within 24 hours to go over your exclusive spot.</p>
+          </div>
+          <button type="button" class="q-back" data-back="a3">← Back</button>
         </div>
 
         <div class="q-step" data-step="a4">
@@ -352,7 +394,7 @@
     </div>
   </footer>
 
-  <script src="ads-config.js?v=3"></script>
-  <script src="script.js?v=10"></script>
+  <script src="ads-config.js?v=4"></script>
+  <script src="script.js?v=11"></script>
 </body>
 </html>
