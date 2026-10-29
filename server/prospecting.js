@@ -167,7 +167,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   const categoryById = (id) => ads.categories.find((c) => c.id === id);
   const catConfig = (id) => config.categories[id];
   const metroFor = (machineId) => config.metros[machineId] || config.defaultMetro;
-  const price = () => ads.budgets[0]?.amount || 200;
+  const price = (categoryId) => (ads.tierFor ? ads.tierFor(categoryId).prices[0] : ads.budgets[0]?.amount) || 200;
   const playsFor = (machine, units = ads.budgets[0]?.units || 1) => Math.round(machine.adHoursPerDay * 3600 * ads.campaignDays * units / (ads.bannerSeconds * ads.maxUnits));
 
   function status() {
@@ -662,7 +662,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       business: p.business, tagline: pickSpecialty(p) || pitch.tagline, cta: pitch.cta, phone: p.phone || '', city: p.city || '', website: p.domain || '',
       categoryId: category.id, categoryLabel: category.label, categoryIcon: category.icon, hasLogo: Boolean(p.logoUrl), art: Boolean(selectedArt(p)),
       machine: { name: machine.name, city: machine.city, address: machine.address || '', venueType: machine.venueType || '' },
-      price: price(), plays: playsFor(machine), bannerSeconds: ads.bannerSeconds, bannerSize: ads.bannerSize, siteUrl,
+      price: price(p.categoryId), plays: playsFor(machine), bannerSeconds: ads.bannerSeconds, bannerSize: ads.bannerSize, siteUrl,
     };
   }
 

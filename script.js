@@ -144,7 +144,10 @@ if (qualifier) {
         if (!data || !Array.isArray(data.machines)) return;
         data.machines.forEach(live => {
           const m = ADS.machines.find(x => x.id === live.id);
-          if (m) m.takenCategories = Array.from(new Set([...(m.takenCategories || []), ...live.takenCategories]));
+          if (m) {
+            m.takenCategories = Array.from(new Set([...(m.takenCategories || []), ...live.takenCategories]));
+            m.counts = live.counts || {};
+          }
         });
       })
       .catch(err => console.warn('Live availability could not be loaded; final availability will be confirmed on review.', err));
@@ -194,12 +197,12 @@ if (qualifier) {
     const renderMachines = () => {
       machineList.innerHTML = ADS.machines.map(m => {
         const taken = m.takenCategories.includes(answers.categoryId);
-        const openCount = ADS.categories.filter(c => c.id !== 'other' && !m.takenCategories.includes(c.id)).length;
+        const spotsOpen = Math.max(0, ADS.maxUnits - Object.values(m.counts || {}).reduce((a, n) => a + n, 0));
         return `<button type="button" class="machine-card ${taken ? 'is-taken' : ''}" data-machine="${m.id}">
           <div class="machine-info">
             <h4>${m.name}</h4>
             <p>${m.city} · ${m.adHoursPerDay} advertising hrs/day</p>
-            <span class="machine-open">${openCount} of ${ADS.maxUnits} categories open</span>
+            <span class="machine-open">${spotsOpen} of ${ADS.maxUnits} ad spots open</span>
           </div>
           <span class="avail-badge ${taken ? 'taken' : 'open'}">${icon(taken ? 'lock' : 'check-circle')} ${answers.category} ${taken ? 'taken' : 'available'}</span>
         </button>`;
@@ -220,19 +223,35 @@ if (qualifier) {
       });
     };
 
-    // Step 3: budgets with live play estimates
+    // Step 3: tiered pricing for the chosen category
     const budgetGrid = document.getElementById('budgetGrid');
     const budgetNote = document.getElementById('budgetNote');
+    const tierBanner = document.getElementById('tierBanner');
+    const tierTable = document.getElementById('tierTable');
+    const priceRange = (t) => t.prices.length > 1 ? `${money(t.prices[0])}–${t.prices[t.prices.length - 1]}` : money(t.prices[0]);
     const renderBudgets = (m) => {
-      budgetGrid.innerHTML = ADS.budgets.map((b, i) => `
-        <button type="button" class="budget-card ${i === ADS.budgets.length - 2 ? 'is-popular' : ''}" data-amount="${b.amount}">
-          ${i === ADS.budgets.length - 2 ? '<span class="budget-pop">Most popular</span>' : ''}
-          <span class="budget-amount">${money(b.amount)}<small>/mo</small></span>
-          <span class="budget-units">${b.units}× rotation</span>
-          <span class="budget-plays">~${fmt(estimateMonthlyPlays(m, b.units))}</span>
+      const tier = ADS.tierFor(answers.categoryId);
+      const tierKey = Object.keys(ADS.tiers).find(k => ADS.tiers[k] === tier);
+      answers.tier = tier.label;
+      const plays = Math.round(estimateMonthlyPlays(m, 1));
+      const popular = tier.prices.length === 3 ? 1 : -1;
+      tierBanner.innerHTML = `<span class="tier-pill">${tier.label}</span><span>${answers.category} — ${tier.note}</span>`;
+      budgetGrid.innerHTML = tier.prices.map((amount, i) => `
+        <button type="button" class="budget-card ${i === popular ? 'is-popular' : ''}" data-amount="${amount}">
+          ${i === popular ? '<span class="budget-pop">Most popular</span>' : ''}
+          <span class="budget-amount">${money(amount)}<small>/mo</small></span>
+          <span class="budget-units">${tier.label}</span>
+          <span class="budget-plays">~${fmt(plays)}</span>
           <span class="budget-plays-label">scheduled plays / month</span>
         </button>`).join('');
-      budgetNote.textContent = `Estimates assume ${ADS.bannerSeconds}-second banners, ${m.adHoursPerDay} advertising hours/day at ${m.name}, and a fully booked rotation — a lighter rotation means more plays. Scheduled plays are calculated rotations, not guaranteed views.`;
+      tierTable.innerHTML = Object.entries(ADS.tiers).map(([key, t]) => {
+        const cats = ADS.categories.filter(c => c.tier === key && c.id !== 'other').map(c => c.label).join(' • ');
+        return `<div class="tier-row ${key === tierKey ? 'is-yours' : ''}">
+          <div><span class="tier-price">${priceRange(t)}</span><span class="tier-name">${t.label}${t.maxPerCategory === 2 ? ' (1–2)' : ''}</span></div>
+          <div class="tier-cats">${cats}${key === 'open' ? ' • Other Small Businesses' : ''}</div>
+        </div>`;
+      }).join('') + '<div class="tier-extra">Exclusive clients can add a 2nd or 3rd spot at a premium — ask us after you apply.</div>';
+      budgetNote.textContent = `Estimates assume ${ADS.bannerSeconds}-second banners, ${m.adHoursPerDay} advertising hours/day at ${m.name}, and a fully booked ${ADS.maxUnits}-slot rotation — a lighter rotation means more plays. Scheduled plays are calculated rotations, not guaranteed views.`;
       budgetGrid.querySelectorAll('.budget-card').forEach(card => {
         card.addEventListener('click', () => {
           const b = ADS.budgets.find(x => x.amount === Number(card.dataset.amount));
@@ -240,7 +259,7 @@ if (qualifier) {
           card.classList.add('selected');
           answers.budget = b.amount;
           answers.units = b.units;
-          answers.estPlays = Math.round(estimateMonthlyPlays(m, b.units));
+          answers.estPlays = plays;
           renderSummary(m, b);
           setTimeout(() => showStep('a4'), 180);
         });
@@ -256,9 +275,9 @@ if (qualifier) {
       answers.campaignEnd = localISO(dates.end);
       summaryEl.innerHTML = `
         <div class="summary-row"><span>Machine</span><strong>${m.name} · ${m.city}</strong></div>
-        <div class="summary-row"><span>Category</span><strong>${answers.category} <em>(exclusive)</em></strong></div>
-        <div class="summary-row"><span>Budget</span><strong>${money(b.amount)} / month</strong></div>
-        <div class="summary-row"><span>Rotation</span><strong>${b.units}× · ${ADS.bannerSeconds}-second banner</strong></div>
+        <div class="summary-row"><span>Category</span><strong>${answers.category} <em>(${answers.tier})</em></strong></div>
+        <div class="summary-row"><span>Plan</span><strong>${money(b.amount)} / month</strong></div>
+        <div class="summary-row"><span>Banner</span><strong>${ADS.bannerSeconds}-second banner · 1 of ${ADS.maxUnits} slots</strong></div>
         <div class="summary-row summary-highlight"><span>Est. scheduled plays</span><strong>~${fmt(answers.estPlays)} / month</strong></div>
         <div class="summary-row"><span>Campaign length</span><strong>${ADS.campaignDays} days · ${dates.label}<em>starts on approval, renews monthly</em></strong></div>`;
     };

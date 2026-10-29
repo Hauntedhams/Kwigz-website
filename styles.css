@@ -1157,7 +1157,7 @@ body.menu-open { overflow: hidden; }
 
 .budget-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(140px, 220px));
   gap: 14px;
   margin-bottom: 20px;
 }
@@ -1345,3 +1345,21 @@ body.path-page .funnel-hero,
 body.path-page .qualify-section .section-header { display: none; }
 body.path-page .qualify-section { padding-top: 110px; min-height: 100vh; }
 .hero-cta-top { margin-bottom: 20px; }
+
+/* Advertiser pricing step */
+.offer-box { background: #fafafa; border: 1px solid #eee; border-radius: 16px; padding: 16px 20px; margin-bottom: 18px; }
+.offer-box h4 { font-size: 0.75rem; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; color: #dc2626; margin-bottom: 8px; }
+.offer-box ul { list-style: none; display: grid; gap: 6px; }
+.offer-box li { position: relative; padding-left: 22px; font-size: 0.93rem; color: #333; font-weight: 500; }
+.offer-box li::before { content: '✓'; position: absolute; left: 0; color: #dc2626; font-weight: 800; }
+.tier-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; font-size: 0.9rem; color: #555; }
+.tier-pill { font-size: 0.72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: #fff; background: #dc2626; padding: 5px 12px; border-radius: 50px; white-space: nowrap; }
+.tier-table { border: 1px solid #eee; border-radius: 16px; overflow: hidden; margin: 6px 0 16px; }
+.tier-row { display: grid; grid-template-columns: 120px 1fr; gap: 4px 16px; padding: 14px 18px; border-bottom: 1px solid #eee; background: #fff; }
+.tier-row:last-child { border-bottom: 0; }
+.tier-row.is-yours { background: #fef2f2; box-shadow: inset 4px 0 0 #dc2626; }
+.tier-price { font-size: 1.05rem; font-weight: 900; color: #111; }
+.tier-name { display: block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: #dc2626; margin-top: 2px; }
+.tier-cats { font-size: 0.85rem; color: #555; line-height: 1.5; align-self: center; }
+.tier-extra { padding: 12px 18px; background: #fafafa; font-size: 0.8rem; color: #777; line-height: 1.5; border-top: 1px solid #eee; }
+@media (max-width: 600px) { .tier-row { grid-template-columns: 1fr; } }

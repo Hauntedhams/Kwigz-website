@@ -186,15 +186,27 @@ function readCampaigns() {
 }
 
 // A category is "taken" on a machine while a pending or active campaign holds it.
+function maxPerCategory(categoryId) {
+  const cat = ADS.categories.find((x) => x.id === categoryId);
+  const tier = ADS.tiers && cat && ADS.tiers[cat.tier];
+  if (!tier) return 1;
+  return tier.maxPerCategory === null ? Infinity : tier.maxPerCategory;
+}
+
 function availability() {
   const today = todayISO();
   const byMachine = {};
   for (const c of readCampaigns()) {
     if (!['pending', 'active'].includes(c.status)) continue;
     if (c.end && c.end < today) continue;
-    (byMachine[c.machineId] ||= new Set()).add(c.categoryId);
+    const counts = (byMachine[c.machineId] ||= {});
+    counts[c.categoryId] = (counts[c.categoryId] || 0) + 1;
   }
-  return Object.entries(byMachine).map(([id, set]) => ({ id, takenCategories: [...set] }));
+  return Object.entries(byMachine).map(([id, counts]) => ({
+    id,
+    counts,
+    takenCategories: Object.keys(counts).filter((cat) => counts[cat] >= maxPerCategory(cat)),
+  }));
 }
 
 function saveBanner(banner, email) {
@@ -396,12 +408,13 @@ function normalizeCampaign(input, existing = {}) {
   return c;
 }
 
-// Two campaigns can't hold the same category on the same machine over overlapping dates.
+// A category can only hold its tier's maxPerCategory campaigns per machine over overlapping dates.
 function findConflict(campaigns, c) {
   if (!['pending', 'active'].includes(c.status)) return undefined;
-  return campaigns.find((o) =>
+  const overlapping = campaigns.filter((o) =>
     o.id !== c.id && o.machineId === c.machineId && o.categoryId === c.categoryId &&
     ['pending', 'active'].includes(o.status) && o.start <= c.end && c.start <= o.end);
+  return overlapping.length >= maxPerCategory(c.categoryId) ? overlapping[0] : undefined;
 }
 
 async function handleCampaignPost(req, res) {
@@ -533,7 +546,7 @@ function paymentEmail(c, url) {
       '',
       url,
       '',
-      `- $${c.budget}/month, ${c.units}x rotation, ${ADS.bannerSeconds}-second banner, about ${Math.round(c.estPlays).toLocaleString('en-US')} scheduled plays per month`,
+      `- $${c.budget}/month, one ${ADS.bannerSeconds}-second banner slot (of ${ADS.maxUnits} per machine), about ${Math.round(c.estPlays).toLocaleString('en-US')} scheduled plays per month`,
       `- First run ${fmtLongDate(c.start)} to ${fmtLongDate(c.end)}, then renews automatically each month. Cancel anytime by replying to this email.`,
       '- Your banner goes live ASAP once payment and creative approval are in.',
       '',
@@ -559,7 +572,7 @@ async function createPaymentLink(c) {
     line_items: [{ price: price.id, quantity: 1 }],
     metadata: { campaignId: c.id, business: c.business },
     subscription_data: {
-      description: `${c.units}x rotation · ${ADS.bannerSeconds}s banner · ${machine.name}${machine.city ? `, ${machine.city}` : ''}`,
+      description: `${ADS.bannerSeconds}s banner · ${machine.name}${machine.city ? `, ${machine.city}` : ''}`,
       metadata: { campaignId: c.id, business: c.business },
     },
     restrictions: { completed_sessions: { limit: 1 } },

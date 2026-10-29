@@ -665,6 +665,7 @@
   const machineById = (id) => ADS.machines.find((m) => m.id === id) || { id, name: id || '—', city: '', adHoursPerDay: 16 };
   const catById = (id) => ADS.categories.find((c) => c.id === id) || { id, label: id || '—', icon: 'sparkles' };
   const budgetByAmount = (amt) => ADS.budgets.find((b) => b.amount === Number(amt));
+  const startPrice = (categoryId) => (ADS.tierFor ? ADS.tierFor(categoryId).prices[0] : ADS.budgets[0].amount);
   const isLive = (c) => ['pending', 'active'].includes(c.status) && (!c.end || c.end >= todayISO);
   const liveNow = (c) => c.status === 'active' && c.start <= todayISO;
   const campaignForLead = (l) => campaigns.find((c) => c.leadId === l.id || (c.email && c.email === l.email && c.categoryId === (l.categoryId || '')));
@@ -1008,7 +1009,7 @@
       if (kind === 'call') return d.callScript || `"Hi, may I speak with the owner or GM? ${hi} this is ${me} with KWIGZ."\n\n"We partner with venues like ${p.business} to place premium claw machines and SlimWall vending at zero cost — we handle delivery, stocking and maintenance, and pay your venue a monthly revenue share."\n\n"It only takes 3 feet of space. I'll be in the area this week — would a 5-minute walk-in work to look at the space?"`;
       if (kind === 'linkedin') return d.linkedin || { note: `${hi} KWIGZ places free claw & vending machines in local venues with a monthly revenue share — would love to connect about ${p.business}.`, message: `Thanks for connecting! Quick one: we install the machine at no cost, handle everything, and share monthly revenue with ${p.business}. Open to a 5-minute visit?` };
     } else {
-      const price = p.mockup?.price || ADS.budgets[0].amount;
+      const price = p.mockup?.price || startPrice(p.categoryId);
       if (kind === 'email') return fu ? (d.followUpEmail || { subject: `Re: ${catById(p.categoryId).label} slot on the ${m.name} screen`, body: `${hi}\n\nFollowing up — the ${catById(p.categoryId).label.toLowerCase()} slot on the KWIGZ screen inside ${m.name} is still open. $${price}/mo, no contract, one business per category.${p.previewUrl ? `\n\nHere's ${p.business} on the screen: ${p.previewUrl}` : ''}\n\n${me}\nKWIGZ` }) : (d.email || { subject: `${p.business} on the ${m.name} screen?`, body: `${hi}\n\nI run the vending screen inside ${m.name}${m.city ? ` in ${m.city}` : ''}. We put exactly one ${catById(p.categoryId).label.toLowerCase()} business on it, and the slot is open — $${price}/mo, no contract.${p.previewUrl ? `\n\nHere's a mockup of ${p.business} on the screen: ${p.previewUrl}` : ''}\n\nWant it?\n\n${me}\nKWIGZ` });
       if (kind === 'sms') return fu ? (d.followUpSms || `${hi} ${me} from KWIGZ again — the ${catById(p.categoryId).label.toLowerCase()} slot on the ${m.name} screen is still open ($${price}/mo). Want it?`) : (d.sms || `${hi} ${me} with KWIGZ. We run the screen inside ${m.name} — one ${catById(p.categoryId).label.toLowerCase()} business gets the slot, $${price}/mo. ${p.previewUrl ? `Mockup of ${p.business}: ${p.previewUrl}` : 'Interested?'}`);
       if (kind === 'call') return d.callScript || `Hi${who ? ` ${who}` : ''}, this is ${me} with KWIGZ — we run the vending machine screen inside ${m.name}${m.city ? ` in ${m.city}` : ''}. Quick one: we put one ${catById(p.categoryId).label.toLowerCase()} business on that screen and the slot's open. It's $${price} a month, no contract. I made a mockup of ${p.business} on it — can I text or email it to you?`;
@@ -1203,7 +1204,7 @@
       <div class="send-row"><span class="hint">${phoneList.length ? phoneList.map((e) => `<a href="tel:${esc(e.e164 || e.value)}">${esc(e.value)}</a> <span class="t">${esc(e.label)}</span>`).join(' · ') : 'No phone on file'}</span><input class="inline" id="touchNote" placeholder="Outcome (optional)" style="width:200px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="call">Log call</button></div>`;
     if (draftTab === 'visit') body = `<div class="tips"><b>Walk-in${loc ? ` pitch for ${esc(p.business)}` : ''}</b><ul>${loc
       ? `<li>Ask for the <b>owner or GM</b>${c ? ` (${esc(c.name)})` : ''}.</li><li><b>Hook:</b> free machine, zero cost, we handle everything, they get a monthly revenue share.</li><li>Needs ~<b>3 ft</b> of space and a standard outlet.</li><li>Check the spot, snap a photo, note foot traffic.</li>`
-      : `<li>Ask for ${c ? `<b>${esc(c.name)}</b>` : 'the <b>owner</b>'}.</li><li>Show the mockup of ${esc(p.business)} on the ${esc(machineById(p.machineId).name)} screen.</li><li>One ${esc(catById(p.categoryId).label.toLowerCase())} business per screen · $${p.mockup?.price || ADS.budgets[0].amount}/mo, no contract.</li>`}</ul></div>
+      : `<li>Ask for ${c ? `<b>${esc(c.name)}</b>` : 'the <b>owner</b>'}.</li><li>Show the mockup of ${esc(p.business)} on the ${esc(machineById(p.machineId).name)} screen.</li><li>One ${esc(catById(p.categoryId).label.toLowerCase())} business per screen · $${p.mockup?.price || startPrice(p.categoryId)}/mo, no contract.</li>`}</ul></div>
       <div class="send-row"><input class="inline" id="touchNote" placeholder="Notes from the visit (who you met, what they said…)" style="flex:1;min-width:200px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="visit">Log visit</button></div>`;
     const draftsHtml = `<div class="draft-tabs">${tabs.map(([k, l]) => `<button class="chip ${draftTab === k ? 'active' : ''}" data-pa="tab" data-pid="${esc(p.id)}" data-tab="${k}">${l}</button>`).join('')}</div><div class="draft">${body}</div>
       ${canSave ? '' : `<div class="row-actions"><button class="btn btn-sm" data-pa="draft-one" data-pid="${esc(p.id)}">Generate personalised outreach${loc ? '' : ' + preview link'}</button><span class="t">Default copy is shown until then — edits above are not saved.</span></div>`}`;
@@ -1534,7 +1535,7 @@
   const modal = $('#campaignModal'), form = $('#campaignForm');
   $('#cfMachine').innerHTML = ADS.machines.map((m) => `<option value="${m.id}">${esc(m.name)} — ${esc(m.city)}</option>`).join('');
   $('#cfCategory').innerHTML = ADS.categories.map((c) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
-  $('#cfBudget').innerHTML = ADS.budgets.map((b) => `<option value="${b.amount}">$${b.amount}/mo — ${b.units}× rotation</option>`).join('');
+  $('#cfBudget').innerHTML = ADS.budgets.map((b) => `<option value="${b.amount}">$${b.amount}/mo</option>`).join('');
   function recalcModal() {
     const m = machineById(form.machineId.value);
     const b = budgetByAmount(form.budget.value) || ADS.budgets[0];
@@ -1602,12 +1603,12 @@
     const machineId = l.machineId || ADS.machines.find((m) => (l.machine || '').startsWith(m.name))?.id || ADS.machines[0]?.id;
     const categoryId = l.categoryId || ADS.categories.find((c) => c.label === l.category)?.id || 'other';
     const start = l.campaignStart && l.campaignStart >= todayISO ? l.campaignStart : addDays(todayISO, ADS.approvalDays);
-    openCampaign({ machineId, categoryId, business: l.businessName || '', contactName: l.contactName || '', email: l.email, phone: l.phone || '', website: l.website || '', budget: Number(l.budget) || ADS.budgets[0].amount, estPlays: Number(l.estPlays) || 0, start, end: addDays(start, ADS.campaignDays - 1), bannerFile: l.bannerFile || '', leadId: l.id, creativeStatus: 'pending' }, { title: `New campaign — ${l.businessName || l.email}` });
+    openCampaign({ machineId, categoryId, business: l.businessName || '', contactName: l.contactName || '', email: l.email, phone: l.phone || '', website: l.website || '', budget: Number(l.budget) || startPrice(categoryId), estPlays: Number(l.estPlays) || 0, start, end: addDays(start, ADS.campaignDays - 1), bannerFile: l.bannerFile || '', leadId: l.id, creativeStatus: 'pending' }, { title: `New campaign — ${l.businessName || l.email}` });
   }
   function campaignFromProspect(p, extra = {}) {
     const c = primaryContact(p);
     const start = addDays(todayISO, ADS.approvalDays);
-    openCampaign({ machineId: ADS.machines.some((m) => m.id === p.machineId) ? p.machineId : ADS.machines[0]?.id, categoryId: p.categoryId, business: p.business, contactName: c?.name || '', email: pickEmail(p)?.value || '', phone: pickPhone(p)?.value || '', website: p.website || '', budget: ADS.budgets[0].amount, start, end: addDays(start, ADS.campaignDays - 1), prospectId: p.id, notes: `From lead · ${p.id}`, ...extra }, { title: `Book — ${p.business}` });
+    openCampaign({ machineId: ADS.machines.some((m) => m.id === p.machineId) ? p.machineId : ADS.machines[0]?.id, categoryId: p.categoryId, business: p.business, contactName: c?.name || '', email: pickEmail(p)?.value || '', phone: pickPhone(p)?.value || '', website: p.website || '', budget: startPrice(p.categoryId), start, end: addDays(start, ADS.campaignDays - 1), prospectId: p.id, notes: `From lead · ${p.id}`, ...extra }, { title: `Book — ${p.business}` });
   }
 
   // --- payment link ---

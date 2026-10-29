@@ -88,18 +88,17 @@ async function stop(child) {
   await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
 }
 
-test('campaign pricing preserves original play allocations at the higher prices', async () => {
+test('campaign pricing follows the tiered one-pager with 20 slots per machine', async () => {
   const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-pricing-'));
   let instance;
   try {
     instance = await start(dataDir);
     const config = { window: {} };
     vm.runInNewContext(readFileSync(path.join(__dirname, '..', 'ads-config.js'), 'utf8'), config);
-    assert.equal(JSON.stringify(config.window.KWIGZ_ADS.budgets), JSON.stringify([
-      { amount: 200, units: 1 }, { amount: 300, units: 1.5 }, { amount: 400, units: 2 },
-    ]));
+    assert.deepEqual(Array.from(config.window.KWIGZ_ADS.budgets, (b) => b.amount), [75, 100, 125, 150, 200, 250, 300, 400, 500]);
+    assert.equal(config.window.KWIGZ_ADS.maxUnits, 20);
     for (const [budget, units, estPlays, categoryId] of [
-      [200, 1, 11520, 'tattoo'], [300, 1.5, 17280, 'hvac'], [400, 2, 23040, 'plumbing'],
+      [75, 1, 5760, 'tattoo'], [300, 1, 5760, 'hvac'], [500, 1, 5760, 'dui'],
     ]) {
       const response = await fetch(`${instance.base}/api/campaigns`, {
         method: 'POST',
@@ -182,21 +181,21 @@ test('production API protects private files and persists valid leads and campaig
     assert.ok(csv.includes("'=formula"));
     assert.equal((await request(`/api/leads/${leadId}`, { auth: true, method: 'PATCH', data: { status: 'contacted', notes: 'Follow up' } })).status, 200);
     const campaign = {
-      machineId: 'chopper-johns-phoenix', categoryId: 'tattoo', business: 'Test business',
-      budget: 200, units: 999, start: '2099-01-01', end: '2099-01-30',
+      machineId: 'chopper-johns-phoenix', categoryId: 'dui', business: 'Test business',
+      budget: 500, units: 999, start: '2099-01-01', end: '2099-01-30',
       status: 'pending', paymentStatus: 'unpaid', creativeStatus: 'pending',
     };
-    for (const changes of [{ start: '2099-02-30' }, { budget: 1 }, { budget: 100 }, { budget: 150 }, { machineId: 'unknown' }, { categoryId: 'unknown' }]) {
+    for (const changes of [{ start: '2099-02-30' }, { budget: 1 }, { budget: 175 }, { budget: 600 }, { machineId: 'unknown' }, { categoryId: 'unknown' }]) {
       assert.equal((await request('/api/campaigns', { method: 'POST', auth: true, data: { ...campaign, ...changes } })).status, 400);
     }
     const created = await request('/api/campaigns', { method: 'POST', auth: true, data: campaign });
     assert.equal(created.status, 201);
     const saved = (await created.json()).campaign;
     assert.equal(saved.units, 1);
-    assert.equal(saved.estPlays, 11520);
+    assert.equal(saved.estPlays, 5760);
     assert.equal((await request('/api/campaigns', { method: 'POST', auth: true, data: { ...campaign, force: true } })).status, 409);
     const availability = await (await request('/api/availability')).json();
-    assert.deepEqual(availability.machines[0].takenCategories, ['tattoo']);
+    assert.deepEqual(availability.machines[0].takenCategories, ['dui']);
     await stop(instance.child);
     instance = await start(dataDir);
     const persisted = await (await request('/api/leads', { auth: true })).json();
@@ -280,9 +279,9 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     assert.match(link.email.subject, /HVAC at Chopper John's/);
     assert.ok(link.email.body.includes(link.url) && link.email.body.includes('$300/month') && link.email.body.includes('Hi Sam'));
     assert.ok(link.email.body.includes('ASAP') && !/business days/.test(link.email.body));
-    assert.equal(c.units, 1.5);
-    assert.equal(c.estPlays, 17280);
-    assert.ok(link.email.body.includes('1.5x rotation') && link.email.body.includes('17,280'));
+    assert.equal(c.units, 1);
+    assert.equal(c.estPlays, 5760);
+    assert.ok(link.email.body.includes('one 15-second banner slot') && link.email.body.includes('5,760'));
     const priceCall = mock.calls.find((x) => x.path === '/prices');
     assert.equal(priceCall.auth, 'Bearer sk_test_mock');
     assert.equal(priceCall.params.unit_amount, '30000');
@@ -472,7 +471,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
     assert.ok(nova.score > prospects.find((p) => p.domain === 'bigfirm.example').score, 'small local firm outscores a 500-person firm');
     assert.equal(nova.status, 'new');
     assert.equal(nova.mockup.tagline, 'DUI Defense');
-    assert.equal(nova.mockup.plays, 11520);
+    assert.equal(nova.mockup.plays, 5760);
 
     // Re-running skips businesses already saved.
     const again = await call('POST', '/api/prospecting/runs', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', limit: 5, findPhones: false });
@@ -496,7 +495,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
     assert.match(drafted.drafts.email.body, /^Hi Ryan,/);
     assert.ok(drafted.drafts.email.body.includes(drafted.previewUrl));
     assert.ok(drafted.drafts.email.body.includes('"DUI Defense"'));
-    assert.ok(drafted.drafts.sms.includes('$200/mo'));
+    assert.ok(drafted.drafts.sms.includes('$500/mo'));
     assert.ok(drafted.drafts.linkedin.note.length <= 300);
 
     // Public preview page + JSON + logo proxy need no auth and expose no contact data.

@@ -3,31 +3,40 @@
 // All estimates on the site are computed from these values.
 window.KWIGZ_ADS = {
   bannerSeconds: 15,     // every banner displays for 15 seconds
-  maxUnits: 10,          // a fully booked machine = 10 rotation units
+  maxUnits: 20,          // a fully booked machine = 20 advertiser slots
   campaignDays: 30,
   approvalDays: 3,       // estimated days from application to going live
   bannerSize: { width: 1080, height: 441 },
 
-  // Budget → rotation units ($200 per unit). Higher budget = proportionally more plays.
-  budgets: [
-    { amount: 200, units: 1 },
-    { amount: 300, units: 1.5 },
-    { amount: 400, units: 2 },
-  ],
+  // Pricing tiers (per the KWIGZ sales one-pager). Every advertiser takes 1 of the
+  // maxUnits rotation slots; maxPerCategory caps how many advertisers of the same
+  // category can share one machine (null = no cap, until the machine is full).
+  tiers: {
+    premium:   { label: 'Full Exclusive', prices: [500],           maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
+    exclusive: { label: 'Full Exclusive', prices: [300, 400],      maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
+    limited:   { label: 'Limited',        prices: [150, 200, 250], maxPerCategory: 2,    note: 'Limited to 1–2 advertisers per category on this machine.' },
+    open:      { label: 'Multiple OK',    prices: [75, 100, 125],  maxPerCategory: null, note: 'Multiple businesses in your category can advertise here.' },
+  },
 
-  // One advertiser per category per machine.
   categories: [
-    { id: 'dui', label: 'DUI / Criminal Defense', icon: 'scales' },
-    { id: 'injury', label: 'Personal Injury', icon: 'bandage' },
-    { id: 'motorcycle', label: 'Motorcycle', icon: 'motorcycle' },
-    { id: 'bail', label: 'Bail Bonds', icon: 'unlock' },
-    { id: 'tattoo', label: 'Tattoo', icon: 'pen' },
-    { id: 'insurance', label: 'Insurance', icon: 'shield' },
-    { id: 'hvac', label: 'HVAC', icon: 'snowflake' },
-    { id: 'plumbing', label: 'Plumbing', icon: 'wrench' },
-    { id: 'autobody', label: 'Auto Body', icon: 'car' },
-    { id: 'restaurant', label: 'Restaurant', icon: 'utensils' },
-    { id: 'other', label: 'Other', icon: 'sparkles' },
+    { id: 'dui', label: 'DUI / Criminal Defense', icon: 'scales', tier: 'premium' },
+    { id: 'injury', label: 'Personal Injury', icon: 'bandage', tier: 'premium' },
+    { id: 'bail', label: 'Bail Bonds', icon: 'unlock', tier: 'premium' },
+    { id: 'family', label: 'Divorce / Family Law', icon: 'scales', tier: 'exclusive' },
+    { id: 'insurance', label: 'Insurance', icon: 'shield', tier: 'exclusive' },
+    { id: 'roofing', label: 'Roofing & Storm Damage', icon: 'building', tier: 'exclusive' },
+    { id: 'hvac', label: 'HVAC', icon: 'snowflake', tier: 'exclusive' },
+    { id: 'plumbing', label: 'Plumbing', icon: 'wrench', tier: 'exclusive' },
+    { id: 'medspa', label: 'Med Spa', icon: 'sparkles', tier: 'limited' },
+    { id: 'dentist', label: 'Cosmetic Dentist', icon: 'sparkles', tier: 'limited' },
+    { id: 'debt', label: 'Debt Relief', icon: 'banknote', tier: 'limited' },
+    { id: 'motorcycle', label: 'Motorcycle', icon: 'motorcycle', tier: 'limited' },
+    { id: 'autobody', label: 'Auto Body', icon: 'car', tier: 'limited' },
+    { id: 'localservices', label: 'Local Services', icon: 'briefcase', tier: 'limited' },
+    { id: 'tattoo', label: 'Tattoo', icon: 'pen', tier: 'open' },
+    { id: 'barber', label: 'Barber', icon: 'pen', tier: 'open' },
+    { id: 'restaurant', label: 'Restaurant', icon: 'utensils', tier: 'open' },
+    { id: 'other', label: 'Other', icon: 'sparkles', tier: 'open' },
   ],
 
   machines: [
@@ -56,4 +65,17 @@ window.KWIGZ_ADS = {
       takenCategories: [],
     },
   ],
+};
+
+// Flat list of every supported price. Each advertiser occupies one slot (units: 1).
+window.KWIGZ_ADS.budgets = Object.values(window.KWIGZ_ADS.tiers)
+  .flatMap(t => t.prices)
+  .sort((x, y) => x - y)
+  .map(amount => ({ amount, units: 1 }));
+
+// Pricing tier for a category id (falls back to the open tier).
+window.KWIGZ_ADS.tierFor = (categoryId) => {
+  const ads = window.KWIGZ_ADS;
+  const cat = ads.categories.find(c => c.id === categoryId);
+  return ads.tiers[cat && cat.tier] || ads.tiers.open;
 };

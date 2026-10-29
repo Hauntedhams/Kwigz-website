@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=8" />
+  <link rel="stylesheet" href="styles.css?v=9" />
   <link rel="stylesheet" href="icons.css?v=1" />
 </head>
 <body class="home">
@@ -202,7 +202,6 @@
           <div class="q-progress"><span style="width:20%"></span></div>
           <p class="q-count">Step 1 of 5</p>
           <h3 class="q-question">What type of business are you?</h3>
-          <p class="q-help">Each KWIGZ machine hosts <strong>one advertiser per category</strong> — you'll never share a screen with a direct competitor.</p>
           <div class="cat-grid" id="catGrid"></div>
           <button type="button" class="q-back" data-back="choose">← Back</button>
         </div>
@@ -238,9 +237,18 @@
         <div class="q-step" data-step="a3">
           <div class="q-progress"><span style="width:60%"></span></div>
           <p class="q-count">Step 3 of 5</p>
-          <h3 class="q-question">What's your monthly budget?</h3>
-          <p class="q-help">Higher budgets receive proportionally more banner rotations. <strong>Pay more → your ad shows more often.</strong></p>
+          <h3 class="q-question">Choose your monthly plan</h3>
+          <div class="offer-box">
+            <h4>The offer</h4>
+            <ul>
+              <li>15-second banner ad, rotating on the machine all month</li>
+              <li>Top-position placement on vending machines in local bars</li>
+              <li>Local eyeballs every night</li>
+            </ul>
+          </div>
+          <div class="tier-banner" id="tierBanner"></div>
           <div class="budget-grid" id="budgetGrid"></div>
+          <div class="tier-table" id="tierTable"></div>
           <p class="q-fine" id="budgetNote"></p>
           <button type="button" class="q-back" data-back="a2">← Back</button>
         </div>
@@ -254,7 +262,7 @@
           <div class="q-actions">
             <button type="button" class="btn btn-lg" data-go="a5">Looks good →</button>
           </div>
-          <button type="button" class="q-back" data-back="a3">← Change budget</button>
+          <button type="button" class="q-back" data-back="a3">← Change plan</button>
         </div>
 
         <div class="q-step" data-step="a5">
@@ -344,7 +352,7 @@
     </div>
   </footer>
 
-  <script src="ads-config.js?v=2"></script>
-  <script src="script.js?v=9"></script>
+  <script src="ads-config.js?v=3"></script>
+  <script src="script.js?v=10"></script>
 </body>
 </html>
