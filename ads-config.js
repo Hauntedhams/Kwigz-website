@@ -69,11 +69,23 @@ window.KWIGZ_ADS = {
   ],
 };
 
-// Flat list of every supported price. Each advertiser occupies one slot (units: 1).
-window.KWIGZ_ADS.budgets = Object.values(window.KWIGZ_ADS.tiers)
-  .flatMap(t => t.prices)
-  .sort((x, y) => x - y)
-  .map(amount => ({ amount, units: 1 }));
+// Self-serve sliding scale: any business can pick $75–$250/mo in $25 steps. More spend = a
+// heavier rotation = more plays. Full Exclusive (higher prices) is quoted on a call.
+window.KWIGZ_ADS.slider = { min: 75, max: 250, step: 25, default: 150 };
+// Estimated inquiries per 1,000 scheduled plays (low, high). Planning assumption, not a guarantee.
+window.KWIGZ_ADS.leadsPer1000Plays = [0.5, 1.5];
+
+// Plays scale linearly with spend: $75 is the baseline single-slot rotation.
+window.KWIGZ_ADS.playsMultiplier = (amount) => Math.min(Math.max(amount, 75), 250) / 75;
+
+// Every supported price. Each advertiser occupies one slot (units: 1).
+window.KWIGZ_ADS.budgets = (() => {
+  const { min, max, step } = window.KWIGZ_ADS.slider;
+  const prices = [];
+  for (let a = min; a <= max; a += step) prices.push(a);
+  Object.values(window.KWIGZ_ADS.tiers).forEach(t => t.prices.forEach(p => { if (!prices.includes(p)) prices.push(p); }));
+  return prices.sort((x, y) => x - y).map(amount => ({ amount, units: 1 }));
+})();
 
 // Pricing tier for a category id (falls back to the open tier).
 window.KWIGZ_ADS.tierFor = (categoryId) => {

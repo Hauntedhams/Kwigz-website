@@ -196,7 +196,7 @@ if (qualifier) {
     const machineList = document.getElementById('machineList');
     const renderMachines = () => {
       machineList.innerHTML = ADS.machines.map(m => {
-        const taken = m.takenCategories.includes(answers.categoryId);
+        const taken = false;
         const spotsOpen = Math.max(0, ADS.maxUnits - Object.values(m.counts || {}).reduce((a, n) => a + n, 0));
         return `<button type="button" class="machine-card ${taken ? 'is-taken' : ''}" data-machine="${m.id}">
           <div class="machine-info">
@@ -212,83 +212,57 @@ if (qualifier) {
           const m = machineById(card.dataset.machine);
           answers.machine = `${m.name} — ${m.city}`;
           answers.machineId = m.id;
-          if (m.takenCategories.includes(answers.categoryId)) {
-            document.getElementById('takenTitle').textContent = `${answers.category} is already taken at ${m.name}.`;
-            showStep('a-taken');
-            return;
-          }
           renderBudgets(m);
           setTimeout(() => showStep('a3'), 180);
         });
       });
     };
 
-    // Step 3: tiered pricing for the chosen category
-    const budgetGrid = document.getElementById('budgetGrid');
+    // Step 3: sliding-scale plan — more spend, more plays
+    const planRange = document.getElementById('planRange');
     const budgetNote = document.getElementById('budgetNote');
-    const tierBanner = document.getElementById('tierBanner');
-    const tierTable = document.getElementById('tierTable');
-    const priceRange = (t) => t.callOnly ? 'Schedule a call' : t.prices.length > 1 ? `${money(t.prices[0])}–${t.prices[t.prices.length - 1]}` : money(t.prices[0]);
-    const renderBudgets = (m) => {
-      const tier = ADS.tierFor(answers.categoryId);
-      const tierKey = Object.keys(ADS.tiers).find(k => ADS.tiers[k] === tier);
-      answers.tier = tier.label;
-      const plays = Math.round(estimateMonthlyPlays(m, 1));
-      const popular = !tier.callOnly && tier.prices.length === 3 ? 1 : -1;
-      document.getElementById('planTitle').textContent = tier.callOnly ? 'Your spot is exclusive' : 'Choose your monthly plan';
-      tierBanner.innerHTML = `<span class="tier-pill">${tier.label}</span><span>${answers.category} — ${tier.note}</span>`;
-      budgetGrid.innerHTML = tier.callOnly ? `
-        <button type="button" class="budget-card call-card" id="callCard">
-          <span class="budget-amount call-title">Schedule a call</span>
-          <span class="budget-units">${tier.label}</span>
-          <span class="budget-plays">~${fmt(plays)}</span>
-          <span class="budget-plays-label">scheduled plays / month</span>
-        </button>` : tier.prices.map((amount, i) => `
-        <button type="button" class="budget-card ${i === popular ? 'is-popular' : ''}" data-amount="${amount}">
-          ${i === popular ? '<span class="budget-pop">Most popular</span>' : ''}
-          <span class="budget-amount">${money(amount)}<small>/mo</small></span>
-          <span class="budget-units">${tier.label}</span>
-          <span class="budget-plays">~${fmt(plays)}</span>
-          <span class="budget-plays-label">scheduled plays / month</span>
-        </button>`).join('');
-      // Call-only tiers collapse into one row since neither shows a price.
-      const rows = [];
-      Object.entries(ADS.tiers).forEach(([key, t]) => {
-        const prev = rows[rows.length - 1];
-        if (t.callOnly && prev && prev.t.callOnly) { prev.keys.push(key); return; }
-        rows.push({ keys: [key], t });
-      });
-      tierTable.innerHTML = rows.map(({ keys, t }) => {
-        const cats = ADS.categories.filter(c => keys.includes(c.tier) && c.id !== 'other').map(c => c.label).join(' • ');
-        const key = keys.includes(tierKey) ? tierKey : keys[0];
-        return `<div class="tier-row ${keys.includes(tierKey) ? 'is-yours' : ''}">
-          <div><span class="tier-price ${t.callOnly ? 'is-call' : ''}">${priceRange(t)}</span><span class="tier-name">${t.label}${t.maxPerCategory === 2 ? ' (1–2)' : ''}</span></div>
-          <div class="tier-cats">${cats}${key === 'open' ? ' • Other Small Businesses' : ''}</div>
-        </div>`;
-      }).join('') + '<div class="tier-extra">Exclusive clients can add a 2nd or 3rd spot at a premium — ask us after you apply.</div>';
-      budgetNote.textContent = `Estimates assume ${ADS.bannerSeconds}-second banners, ${m.adHoursPerDay} advertising hours/day at ${m.name}, and a fully booked ${ADS.maxUnits}-slot rotation — a lighter rotation means more plays. Scheduled plays are calculated rotations, not guaranteed views.`;
-      if (tier.callOnly) {
-        document.getElementById('callCard').addEventListener('click', () => {
-          answers.budget = undefined;
-          answers.units = undefined;
-          answers.estPlays = plays;
-          showStep('a-call');
-        });
-        return;
-      }
-      budgetGrid.querySelectorAll('.budget-card').forEach(card => {
-        card.addEventListener('click', () => {
-          const b = ADS.budgets.find(x => x.amount === Number(card.dataset.amount));
-          budgetGrid.querySelectorAll('.budget-card').forEach(c => c.classList.remove('selected'));
-          card.classList.add('selected');
-          answers.budget = b.amount;
-          answers.units = b.units;
-          answers.estPlays = plays;
-          renderSummary(m, b);
-          setTimeout(() => showStep('a4'), 180);
-        });
-      });
+    const sl = ADS.slider;
+    let planMachine = null;
+    const playsAt = (m, amount) => Math.round(estimateMonthlyPlays(m, 1) * ADS.playsMultiplier(amount));
+    const leadRange = (plays) => {
+      const lo = Math.max(1, Math.round(plays / 1000 * ADS.leadsPer1000Plays[0])), hi = Math.max(lo, Math.round(plays / 1000 * ADS.leadsPer1000Plays[1]));
+      return lo === hi ? `~${lo}` : `${lo}–${hi}`;
     };
+    const updatePlan = () => {
+      const amount = Number(planRange.value);
+      const plays = playsAt(planMachine, amount);
+      planRange.style.setProperty('--pct', `${((amount - sl.min) / (sl.max - sl.min)) * 100}%`);
+      document.getElementById('planAmount').textContent = money(amount);
+      document.getElementById('planContinueAmt').textContent = money(amount);
+      document.getElementById('planPlays').textContent = `~${fmt(plays)}`;
+      document.getElementById('planLeads').textContent = leadRange(plays);
+    };
+    const renderBudgets = (m) => {
+      planMachine = m;
+      answers.tier = 'Sliding scale';
+      document.getElementById('planTitle').textContent = 'Choose your monthly plan';
+      Object.assign(planRange, { min: sl.min, max: sl.max, step: sl.step, value: answers.budget && answers.budget >= sl.min && answers.budget <= sl.max ? answers.budget : sl.default });
+      document.getElementById('planMin').textContent = `${money(sl.min)}/mo`;
+      document.getElementById('planMax').textContent = `${money(sl.max)}/mo`;
+      budgetNote.textContent = `Estimates assume ${ADS.bannerSeconds}-second banners and ${m.adHoursPerDay} advertising hours/day at ${m.name}. Inquiry estimates are a projection from scheduled plays, not a guarantee. Scheduled plays are calculated rotations, not guaranteed views.`;
+      updatePlan();
+    };
+    planRange.addEventListener('input', updatePlan);
+    document.getElementById('planContinue').addEventListener('click', () => {
+      const b = ADS.budgets.find(x => x.amount === Number(planRange.value));
+      if (!b) return;
+      answers.budget = b.amount;
+      answers.units = b.units;
+      answers.estPlays = playsAt(planMachine, b.amount);
+      renderSummary(planMachine, b);
+      showStep('a4');
+    });
+    document.getElementById('callCard').addEventListener('click', () => {
+      answers.budget = undefined;
+      answers.units = undefined;
+      answers.estPlays = playsAt(planMachine, sl.max);
+      showStep('a-call');
+    });
 
     // Step 4: summary
     const summaryEl = document.getElementById('campaignSummary');

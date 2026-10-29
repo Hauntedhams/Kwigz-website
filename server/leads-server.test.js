@@ -95,10 +95,10 @@ test('campaign pricing follows the tiered one-pager with 20 slots per machine', 
     instance = await start(dataDir);
     const config = { window: {} };
     vm.runInNewContext(readFileSync(path.join(__dirname, '..', 'ads-config.js'), 'utf8'), config);
-    assert.deepEqual(Array.from(config.window.KWIGZ_ADS.budgets, (b) => b.amount), [75, 100, 125, 150, 200, 250, 300, 400, 500]);
+    assert.deepEqual(Array.from(config.window.KWIGZ_ADS.budgets, (b) => b.amount), [75, 100, 125, 150, 175, 200, 225, 250, 300, 400, 500]);
     assert.equal(config.window.KWIGZ_ADS.maxUnits, 20);
     for (const [budget, units, estPlays, categoryId] of [
-      [75, 1, 5760, 'tattoo'], [300, 1, 5760, 'hvac'], [500, 1, 5760, 'dui'],
+      [75, 1, 5760, 'tattoo'], [175, 1, 13440, 'hvac'], [250, 1, 19200, 'bail'], [500, 1, 19200, 'dui'],
     ]) {
       const response = await fetch(`${instance.base}/api/campaigns`, {
         method: 'POST',
@@ -185,14 +185,14 @@ test('production API protects private files and persists valid leads and campaig
       budget: 500, units: 999, start: '2099-01-01', end: '2099-01-30',
       status: 'pending', paymentStatus: 'unpaid', creativeStatus: 'pending',
     };
-    for (const changes of [{ start: '2099-02-30' }, { budget: 1 }, { budget: 175 }, { budget: 600 }, { machineId: 'unknown' }, { categoryId: 'unknown' }]) {
+    for (const changes of [{ start: '2099-02-30' }, { budget: 1 }, { budget: 180 }, { budget: 600 }, { machineId: 'unknown' }, { categoryId: 'unknown' }]) {
       assert.equal((await request('/api/campaigns', { method: 'POST', auth: true, data: { ...campaign, ...changes } })).status, 400);
     }
     const created = await request('/api/campaigns', { method: 'POST', auth: true, data: campaign });
     assert.equal(created.status, 201);
     const saved = (await created.json()).campaign;
     assert.equal(saved.units, 1);
-    assert.equal(saved.estPlays, 5760);
+    assert.equal(saved.estPlays, 19200);
     const availability = await (await request('/api/availability')).json();
     assert.deepEqual(availability.machines[0].takenCategories, ['dui']);
     await stop(instance.child);
@@ -279,8 +279,8 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     assert.ok(link.email.body.includes(link.url) && link.email.body.includes('$300/month') && link.email.body.includes('Hi Sam'));
     assert.ok(link.email.body.includes('ASAP') && !/business days/.test(link.email.body));
     assert.equal(c.units, 1);
-    assert.equal(c.estPlays, 5760);
-    assert.ok(link.email.body.includes('one 15-second banner slot') && link.email.body.includes('5,760'));
+    assert.equal(c.estPlays, 19200);
+    assert.ok(link.email.body.includes('one 15-second banner slot') && link.email.body.includes('19,200'));
     const priceCall = mock.calls.find((x) => x.path === '/prices');
     assert.equal(priceCall.auth, 'Bearer sk_test_mock');
     assert.equal(priceCall.params.unit_amount, '30000');

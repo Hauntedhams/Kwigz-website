@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=10" />
+  <link rel="stylesheet" href="styles.css?v=11" />
   <link rel="stylesheet" href="icons.css?v=1" />
 </head>
 <body class="home">
@@ -246,9 +246,20 @@
               <li>Local eyeballs every night</li>
             </ul>
           </div>
-          <div class="tier-banner" id="tierBanner"></div>
-          <div class="budget-grid" id="budgetGrid"></div>
-          <div class="tier-table" id="tierTable"></div>
+          <div class="plan-slider" id="planSlider">
+            <div class="plan-price"><span id="planAmount">$150</span><small>/mo</small></div>
+            <input type="range" id="planRange" aria-label="Monthly budget" />
+            <div class="plan-ends"><span id="planMin"></span><span id="planMax"></span></div>
+            <div class="plan-stats">
+              <div><strong id="planPlays">—</strong><span>scheduled plays / month</span></div>
+              <div><strong id="planLeads">—</strong><span>estimated inquiries / month</span></div>
+            </div>
+            <button type="button" class="btn btn-primary plan-continue" id="planContinue">Continue with <span id="planContinueAmt"></span>/mo</button>
+          </div>
+          <div class="plan-exclusive">
+            <div><strong>Want full exclusivity and more plays?</strong><span>Lock out competitors in your category and get a heavier rotation.</span></div>
+            <button type="button" class="btn" id="callCard">Schedule a call</button>
+          </div>
           <p class="q-fine" id="budgetNote"></p>
           <button type="button" class="q-back" data-back="a2">← Back</button>
         </div>
@@ -394,7 +405,7 @@
     </div>
   </footer>
 
-  <script src="ads-config.js?v=4"></script>
-  <script src="script.js?v=11"></script>
+  <script src="ads-config.js?v=5"></script>
+  <script src="script.js?v=12"></script>
 </body>
 </html>

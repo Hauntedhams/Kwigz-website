@@ -397,7 +397,7 @@ function normalizeCampaign(input, existing = {}) {
   c.units = budget.units;
   if (!Number.isFinite(c.estPlays) || c.estPlays < 0) {
     const machine = ADS.machines.find(m => m.id === c.machineId);
-    c.estPlays = Math.round(machine.adHoursPerDay * 3600 * ADS.campaignDays * c.units / (ADS.bannerSeconds * ADS.maxUnits));
+    c.estPlays = Math.round(machine.adHoursPerDay * 3600 * ADS.campaignDays * c.units * ADS.playsMultiplier(c.budget) / (ADS.bannerSeconds * ADS.maxUnits));
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(c.start || '') || !/^\d{4}-\d{2}-\d{2}$/.test(c.end || '')) throw new Error('start and end must be YYYY-MM-DD');
   if ([c.start, c.end].some(date => {
