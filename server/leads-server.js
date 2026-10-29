@@ -411,26 +411,15 @@ function normalizeCampaign(input, existing = {}) {
   return c;
 }
 
-// A category can only hold its tier's maxPerCategory campaigns per machine over overlapping dates.
-function findConflict(campaigns, c) {
-  if (!['pending', 'active'].includes(c.status)) return undefined;
-  const overlapping = campaigns.filter((o) =>
-    o.id !== c.id && o.machineId === c.machineId && o.categoryId === c.categoryId &&
-    ['pending', 'active'].includes(o.status) && o.start <= c.end && c.start <= o.end);
-  return overlapping.length >= maxPerCategory(c.categoryId) ? overlapping[0] : undefined;
-}
-
 async function handleCampaignPost(req, res) {
   try {
     const body = await readJsonBody(req);
+    if (body.banner) body.bannerFile = saveBanner(body.banner, String(body.business || 'campaign'));
+    delete body.banner;
     const campaigns = readCampaigns();
     const c = normalizeCampaign(body);
     c.id = newId('C');
     c.createdAt = c.updatedAt = new Date().toISOString();
-    const conflict = findConflict(campaigns, c);
-    if (conflict) {
-      return sendJson(res, 409, { ok: false, error: `${conflict.business || 'Another campaign'} already holds this category on this machine for overlapping dates`, conflict });
-    }
     campaigns.push(c);
     writeJson(CAMPAIGNS_FILE, campaigns);
     if (c.leadId) {
@@ -448,15 +437,13 @@ async function handleCampaignPost(req, res) {
 async function handleCampaignPatch(req, res, id) {
   try {
     const body = await readJsonBody(req);
+    if (body.banner) body.bannerFile = saveBanner(body.banner, String(body.business || 'campaign'));
+    delete body.banner;
     const campaigns = readCampaigns();
     const idx = campaigns.findIndex((c) => c.id === id);
     if (idx === -1) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
     const c = normalizeCampaign(body, campaigns[idx]);
     c.updatedAt = new Date().toISOString();
-    const conflict = findConflict(campaigns, c);
-    if (conflict) {
-      return sendJson(res, 409, { ok: false, error: `${conflict.business || 'Another campaign'} already holds this category for overlapping dates`, conflict });
-    }
     // Ending a campaign must also stop Stripe from charging for it again.
     const closing = ['ended', 'cancelled'].includes(c.status) && !['ended', 'cancelled'].includes(campaigns[idx].status);
     if (closing && STRIPE_SECRET_KEY) {

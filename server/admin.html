@@ -344,6 +344,10 @@
     }
 
     /* ---------- mobile admin ---------- */
+    .lead-results { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.15); max-height: 260px; overflow-y: auto; }
+    .lead-results button { display: block; width: 100%; text-align: left; padding: 10px 12px; border: 0; border-bottom: 1px solid var(--line); background: #fff; font: inherit; cursor: pointer; }
+    .lead-results button small { display: block; color: var(--muted); }
+    .lead-results .new-lead { font-weight: 700; color: var(--red); }
     #mob { display: none; }
     @media (max-width: 700px) {
       #app { display: none !important; }
@@ -655,7 +659,7 @@
   <form class="modal" id="campaignForm" method="dialog">
     <h3 id="campaignModalTitle">Book advertiser</h3>
     <div class="form-grid">
-      <div class="field full"><label>From a lead <span class="hint" style="display:inline;">(optional — fills in the details below)</span></label><select name="prospectId" id="cfProspect"><option value="">— pick a lead —</option></select></div>
+      <div class="field full" style="position:relative;"><label>Advertiser <span class="hint" style="display:inline;">(search your leads, or type a new name)</span></label><input type="search" id="cfLeadSearch" autocomplete="off" placeholder="Search leads or type a new business name…" /><input type="hidden" name="prospectId" id="cfProspect" /><div id="cfLeadResults" class="lead-results" hidden></div></div>
       <div class="field"><label>Machine</label><select name="machineId" id="cfMachine" required></select></div>
       <div class="field"><label>Category (slot)</label><select name="categoryId" id="cfCategory" required></select></div>
       <div class="field full"><label>Business name</label><input name="business" required placeholder="Desert Ink Tattoo" /></div>
@@ -670,7 +674,7 @@
       <div class="field"><label>Campaign status</label><select name="status"><option value="pending">Pending (reserves slot)</option><option value="active">Active (live on screen)</option><option value="ended">Ended</option><option value="cancelled">Cancelled</option></select></div>
       <div class="field"><label>Payment</label><select name="paymentStatus"><option value="unpaid">Unpaid</option><option value="paid">Paid</option><option value="past-due">Past due (card failed)</option><option value="refunded">Refunded</option></select></div>
       <div class="field"><label>Creative</label><select name="creativeStatus"><option value="pending">Pending review</option><option value="approved">Approved</option><option value="needs-changes">Needs changes</option></select></div>
-      <div class="field"><label>Banner file</label><input name="bannerFile" placeholder="from upload, optional" /></div>
+      <div class="field full"><label>Banner image <span class="hint" style="display:inline;">(PNG, JPG or WebP · under 5 MB)</span></label><input type="hidden" name="bannerFile" /><input type="file" id="cfBanner" accept="image/png,image/jpeg,image/webp" /><div class="hint" id="cfBannerHint"></div></div>
       <div class="field full"><label>Notes</label><textarea name="notes" rows="2"></textarea></div>
     </div>
     <input type="hidden" name="id" /><input type="hidden" name="leadId" />
@@ -1690,24 +1694,44 @@
   }
   $('#campaignCancel').addEventListener('click', () => modal.close());
 
-  // Fill the "From a lead" picker (advertiser prospects not already booked), then open the modal.
+  // Advertiser picker: search existing leads or type a brand-new name.
+  let leadChoices = [];
   function openCampaign(data = {}, opts = {}) {
     const booked = new Set(campaigns.filter(isLive).map((c) => c.prospectId).filter(Boolean));
     const rank = { won: 0, replied: 1, contacted: 2, drafted: 3, new: 4 };
-    const eligible = prospects.filter((p) => !isLoc(p) && !['lost', 'skipped'].includes(p.status) && (!booked.has(p.id) || p.id === data.prospectId)).sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || a.business.localeCompare(b.business));
-    $('#cfProspect').innerHTML = `<option value="">— pick a lead —</option>${eligible.map((p) => `<option value="${esc(p.id)}" ${p.id === data.prospectId ? 'selected' : ''}>${esc(p.business)} · ${esc(catById(p.categoryId).label)} · ${esc(P_STATUS_LABEL[p.status])}</option>`).join('')}`;
+    leadChoices = prospects.filter((p) => !isLoc(p) && !['lost', 'skipped'].includes(p.status) && (!booked.has(p.id) || p.id === data.prospectId)).sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || a.business.localeCompare(b.business));
+    form.dataset.keepSlot = data.categoryId && !data.prospectId ? '1' : '';
     openCampaignModal(data, opts);
     $('#cfProspect').value = data.prospectId || '';
+    $('#cfLeadSearch').value = data.business || '';
+    $('#cfLeadResults').hidden = true;
+    $('#cfBanner').value = '';
+    $('#cfBannerHint').textContent = data.bannerFile ? `Current: ${data.bannerFile}` : 'Optional — can be added later.';
   }
+  function renderLeadResults() {
+    const q = $('#cfLeadSearch').value.trim(), ql = q.toLowerCase();
+    const hits = leadChoices.filter((p) => !ql || `${p.business} ${catById(p.categoryId).label} ${placeOf(p)}`.toLowerCase().includes(ql)).slice(0, 25);
+    $('#cfLeadResults').innerHTML = (q ? `<button type="button" class="new-lead" data-new-lead>+ Use “${esc(q)}” as a new advertiser</button>` : '') + hits.map((p) => `<button type="button" data-pick-lead="${esc(p.id)}">${esc(p.business)}<small>${esc(catById(p.categoryId).label)} · ${esc(P_STATUS_LABEL[p.status])}</small></button>`).join('');
+    $('#cfLeadResults').hidden = !$('#cfLeadResults').innerHTML;
+  }
+  $('#cfLeadSearch').addEventListener('input', () => { $('#cfProspect').value = ''; form.elements.business.value = $('#cfLeadSearch').value.trim(); renderLeadResults(); });
+  $('#cfLeadSearch').addEventListener('focus', renderLeadResults);
+  $('#cfLeadResults').addEventListener('click', (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    $('#cfLeadResults').hidden = true;
+    if (b.dataset.pickLead) { $('#cfProspect').value = b.dataset.pickLead; $('#cfProspect').dispatchEvent(new Event('change')); $('#cfLeadSearch').value = form.elements.business.value; }
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('#cfLeadSearch, #cfLeadResults')) $('#cfLeadResults').hidden = true; });
   $('#cfProspect').addEventListener('change', () => {
     const p = prospects.find((x) => x.id === $('#cfProspect').value); if (!p) return;
     const c = primaryContact(p);
     Object.entries({ business: p.business, contactName: c?.name || '', email: pickEmail(p)?.value || '', phone: pickPhone(p)?.value || '', website: p.website || '' }).forEach(([k, v]) => { form.elements[k].value = v; });
-    if (ADS.categories.some((x) => x.id === p.categoryId)) form.categoryId.value = p.categoryId;
-    if (ADS.machines.some((x) => x.id === p.machineId)) form.machineId.value = p.machineId;
+    if (ADS.categories.some((x) => x.id === p.categoryId) && !form.dataset.keepSlot) form.categoryId.value = p.categoryId;
+    if (ADS.machines.some((x) => x.id === p.machineId) && !form.dataset.keepSlot) form.machineId.value = p.machineId;
     if (!form.notes.value) form.notes.value = `From lead · ${p.id}`;
     recalcModal();
   });
+  const readDataUrl = (file) => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error('Could not read the image')); r.readAsDataURL(file); });
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = Object.fromEntries(new FormData(form).entries());
@@ -1716,6 +1740,8 @@
     const id = payload.id; delete payload.id;
     $('#campaignSave').disabled = true;
     try {
+      const img = $('#cfBanner').files[0];
+      if (img) { if (img.size > 5 * 1024 * 1024) throw new Error('Banner must be under 5 MB'); payload.banner = { dataUrl: await readDataUrl(img) }; }
       await api(id ? `/api/campaigns/${id}` : '/api/campaigns', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) });
       modal.close(); toast(id ? 'Campaign updated' : 'Advertiser booked'); await load();
     } catch (err) { $('#campaignError').textContent = err.message; } finally { $('#campaignSave').disabled = false; }
@@ -1797,7 +1823,7 @@
       if (t.dataset.machFilter) { machFilter = t.dataset.machFilter; renderMachines(); return; }
       if (t.dataset.machView) { machView = t.dataset.machView; renderMachines(); return; }
       if (t.dataset.bookSlot) { openCampaign({ machineId: t.dataset.bookSlot, categoryId: t.dataset.cat }, { title: `Book — ${catById(t.dataset.cat).label} on ${machineById(t.dataset.bookSlot).name}` }); return; }
-      if (t.dataset.openCampaign !== undefined) { openCampaign(selMachine !== 'all' ? { machineId: selMachine } : {}); return; }
+      if (t.dataset.openCampaign !== undefined) { openCampaign(t.dataset.mBook ? { machineId: t.dataset.mBook } : selMachine !== 'all' ? { machineId: selMachine } : {}); return; }
       if (t.dataset.editCampaign) { const c = campaigns.find((x) => x.id === t.dataset.editCampaign); if (c) openCampaign({ ...c }, { title: `Edit — ${c.business}`, isEdit: true }); return; }
       if (t.dataset.campPatch) { t.disabled = true; try { await api(`/api/campaigns/${t.dataset.campPatch}`, { method: 'PATCH', body: JSON.stringify(JSON.parse(t.dataset.patch)) }); toast('Updated'); await load(); } catch (err) { toast(err.message); t.disabled = false; } return; }
       if (t.dataset.paymentLink) { t.disabled = true; try { const d = await api(`/api/campaigns/${t.dataset.paymentLink}/payment-link`, { method: 'POST' }); openPayLinkModal(d); await load(); } catch (err) { toast(err.message); t.disabled = false; } return; }
@@ -1986,7 +2012,7 @@
       const full = f.max && f.n >= f.max;
       return `<details class="m-cat" data-m-cat="${esc(cat.id)}" ${mOpenCat === cat.id ? 'open' : ''}><summary><div class="grow">${esc(cat.label)}</div>${dollars(cat)}${f.html}</summary><div class="m-cat-body">${body || '<div class="m-sub" style="padding:10px 0;">No advertiser yet.</div>'}${full ? '' : `<button class="btn btn-sm btn-dark" style="margin-top:10px;" data-book-slot="${esc(m.id)}" data-cat="${esc(cat.id)}">+ Book advertiser</button>`}</div></details>`;
     }).join('');
-    return `<div class="m-stat"><div><b>${used}/${ADS.maxUnits}</b><span>slots filled</span></div><div><b>${mine.filter(liveNow).length}</b><span>live now</span></div><div><b>${attention}</b><span>need attention</span></div></div><div class="m-sub" style="margin:0 2px 10px;">${esc(m.address || m.city)}</div>${rows}`;
+    return `<div class="m-stat"><div><b>${used}/${ADS.maxUnits}</b><span>slots filled</span></div><div><b>${mine.filter(liveNow).length}</b><span>live now</span></div><div><b>${attention}</b><span>need attention</span></div></div><div class="m-sub" style="margin:0 2px 10px;">${esc(m.address || m.city)}</div><button class="btn btn-primary" style="width:100%;padding:14px;margin-bottom:12px;" data-open-campaign data-m-book="${esc(m.id)}">+ Add advertiser</button>${rows}`;
   }
   let mOpenCat = null, mAddOpen = false;
 

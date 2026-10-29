@@ -193,7 +193,6 @@ test('production API protects private files and persists valid leads and campaig
     const saved = (await created.json()).campaign;
     assert.equal(saved.units, 1);
     assert.equal(saved.estPlays, 5760);
-    assert.equal((await request('/api/campaigns', { method: 'POST', auth: true, data: { ...campaign, force: true } })).status, 409);
     const availability = await (await request('/api/availability')).json();
     assert.deepEqual(availability.machines[0].takenCategories, ['dui']);
     await stop(instance.child);
@@ -795,7 +794,7 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     let s3 = (await call('GET', '/api/prospects')).data.prospects.find((p) => p.id === suzMerged.id);
     assert.equal(s3.status, 'won');
     assert.equal(s3.campaignId, booked.data.campaign.id);
-    assert.equal((await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: 'Nova', budget: 200, start: '2030-01-20', end: '2030-02-01', prospectId: novaMerged.id })).status, 409, 'one advertiser per category per machine');
+    assert.equal((await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: 'Nova', budget: 200, start: '2030-01-20', end: '2030-02-01', prospectId: novaMerged.id })).status, 201, 'admin can double-book a category');
     const moved = await call('PATCH', `/api/campaigns/${booked.data.campaign.id}`, { machineId: 'chopper-johns-phoenix' });
     assert.equal(moved.status, 200);
     const off = await call('PATCH', `/api/campaigns/${booked.data.campaign.id}`, { status: 'cancelled' });
