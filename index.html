@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
   <link rel="stylesheet" href="icons.css?v=1" />
 </head>
 <body class="home">
@@ -54,6 +54,10 @@
         KWIGZ installs age-verified vape &amp; nicotine pouch vending machines in bars, clubs, and casinos — at zero cost to you.
       </p>
 
+      <div class="hero-cta hero-cta-top">
+        <a href="#qualify" class="btn btn-lg">See If You Qualify →</a>
+      </div>
+
       <ul class="benefit-list">
         <li>
           <span class="benefit-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#package"></use></svg></span>
@@ -78,7 +82,6 @@
       </ul>
 
       <div class="hero-cta">
-        <a href="#qualify" class="btn btn-lg">See If You Qualify →</a>
         <a href="about.html" class="btn btn-lg btn-ghost">Learn More</a>
       </div>
     </div>
@@ -156,12 +159,13 @@
         <div class="q-step q-result" data-step="b-pass">
           <div class="success-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#check"></use></svg></div>
           <h3 class="q-question">You qualify! <svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#sparkles"></use></svg></h3>
-          <p class="q-help">We'll reach out to you with an offer shortly. Drop your email below so we know where to send it.</p>
+          <p class="q-help">We'll reach out to you with an offer shortly. Leave your email and phone number below so we know how to reach you.</p>
           <form class="lead-form" id="businessLeadForm" data-type="business" novalidate>
             <div class="lead-row">
               <input type="email" name="email" placeholder="you@yourvenue.com" required autocomplete="email" />
-              <button type="submit" class="btn">Send Me the Offer</button>
+              <input type="tel" name="phone" placeholder="Phone number" required autocomplete="tel" aria-label="Phone number" />
             </div>
+            <button type="submit" class="btn btn-full">Send Me the Offer</button>
             <input type="text" name="venue" placeholder="Venue name (optional)" autocomplete="organization" />
             <p class="lead-error" hidden></p>
             <p class="lead-fine">No spam. We'll only contact you about your KWIGZ offer.</p>
@@ -177,12 +181,13 @@
           <div class="fail-icon">!</div>
           <h3 class="q-question">Looks like we're not a fit just yet.</h3>
           <p class="q-help" id="failReason">We require all venue partners to be 21+ with at least 3 ft of open wall space.</p>
-          <p class="q-help">Think we got it wrong, or want to chat anyway? Leave your email and we'll follow up.</p>
+          <p class="q-help">Think we got it wrong, or want to chat anyway? Leave your email and phone number and we'll follow up.</p>
           <form class="lead-form" id="businessFailForm" data-type="business-not-qualified" novalidate>
             <div class="lead-row">
               <input type="email" name="email" placeholder="you@yourvenue.com" required autocomplete="email" />
-              <button type="submit" class="btn btn-outline">Contact Me</button>
+              <input type="tel" name="phone" placeholder="Phone number" required autocomplete="tel" aria-label="Phone number" />
             </div>
+            <button type="submit" class="btn btn-outline btn-full">Contact Me</button>
             <p class="lead-error" hidden></p>
           </form>
           <div class="lead-done" hidden>
@@ -340,6 +345,6 @@
   </footer>
 
   <script src="ads-config.js?v=2"></script>
-  <script src="script.js?v=8"></script>
+  <script src="script.js?v=9"></script>
 </body>
 </html>

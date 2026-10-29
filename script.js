@@ -91,12 +91,25 @@ if (qualifier) {
     if (Math.abs(window.scrollY - top) > 40) window.scrollTo({ top, behavior: 'smooth' });
   };
 
+  // /advertiser and /business are standalone entry pages that skip the chooser.
+  const pagePath = (location.pathname.match(/^\/(advertiser|business)(?:\.html)?\/?$/) || [])[1];
+  const firstStep = (path) => (path === 'business' ? 'b1' : 'a1');
+
   qualifier.querySelectorAll('.path-card').forEach(card => {
     card.addEventListener('click', () => {
-      answers.path = card.dataset.path;
-      showStep(card.dataset.path === 'business' ? 'b1' : 'a1');
+      location.href = `/${card.dataset.path}`;
     });
   });
+
+  if (pagePath) {
+    document.body.classList.add('path-page');
+    answers.path = pagePath;
+    steps.forEach(s => s.classList.toggle('is-active', s.dataset.step === firstStep(pagePath)));
+    document.title = pagePath === 'advertiser'
+      ? 'Advertise on KWIGZ Machines — See If You Qualify'
+      : 'Host a KWIGZ Machine — See If You Qualify';
+    window.scrollTo(0, 0);
+  }
 
   const failReason = document.getElementById('failReason');
   qualifier.querySelectorAll('.q-opt').forEach(opt => {
@@ -114,7 +127,10 @@ if (qualifier) {
   });
 
   qualifier.querySelectorAll('.q-back').forEach(btn => {
-    btn.addEventListener('click', () => showStep(btn.dataset.back));
+    btn.addEventListener('click', () => {
+      if (pagePath && btn.dataset.back === 'choose') { location.href = '/#qualify'; return; }
+      showStep(btn.dataset.back);
+    });
   });
 
   // --- Advertiser wizard ---

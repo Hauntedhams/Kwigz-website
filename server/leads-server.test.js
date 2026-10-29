@@ -168,15 +168,17 @@ test('production API protects private files and persists valid leads and campaig
       method: 'POST', data: { email: 'test@example.com', banner: { dataUrl: 'data:image/png;base64,dGVzdA==' } },
     })).status, 400);
     const submitted = await request('/api/leads', {
-      method: 'POST', data: { email: 'test@example.com', type: 'business', venue: '=formula', id: 'spoof', receivedAt: 'spoof' },
+      method: 'POST', data: { email: 'test@example.com', phone: '(602) 555-0100', type: 'business', venue: '=formula', id: 'spoof', receivedAt: 'spoof' },
     });
     assert.equal(submitted.status, 201);
     const leadId = (await submitted.json()).id;
     assert.notEqual(leadId, 'spoof');
     const list = await (await request('/api/leads', { auth: true })).json();
     assert.equal(list.leads.length, 1);
+    assert.equal(list.leads[0].phone, '(602) 555-0100');
     assert.notEqual(list.leads[0].receivedAt, 'spoof');
     const csv = await (await request('/api/leads.csv', { auth: true })).text();
+    assert.ok(csv.includes('(602) 555-0100'));
     assert.ok(csv.includes("'=formula"));
     assert.equal((await request(`/api/leads/${leadId}`, { auth: true, method: 'PATCH', data: { status: 'contacted', notes: 'Follow up' } })).status, 200);
     const campaign = {
@@ -893,4 +895,3 @@ test('machine locations: import, direct creation, placement drafts, walk-in/visi
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
-

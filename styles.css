@@ -1339,3 +1339,9 @@ body.menu-open { overflow: hidden; }
   .campaign-summary { padding: 4px 18px; }
   .summary-highlight { margin: 0 -18px; padding: 14px 18px; }
 }
+
+/* Standalone /advertiser and /business pages: show only the qualifier */
+body.path-page .funnel-hero,
+body.path-page .qualify-section .section-header { display: none; }
+body.path-page .qualify-section { padding-top: 110px; min-height: 100vh; }
+.hero-cta-top { margin-bottom: 20px; }

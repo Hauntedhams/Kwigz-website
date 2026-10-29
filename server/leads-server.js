@@ -841,6 +841,7 @@ function serveStatic(req, res) {
   const url = new URL(req.url, 'http://localhost');
   let pathname = decodeURIComponent(url.pathname);
   if (pathname.endsWith('/')) pathname += 'index.html';
+  if (/^\/(advertiser|business)(\.html)?$/.test(pathname)) pathname = '/index.html';
 
   const filename = pathname.slice(1);
   if (!PUBLIC_FILES.has(filename)) {
