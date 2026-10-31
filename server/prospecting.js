@@ -778,6 +778,8 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     if (body.business !== undefined) { const b = clean(body.business, 160); if (!b) throw new Error('Business name is required'); p.business = b; }
     if (body.website !== undefined) { const w = clean(body.website, 300); const d = normalizeDomain(w); p.website = w && d && !/^https?:\/\//.test(w) ? `https://${w}` : w; p.domain = d || ''; if (!p.logoUrl && d) p.logoUrl = faviconFor(d); }
     if (body.address !== undefined) p.address = clean(body.address, 200);
+    if (body.industry !== undefined) p.industry = clean(body.industry, 100);
+    if (Array.isArray(body.socials)) p.socials = body.socials.slice(0, 12).map((x) => ({ platform: clean(x.platform, 30), url: clean(x.url, 300) })).filter((x) => x.platform && /^https?:\/\//i.test(x.url));
     if (body.city !== undefined) p.city = clean(body.city, 80);
     if (body.linkedinUrl !== undefined) p.linkedinUrl = clean(body.linkedinUrl, 300);
     if (body.mapsUrl !== undefined) p.mapsUrl = clean(body.mapsUrl, 400);
@@ -791,7 +793,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       p.art = { ...(p.art || { variants: [] }), selected: id };
     }
     if (Array.isArray(body.contacts)) {
-      p.contacts = body.contacts.slice(0, 8).map((c) => { const m = normalizePhone(clean(c.mobile, 40)); return { name: clean(c.name, 120), firstName: clean(c.firstName, 60) || firstNameOf(c.name), title: clean(c.title, 120), linkedinUrl: clean(c.linkedinUrl, 300), city: clean(c.city, 80), email: clean(c.email, 254).toLowerCase(), emailSource: clean(c.emailSource, 20) || (c.email ? 'manual' : ''), mobile: m ? m.display : clean(c.mobile, 40), mobileE164: m ? m.e164 : '' }; }).filter((c) => c.name);
+      p.contacts = body.contacts.slice(0, 8).map((c) => { const m = normalizePhone(clean(c.mobile, 40)); return { name: clean(c.name, 120), firstName: clean(c.firstName, 60) || firstNameOf(c.name), title: clean(c.title, 120), linkedinUrl: clean(c.linkedinUrl, 300), instagram: clean(c.instagram, 200), city: clean(c.city, 80), email: clean(c.email, 254).toLowerCase(), emailSource: clean(c.emailSource, 20) || (c.email ? 'manual' : ''), mobile: m ? m.display : clean(c.mobile, 40), mobileE164: m ? m.e164 : '' }; }).filter((c) => c.name);
     }
     if (body.drafts && typeof body.drafts === 'object' && p.drafts) {
       const d = body.drafts;

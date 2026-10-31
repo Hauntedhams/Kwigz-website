@@ -134,6 +134,13 @@
     .kv b { flex: 1; min-width: 0; }
     .kv-input-wrap { display: flex; align-items: center; gap: 6px; width: 100%; max-width: 340px; }
     .kv-input-wrap input { flex: 1; min-width: 0; }
+    .kv.kv-edit { grid-template-columns: 1fr; }
+    .kv-edit .kv-input-wrap { max-width: none; }
+    .social-add { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+    .social-add input { border-style: dashed; }
+    .social-row { margin-bottom: 6px; }
+    .contact-card .cc-f { display: flex; gap: 6px; align-items: center; }
+    .contact-card .cc-f input { flex: 1; min-width: 0; }
     .kv-edit input.inline { font-size: 0.82rem; padding: 5px 8px; }
     .btn-link-icon { padding: 4px 8px; font-size: 0.82rem; line-height: 1; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: var(--text); border: 1px solid var(--line); background: #fff; flex-shrink: 0; }
     .btn-link-icon:hover { border-color: var(--red); color: var(--red); background: var(--red-soft); }
@@ -1284,14 +1291,22 @@
     </div>`;
   }
   const mockOpenIds = new Set();
+  const SOCIAL_BASE = { Instagram: 'https://instagram.com/', Facebook: 'https://facebook.com/', TikTok: 'https://tiktok.com/@', 'X / Twitter': 'https://x.com/', YouTube: 'https://youtube.com/@', Yelp: 'https://yelp.com/biz/' };
+  const socialUrl = (platform, v) => { const t = String(v || '').trim(); if (!t) return ''; if (/^https?:\/\//i.test(t) || /\.[a-z]{2,}\//i.test(t)) return cleanUrl(t); const h = t.replace(/^@/, ''); return SOCIAL_BASE[platform] ? SOCIAL_BASE[platform] + h : ''; };
   function prospectDetail(p) {
     const c = primaryContact(p);
     const loc = isLoc(p);
     const fu = (p.outreach || []).length > 0;
     const sent = (ch) => touchCount(p, ch);
+    const rawLink = (href, title) => `<a class="btn-link-icon" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(title)}">↗</a>`;
     const field = (label, key, value, placeholder = '') => {
-      const isUrl = ['website', 'mapsUrl', 'linkedinUrl'].includes(key);
-      return `<div><span>${label}</span><b><span class="kv-input-wrap"><input class="inline" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" />${isUrl && value ? linkBtn(value, `Open ${label}`) : ''}</span></b></div>`;
+      let link = '';
+      if (value) {
+        if (['website', 'mapsUrl', 'linkedinUrl'].includes(key)) link = linkBtn(value, `Open ${label}`);
+        else if (key === 'address') link = rawLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([value, p.city].filter(Boolean).join(', '))}`, 'Find on Google Maps');
+        else if (key === 'city' && !p.address) link = rawLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`, 'Find on Google Maps');
+      }
+      return `<div><span>${label}</span><b><span class="kv-input-wrap"><input class="inline" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" />${link}</span></b></div>`;
     };
     const info = [
       field('Business', 'business', p.business),
@@ -1300,21 +1315,25 @@
       field('Address', 'address', p.address, 'street, city, state'),
       field('City', 'city', p.city),
       field('Google Maps', 'mapsUrl', p.mapsUrl, 'https://www.google.com/maps/…'),
-      loc ? '' : field('Company LinkedIn', 'linkedinUrl', p.linkedinUrl, 'https://www.linkedin.com/company/…'),
+      field('LinkedIn', 'linkedinUrl', p.linkedinUrl, 'https://www.linkedin.com/company/…'),
+      loc ? '' : field('Industry', 'industry', p.industry || (p.specialties || [])[0] || '', 'e.g. Tattoo, DUI defense'),
+      `<div><span>Business number</span><b><span class="kv-input-wrap"><input class="inline" value="${esc(p.phone || '')}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" />${p.phone ? rawLink(`tel:${p.phoneE164 || p.phone}`, 'Call business') : ''}</span></b></div>`,
       loc ? field('Wall space', 'wallSpace', p.wallSpace, 'e.g. 3 ft by the entrance') : '',
       loc ? field('21+ venue', 'age21', p.age21, 'Yes / No / all ages') : '',
       loc ? field('Machine size', 'machineSize', p.machineSize, 'Medium claw / SlimWall') : '',
       p.distanceMiles != null ? `<div><span>Distance</span><b>${p.distanceMiles} mi from ${esc(machineById(p.machineId).name)}</b></div>` : '',
       p.rating ? `<div><span>Google rating</span><b>${p.rating}★${p.reviews ? ` · ${fmtN(p.reviews)} reviews` : ''}</b></div>` : '',
-      p.industry && !loc ? `<div><span>Industry</span><b>${esc(p.industry)}</b></div>` : '',
-      p.specialties?.length && !loc ? `<div><span>Specialties</span><b>${esc(p.specialties.slice(0, 8).join(', '))}</b></div>` : '',
-      `<div><span>Business phone</span><b><input class="inline" style="width:170px;" value="${esc(p.phone || '')}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /></b></div>`,
     ].filter(Boolean).join('');
+    const SOCIALS = ['Instagram', 'Facebook', 'TikTok', 'X / Twitter', 'YouTube', 'Yelp', 'Other'];
+    const socialsHtml = `<h4 style="margin-top:12px;">Social media</h4>${(p.socials || []).map((sc, i) => `<div class="kv-input-wrap social-row"><span class="t" style="min-width:78px;">${esc(sc.platform)}</span><input class="inline" value="${esc(sc.url)}" readonly />${linkBtn(sc.url, `Open ${sc.platform}`)}<button class="btn btn-sm btn-danger" data-pa="social-del" data-pid="${esc(p.id)}" data-idx="${i}" title="Remove">×</button></div>`).join('')}
+      <div class="social-add"><select class="inline" id="socialPlat-${esc(p.id)}">${SOCIALS.map((n) => `<option>${n}</option>`).join('')}</select><input class="inline" id="socialUrl-${esc(p.id)}" placeholder="@handle or profile link" /><button class="btn btn-sm" data-pa="social-add" data-pid="${esc(p.id)}">Add</button></div>`;
+    const cLink = (href, title) => (href ? `<a class="btn-link-icon" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(title)}">↗</a>` : '');
     const contacts = (p.contacts || []).map((ct, i) => `<div class="contact-card">
         <div class="cc-head"><input class="inline" value="${esc(ct.name)}" placeholder="Full name" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="name" /><input class="inline" value="${esc(ct.title || '')}" placeholder="Title (Owner, GM…)" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="title" />${i === 0 ? '<span class="badge purple" style="font-size:0.62rem;">primary</span>' : `<button class="btn btn-sm" data-pa="contact-primary" data-pid="${esc(p.id)}" data-idx="${i}">Make primary</button>`}<button class="btn btn-sm btn-danger" data-pa="contact-del" data-pid="${esc(p.id)}" data-idx="${i}" title="Remove contact">×</button></div>
-        <div><input type="email" placeholder="email" value="${esc(ct.email || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="email" /></div>
-        <div><input type="tel" placeholder="mobile" value="${esc(ct.mobile || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="mobile" /></div>
-        <div style="grid-column:1/-1;"><input placeholder="LinkedIn profile URL" value="${esc(ct.linkedinUrl || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="linkedinUrl" /></div>
+        <div class="cc-f"><input type="email" placeholder="email" value="${esc(ct.email || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="email" />${cLink(ct.email && `mailto:${ct.email}`, 'Email')}</div>
+        <div class="cc-f"><input type="tel" placeholder="mobile" value="${esc(ct.mobile || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="mobile" />${cLink(ct.mobile && `tel:${ct.mobileE164 || ct.mobile}`, 'Call')}</div>
+        <div class="cc-f"><input placeholder="LinkedIn profile URL" value="${esc(ct.linkedinUrl || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="linkedinUrl" />${cLink(ct.linkedinUrl && cleanUrl(ct.linkedinUrl), 'Open LinkedIn')}</div>
+        <div class="cc-f"><input placeholder="Instagram @handle or link" value="${esc(ct.instagram || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="instagram" />${cLink(ct.instagram && socialUrl('Instagram', ct.instagram), 'Open Instagram')}</div>
         <div class="cc-actions">${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">Open LinkedIn</a>` : ''}${ct.mobile ? `<a class="btn btn-sm" href="tel:${esc(ct.mobileE164 || ct.mobile)}">Call mobile</a>` : (!loc && prospecting.clay?.configured && ct.linkedinUrl ? `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}">Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>` : '')}</div>
       </div>`).join('');
     // outreach drafts
@@ -1363,6 +1382,7 @@
       <div>
         ${mockHtml}
         <div class="block"><h4>${loc ? 'Venue' : 'Company'} <span class="lite">— edit any field, it saves when you click away</span></h4><div class="kv kv-edit">${info}</div>
+          ${socialsHtml}
           <h4 style="margin-top:12px;">Extra phone numbers</h4>${altEditor('prospect', p.id, 'phone', p.altPhones)}
           <h4 style="margin-top:12px;">Extra emails</h4>${altEditor('prospect', p.id, 'email', p.altEmails)}
         </div>
@@ -1874,6 +1894,12 @@
       const id = t.dataset.pid; const p = prospects.find((x) => x.id === id);
       if (!p) return;
       if (pa === 'toggle') { openProspectId = openProspectId === id ? null : id; draftTab = isLoc(p) ? 'visit' : (pickEmail(p) || !pickPhone(p) ? 'email' : 'sms'); renderLeads(); return; }
+      if (pa === 'social-add') {
+        const plat = $(`#socialPlat-${CSS.escape(id)}`).value, raw = $(`#socialUrl-${CSS.escape(id)}`).value.trim();
+        const url = socialUrl(plat, raw); if (!url) { toast('Enter a profile link or @handle'); return; }
+        await patchProspect(id, { socials: [...(p.socials || []), { platform: plat, url }] }, 'Social added'); renderLeads(); return;
+      }
+      if (pa === 'social-del') { await patchProspect(id, { socials: (p.socials || []).filter((_, i) => i !== Number(t.dataset.idx)) }, 'Social removed'); renderLeads(); return; }
       if (pa === 'mock-toggle') { if (mockOpenIds.has(id)) mockOpenIds.delete(id); else mockOpenIds.add(id); renderLeads(); return; }
       if (pa === 'tab') { draftTab = t.dataset.tab; renderLeads(); return; }
       if (pa === 'draft-one') { t.disabled = true; await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids: [id], status: '' }) }); await refreshProspects(); toast('Drafts written'); return; }
