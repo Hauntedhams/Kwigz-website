@@ -697,6 +697,24 @@
 </dialog>
 
 <!-- PAYMENT LINK MODAL -->
+<dialog id="scriptsModal">
+  <div class="modal">
+    <h3>Scripts</h3>
+    <p class="hint">Saved for everyone on the admin page. Pick one from <b>Scripts</b> next to Outreach to fill the message. Placeholders: <code>{{firstName}}</code> <code>{{business}}</code> <code>{{city}}</code> <code>{{machine}}</code> <code>{{category}}</code> <code>{{price}}</code> <code>{{me}}</code></p>
+    <div id="scriptList" style="margin-bottom:12px;max-height:200px;overflow:auto;"></div>
+    <div class="form-grid">
+      <div class="field"><label>Name</label><input id="scName" maxlength="80" placeholder="e.g. Tattoo shop — first DM" /></div>
+      <div class="field"><label>For</label><select id="scChannel"><option value="any">Any channel</option><option value="email">Email</option><option value="sms">Text</option><option value="linkedin">LinkedIn</option><option value="instagram">Instagram</option><option value="facebook">Facebook</option><option value="tiktok">TikTok</option><option value="call">Call</option><option value="visit">Visit</option></select></div>
+      <div class="field full" id="scSubjectWrap"><label>Subject <span class="hint" style="display:inline;">(email only)</span></label><input id="scSubject" maxlength="200" /></div>
+      <div class="field full"><label>Script</label><textarea id="scBody" rows="8" maxlength="4000" style="font-family:inherit;"></textarea></div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="scClose">Close</button>
+      <button type="button" class="btn" id="scNew">New</button>
+      <button type="button" class="btn btn-primary" id="scSave">Save script</button>
+    </div>
+  </div>
+</dialog>
 <dialog id="payLinkModal">
   <div class="modal">
     <h3 id="plTitle">Payment link</h3>
@@ -773,6 +791,7 @@
   let token = sessionStorage.getItem(TOKEN_KEY) || '';
   const authHeaders = () => (token ? { Authorization: `Bearer ${token}` } : {});
   let leads = [], campaigns = [], stripe = { enabled: false, mode: 'test', webhook: false };
+  let scripts = [];
   let prospects = [], prospecting = { clay: { configured: false }, gemini: { configured: false }, categories: [], machines: [], imports: [], defaults: { limit: 15, maxLimit: 20, radiusMiles: 20, followUpDays: 2 }, creditEstimates: {}, sender: {} };
   let tab = 'machines';
 
@@ -901,6 +920,7 @@
       campaigns = c.campaigns; stripe = c.stripe || stripe;
       prospects = (p.prospects || []).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       if (ps) prospecting = { ...ps, credits: prospecting.credits };
+      scripts = (await api('/api/scripts').catch(() => ({ scripts: [] }))).scripts || [];
       renderAll();
     } catch (err) { if (err.message !== 'Unauthorized') toast(err.message); }
   }
@@ -1294,6 +1314,53 @@
     </div>`;
   }
   const mockOpenIds = new Set();
+  const fillScript = (p, text) => {
+    const c = primaryContact(p);
+    const vars = { firstName: c?.firstName || (c?.name || '').split(' ')[0] || 'there', business: p.business, city: p.city || '', machine: machineById(p.machineId)?.name || '', category: isLoc(p) ? (p.venueType || '') : catById(p.categoryId).label, price: `$${p.mockup?.price || (isLoc(p) ? '' : startPrice(p.categoryId))}`, me: prospecting.sender?.name || 'Victor' };
+    return String(text || '').replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k) => (k in vars ? vars[k] : m));
+  };
+  function applyScript(p, sc) {
+    const draft = $('.p-detail .draft'); if (!draft) return;
+    const fire = (el, v) => { el.value = v; el.dispatchEvent(new Event('change', { bubbles: true })); };
+    const area = draft.querySelector('textarea:not([readonly])');
+    if (!area) return toast('This tab has no message box — use it as a reference');
+    if (draftTab === 'email' && sc.subject) { const subj = draft.querySelector('input[data-dk$=".subject"]'); if (subj) fire(subj, fillScript(p, sc.subject)); }
+    fire(area, fillScript(p, sc.body).slice(0, area.maxLength > 0 ? area.maxLength : undefined));
+    toast(`Script "${sc.name}" applied`);
+  }
+  let editingScript = '';
+  function renderScriptList() {
+    $('#scriptList').innerHTML = scripts.length ? scripts.map((x) => `<div class="alt-row" style="grid-template-columns:minmax(0,1fr) auto auto;margin-bottom:6px;"><span><b>${esc(x.name)}</b> <span class="t">· ${esc(x.channel === 'any' ? 'Any' : CHANNEL_LABEL[x.channel] || x.channel)}</span></span><button class="btn btn-sm" data-sc-edit="${esc(x.id)}">Edit</button><button class="btn btn-sm btn-danger" data-sc-del="${esc(x.id)}">×</button></div>`).join('') : '<p class="t">No scripts yet — write your first one below.</p>';
+  }
+  function openScripts(channel) {
+    editingScript = ''; $('#scName').value = ''; $('#scSubject').value = ''; $('#scBody').value = ''; $('#scChannel').value = channel || 'any'; $('#scSubjectWrap').hidden = $('#scChannel').value !== 'email' && $('#scChannel').value !== 'any';
+    renderScriptList(); $('#scriptsModal').showModal();
+  }
+  $('#scChannel').addEventListener('change', () => { $('#scSubjectWrap').hidden = !['email', 'any'].includes($('#scChannel').value); });
+  $('#scNew').addEventListener('click', () => openScripts());
+  $('#scClose').addEventListener('click', () => { $('#scriptsModal').close(); renderLeads(); });
+  $('#scSave').addEventListener('click', async () => {
+    try {
+      const body = JSON.stringify({ name: $('#scName').value, channel: $('#scChannel').value, subject: $('#scSubject').value, body: $('#scBody').value });
+      if (editingScript) { const r = await api(`/api/scripts/${encodeURIComponent(editingScript)}`, { method: 'PATCH', body }); scripts = scripts.map((x) => (x.id === editingScript ? r.script : x)); }
+      else { const r = await api('/api/scripts', { method: 'POST', body }); scripts.push(r.script); }
+      toast('Script saved'); openScripts($('#scChannel').value);
+    } catch (err) { toast(err.message); }
+  });
+  $('#scriptList').addEventListener('click', async (e) => {
+    const ed = e.target.closest('[data-sc-edit]'), del = e.target.closest('[data-sc-del]');
+    try {
+      if (ed) { const x = scripts.find((s) => s.id === ed.dataset.scEdit); if (!x) return; editingScript = x.id; $('#scName').value = x.name; $('#scChannel').value = x.channel; $('#scSubject').value = x.subject || ''; $('#scBody').value = x.body; $('#scSubjectWrap').hidden = !['email', 'any'].includes(x.channel); }
+      if (del) { if (!confirm('Delete this script for everyone?')) return; await api(`/api/scripts/${encodeURIComponent(del.dataset.scDel)}`, { method: 'DELETE' }); scripts = scripts.filter((s) => s.id !== del.dataset.scDel); renderScriptList(); }
+    } catch (err) { toast(err.message); }
+  });
+  document.addEventListener('change', (e) => {
+    const sel = e.target.closest('select[data-script-pick]'); if (!sel) return;
+    const v = sel.value; sel.value = '';
+    const p = prospects.find((x) => x.id === sel.dataset.pid);
+    if (v === '__manage') return openScripts(draftTab);
+    const sc = scripts.find((x) => x.id === v); if (p && sc) applyScript(p, sc);
+  });
   const SOCIAL_BASE = { Instagram: 'https://instagram.com/', Facebook: 'https://facebook.com/', TikTok: 'https://tiktok.com/@', 'X / Twitter': 'https://x.com/', YouTube: 'https://youtube.com/@', Yelp: 'https://yelp.com/biz/' };
   const socialUrl = (platform, v) => { const t = String(v || '').trim(); if (!t) return ''; if (/^https?:\/\//i.test(t) || /\.[a-z]{2,}\//i.test(t)) return cleanUrl(t); const h = t.replace(/^@/, ''); return SOCIAL_BASE[platform] ? SOCIAL_BASE[platform] + h : ''; };
   function prospectDetail(p) {
@@ -1341,7 +1408,7 @@
         <div class="cc-actions">${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">Open LinkedIn</a>` : ''}${ct.mobile ? `<a class="btn btn-sm" href="tel:${esc(ct.mobileE164 || ct.mobile)}">Call mobile</a>` : (!loc && prospecting.clay?.configured && ct.linkedinUrl ? `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}">Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>` : '')}</div>
       </div>`).join('');
     // outreach drafts
-    const tabs = (loc ? ['visit', 'call', 'email', 'sms'] : ['email', 'sms', 'linkedin', 'call', 'visit']).map((k) => [k, `${CHANNEL_LABEL[k]}${sent(k) ? ` ✓${sent(k)}` : ''}`]);
+    const tabs = (loc ? ['visit', 'call', 'email', 'sms'] : ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit']).map((k) => [k, `${CHANNEL_LABEL[k]}${sent(k) ? ` ✓${sent(k)}` : ''}`]);
     if (!tabs.some(([k]) => k === draftTab)) draftTab = tabs[0][0];
     const canSave = Boolean(p.drafts);
     const dk = (key) => `data-dk="${key}" ${canSave ? `data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${key}"` : ''}`;
@@ -1354,6 +1421,8 @@
       <div class="send-row"><span class="hint">Opens Messages with the text filled in (Mac/iPhone), then logs it.${pickPhone(p)?.src === 'business' ? ' This is the business line — a text may hit an office phone.' : ''}</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="sms">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="sms" ${phoneList.length ? '' : 'disabled'}>Send text</button></div>`; }
     if (draftTab === 'linkedin') { const li = draftFor(p, 'linkedin'); body = `<label>Connection note <span class="t">(max 300 chars)</span></label><textarea style="min-height:80px;" maxlength="300" ${dk('linkedin.note')}>${esc(li.note)}</textarea><label>Message after they accept</label><textarea ${dk('linkedin.message')}>${esc(li.message)}</textarea>
       <div class="send-row"><span class="hint">Copies the note and opens ${c?.linkedinUrl ? `${esc(c.firstName || c.name)}'s profile` : 'a LinkedIn search'} — paste it into "Add a note", then it's logged.</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="linkedin-message">Copy message</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="linkedin">Copy note &amp; open LinkedIn</button></div>`; }
+    if (SOCIAL_CH[draftTab]) { const prof = socialProfile(p, draftTab); body = `<label>${SOCIAL_CH[draftTab]} message <span class="t">(not saved — pick a script or type)</span></label><textarea style="min-height:110px;" data-dk="social">${esc(draftFor(p, 'sms'))}</textarea>
+      <div class="send-row"><span class="hint">${prof ? `Copies the message and opens ${esc(p.business)}'s ${SOCIAL_CH[draftTab]}.` : `No ${SOCIAL_CH[draftTab]} saved — opens a Google search instead. Add one under Social media.`}</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="social">Copy</button><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="${draftTab}">Copy &amp; open ${SOCIAL_CH[draftTab]}</button></div>`; }
     if (draftTab === 'call') body = `<label>Call script</label><textarea style="min-height:120px;" readonly>${esc(draftFor(p, 'call'))}</textarea>
       <div class="send-row"><span class="hint">${phoneList.length ? phoneList.map((e) => `<a href="tel:${esc(e.e164 || e.value)}">${esc(e.value)}</a> <span class="t">${esc(e.label)}</span>`).join(' · ') : 'No phone on file'}</span><input class="inline" id="touchNote" placeholder="Outcome (optional)" style="width:200px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="call">Log call</button></div>`;
     if (draftTab === 'visit') body = `<div class="tips"><b>Walk-in${loc ? ` pitch for ${esc(p.business)}` : ''}</b><ul>${loc
@@ -1394,7 +1463,7 @@
       </div>
       <div>
         <div class="block"><h4 class="h-flex">Points of contact <button class="btn btn-sm btn-primary" data-pa="contact-add" data-pid="${esc(p.id)}">+ Add contact</button></h4>${contacts}</div>
-        <div class="block"><h4>Outreach</h4>${draftsHtml}</div>
+        <div class="block"><h4 class="h-flex">Outreach <span style="display:flex;gap:6px;align-items:center;"><select class="inline" data-script-pick data-pid="${esc(p.id)}" style="max-width:190px;"><option value="">Scripts…</option>${scripts.filter((x) => x.channel === 'any' || x.channel === draftTab).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}<option value="__manage">＋ Add / manage scripts…</option></select></span></h4>${draftsHtml}</div>
         <div class="block"><h4>History (${p.outreach.length})</h4>${log}</div>
       </div>
     </div>`;
@@ -1835,6 +1904,7 @@
       window.open(c?.linkedinUrl || linkedinSearchUrl(p), '_blank', 'noopener');
     } else if (SOCIAL_CH[ch]) {
       const url = socialProfile(p, ch);
+      const msg = dom('social'); if (msg) await copyText(msg, 'Message copied — paste it into the DM');
       window.open(url || socialSearchUrl(p, ch), '_blank', 'noopener');
       note = url ? `Opened ${SOCIAL_CH[ch]}` : `Searched Google for ${SOCIAL_CH[ch]}`;
     } else {
@@ -1913,7 +1983,7 @@
       if (pa === 'draft-one') { t.disabled = true; await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids: [id], status: '' }) }); await refreshProspects(); toast('Drafts written'); return; }
       if (pa === 'copy') {
         const what = t.dataset.what;
-        const text = what === 'preview' ? p.previewUrl : what === 'email' ? (() => { const em = draftFor(p, 'email'); return `Subject: ${em.subject}\n\n${em.body}`; })() : what === 'sms' ? draftFor(p, 'sms') : what === 'linkedin-message' ? draftFor(p, 'linkedin').message : '';
+        const text = what === 'preview' ? p.previewUrl : what === 'email' ? (() => { const em = draftFor(p, 'email'); return `Subject: ${em.subject}\n\n${em.body}`; })() : what === 'sms' ? draftFor(p, 'sms') : what === 'social' ? ($('[data-dk="social"]')?.value || '') : what === 'linkedin-message' ? draftFor(p, 'linkedin').message : '';
         await copyText(text, 'Copied'); return;
       }
       if (pa === 'send') { await sendTouch(p, t.dataset.channel, t); return; }

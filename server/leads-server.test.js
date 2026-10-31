@@ -893,3 +893,28 @@ test('machine locations: import, direct creation, placement drafts, walk-in/visi
     rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+test('scripts are saved server-side and shared across the admin page', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-scripts-'));
+  let instance;
+  try {
+    instance = await start(dataDir, { SITE_URL: 'https://kwigz.test' });
+    const auth = { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` };
+    const call = async (method, p, body) => {
+      const res = await fetch(`${instance.base}${p}`, { method, headers: auth, body: body ? JSON.stringify(body) : undefined });
+      return { status: res.status, data: await res.json() };
+    };
+    assert.equal((await fetch(`${instance.base}/api/scripts`)).status, 401);
+    assert.equal((await call('POST', '/api/scripts', { name: 'No text' })).status, 400);
+    const made = await call('POST', '/api/scripts', { name: 'IG intro', channel: 'instagram', body: 'Hey {{firstName}}!' });
+    assert.equal(made.status, 200);
+    assert.equal((await call('GET', '/api/scripts')).data.scripts.length, 1);
+    const upd = await call('PATCH', `/api/scripts/${made.data.script.id}`, { name: 'IG intro v2', channel: 'bogus', body: 'Hi' });
+    assert.equal(upd.data.script.channel, 'any');
+    assert.equal((await call('DELETE', `/api/scripts/${made.data.script.id}`)).status, 200);
+    assert.equal((await call('GET', '/api/scripts')).data.scripts.length, 0);
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});

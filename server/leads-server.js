@@ -49,6 +49,8 @@ const LEAD_META_FILE = path.join(DATA_DIR, 'lead-meta.json');
 const CAMPAIGNS_FILE = path.join(DATA_DIR, 'campaigns.json');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const MACHINES_FILE = path.join(DATA_DIR, 'machines.json');
+const SCRIPTS_FILE = path.join(DATA_DIR, 'scripts.json');
+const SCRIPT_CHANNELS = ['any', 'email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit'];
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || process.env.LEADS_TOKEN || '';
 const PRODUCTION = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 if (PRODUCTION && ADMIN_PASSWORD.length < 24) {
@@ -145,6 +147,11 @@ function writeJson(file, data) {
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
   fs.renameSync(tmp, file);
+}
+
+function readScriptBody(body) {
+  const channel = SCRIPT_CHANNELS.includes(body.channel) ? body.channel : 'any';
+  return { name: String(body.name || '').trim().slice(0, 80), channel, subject: String(body.subject || '').trim().slice(0, 200), body: String(body.body || '').trim().slice(0, 4000) };
 }
 
 function newId(prefix) {
@@ -953,6 +960,29 @@ async function route(req, res) {
       writeJson(MACHINES_FILE, [...readJson(MACHINES_FILE, []), machine]);
       ADS.machines.push({ ...machine, takenCategories: [], custom: true });
       return sendJson(res, 200, { ok: true, machine });
+    }
+    if (p === '/api/scripts' && req.method === 'GET') return sendJson(res, 200, { ok: true, scripts: readJson(SCRIPTS_FILE, []) });
+    if (p === '/api/scripts' && req.method === 'POST') {
+      const body = await readJsonBody(req);
+      const script = readScriptBody(body);
+      if (!script.name || !script.body) return sendJson(res, 400, { ok: false, error: 'A script needs a name and text' });
+      const scripts = readJson(SCRIPTS_FILE, []);
+      if (scripts.length >= 200) return sendJson(res, 400, { ok: false, error: 'Script limit reached' });
+      const saved = { id: newId('S'), ...script, createdAt: new Date().toISOString() };
+      writeJson(SCRIPTS_FILE, [...scripts, saved]);
+      return sendJson(res, 200, { ok: true, script: saved });
+    }
+    const scriptMatch = p.match(/^\/api\/scripts\/([^/]+)$/);
+    if (scriptMatch && (req.method === 'PATCH' || req.method === 'DELETE')) {
+      const scripts = readJson(SCRIPTS_FILE, []);
+      const i = scripts.findIndex((x) => x.id === decodeURIComponent(scriptMatch[1]));
+      if (i === -1) return sendJson(res, 404, { ok: false, error: 'Script not found' });
+      if (req.method === 'DELETE') { scripts.splice(i, 1); writeJson(SCRIPTS_FILE, scripts); return sendJson(res, 200, { ok: true }); }
+      const script = readScriptBody(await readJsonBody(req));
+      if (!script.name || !script.body) return sendJson(res, 400, { ok: false, error: 'A script needs a name and text' });
+      scripts[i] = { ...scripts[i], ...script, updatedAt: new Date().toISOString() };
+      writeJson(SCRIPTS_FILE, scripts);
+      return sendJson(res, 200, { ok: true, script: scripts[i] });
     }
     const campMatch = p.match(/^\/api\/campaigns\/([^/]+)$/);
     if (campMatch && req.method === 'PATCH') return handleCampaignPatch(req, res, campMatch[1]);
