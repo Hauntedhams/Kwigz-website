@@ -279,6 +279,7 @@
     .alt-row input.inline { width: 100%; font-size: 0.8rem; padding: 5px 8px; }
     .alt-row.alt-new input { border-style: dashed; }
     .draft-tabs { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+    .draft-tabs .chip.no-info:not(.active) { opacity: 0.55; }
     .draft-tabs .chip { padding: 5px 12px; font-size: 0.76rem; }
     .draft { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fff; }
     .draft label { display: block; font-size: 0.72rem; font-weight: 700; color: #374151; margin: 8px 0 4px; }
@@ -860,6 +861,16 @@
   const CHANNELS = ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit'];
   const SOCIAL_CH = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' };
   const socialProfile = (p, ch) => { const name = SOCIAL_CH[ch]; const fromList = (p.socials || []).find((x) => x.platform === name)?.url; if (fromList) return fromList; if (ch === 'instagram') { const h = (p.contacts || []).find((c) => c.instagram)?.instagram; if (h) return socialUrl('Instagram', h); } return ''; };
+  const hasChannel = (p, ch) => {
+    if (ch === 'email') return Boolean(pickEmail(p));
+    if (ch === 'sms' || ch === 'call') return Boolean(pickPhone(p));
+    if (ch === 'linkedin') return Boolean(primaryContact(p)?.linkedinUrl || p.linkedinUrl);
+    if (SOCIAL_CH[ch]) return Boolean(socialProfile(p, ch));
+    if (ch === 'visit') return Boolean(p.address);
+    return false;
+  };
+  // Channels we actually have details for come first; the usual order is kept within each group.
+  const outreachOrder = (p) => (isLoc(p) ? ['visit', 'call', 'email', 'sms'] : ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit']).map((k, i) => [k, i]).sort((a, b) => (hasChannel(p, b[0]) - hasChannel(p, a[0])) || a[1] - b[1]).map(([k]) => k);
   const socialSearchUrl = (p, ch) => `https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, SOCIAL_CH[ch]].filter(Boolean).join(' '))}`;
   const CHANNEL_LABEL = { email: 'Email', sms: 'Text', linkedin: 'LinkedIn', instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', call: 'Call', visit: 'Visit', other: 'Follow-up' };
   const isLoc = (p) => p.leadType === 'location';
@@ -1408,7 +1419,7 @@
         <div class="cc-actions">${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">Open LinkedIn</a>` : ''}${ct.mobile ? `<a class="btn btn-sm" href="tel:${esc(ct.mobileE164 || ct.mobile)}">Call mobile</a>` : (!loc && prospecting.clay?.configured && ct.linkedinUrl ? `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}">Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>` : '')}</div>
       </div>`).join('');
     // outreach drafts
-    const tabs = (loc ? ['visit', 'call', 'email', 'sms'] : ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit']).map((k) => [k, `${CHANNEL_LABEL[k]}${sent(k) ? ` ✓${sent(k)}` : ''}`]);
+    const tabs = outreachOrder(p).map((k) => [k, `${CHANNEL_LABEL[k]}${sent(k) ? ` ✓${sent(k)}` : ''}`]);
     if (!tabs.some(([k]) => k === draftTab)) draftTab = tabs[0][0];
     const canSave = Boolean(p.drafts);
     const dk = (key) => `data-dk="${key}" ${canSave ? `data-pa="draft-field" data-pid="${esc(p.id)}" data-key="${key}"` : ''}`;
@@ -1429,7 +1440,7 @@
       ? `<li>Ask for the <b>owner or GM</b>${c ? ` (${esc(c.name)})` : ''}.</li><li><b>Hook:</b> free machine, zero cost, we handle everything, they get a monthly revenue share.</li><li>Needs ~<b>3 ft</b> of space and a standard outlet.</li><li>Check the spot, snap a photo, note foot traffic.</li>`
       : `<li>Ask for ${c ? `<b>${esc(c.name)}</b>` : 'the <b>owner</b>'}.</li><li>Show the mockup of ${esc(p.business)} on the ${esc(machineById(p.machineId).name)} screen.</li><li>One ${esc(catById(p.categoryId).label.toLowerCase())} business per screen · $${p.mockup?.price || startPrice(p.categoryId)}/mo, no contract.</li>`}</ul></div>
       <div class="send-row"><input class="inline" id="touchNote" placeholder="Notes from the visit (who you met, what they said…)" style="flex:1;min-width:200px;" /><button class="btn btn-sm btn-primary" data-pa="send" data-pid="${esc(p.id)}" data-channel="visit">Log visit</button></div>`;
-    const draftsHtml = `<div class="draft-tabs">${tabs.map(([k, l]) => `<button class="chip ${draftTab === k ? 'active' : ''}" data-pa="tab" data-pid="${esc(p.id)}" data-tab="${k}">${l}</button>`).join('')}</div><div class="draft">${body}</div>
+    const draftsHtml = `<div class="draft-tabs">${tabs.map(([k, l]) => `<button class="chip ${draftTab === k ? 'active' : ''} ${hasChannel(p, k) ? '' : 'no-info'}" title="${hasChannel(p, k) ? '' : 'Nothing on file for this yet'}" data-pa="tab" data-pid="${esc(p.id)}" data-tab="${k}">${l}</button>`).join('')}</div><div class="draft">${body}</div>
       ${canSave ? '' : `<div class="row-actions"><button class="btn btn-sm" data-pa="draft-one" data-pid="${esc(p.id)}">Generate personalised outreach${loc ? '' : ' + preview link'}</button><span class="t">Default copy is shown until then — edits above are not saved.</span></div>`}`;
     const log = p.outreach.length ? `<div class="touch-log">${p.outreach.slice().reverse().map((o) => `<div><span class="badge ${o.channel === 'visit' ? 'green' : o.channel === 'call' ? 'blue' : o.channel === 'email' ? 'purple' : 'amber'}">${esc(CHANNEL_LABEL[o.channel] || o.channel)}</span>${o.followUp ? 'follow-up ' : ''}<span>· ${new Date(o.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${o.note ? ` · ${esc(o.note)}` : ''}</span></div>`).join('')}</div>` : '<div class="touch-log"><span>No outreach yet.</span></div>';
 
@@ -1879,7 +1890,7 @@
   function gotoProspect(id) {
     const p = prospects.find((x) => x.id === id); if (!p) return;
     lf = { ...LF_DEFAULT, seg: isLoc(p) ? 'location' : 'advertiser', sort: lf.sort };
-    openProspectId = id; draftTab = isLoc(p) ? 'visit' : 'email';
+    openProspectId = id; draftTab = outreachOrder(p)[0];
     switchTab('leads'); renderLeads();
     $(`tr[data-pid="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
@@ -1971,7 +1982,7 @@
       if (pa === 'toggle' && e.target.closest('button, label')) return;
       const id = t.dataset.pid; const p = prospects.find((x) => x.id === id);
       if (!p) return;
-      if (pa === 'toggle') { openProspectId = openProspectId === id ? null : id; draftTab = isLoc(p) ? 'visit' : (pickEmail(p) || !pickPhone(p) ? 'email' : 'sms'); renderLeads(); return; }
+      if (pa === 'toggle') { openProspectId = openProspectId === id ? null : id; draftTab = outreachOrder(p)[0]; renderLeads(); return; }
       if (pa === 'social-add') {
         const plat = $(`#socialPlat-${CSS.escape(id)}`).value, raw = $(`#socialUrl-${CSS.escape(id)}`).value.trim();
         const url = socialUrl(plat, raw); if (!url) { toast('Enter a profile link or @handle'); return; }
