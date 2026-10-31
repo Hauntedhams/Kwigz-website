@@ -453,7 +453,51 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   }
   const faviconFor = (domain) => `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${domain}&size=256`;
 
-  function importProspects({ categoryId, machineId, rows, filename = '', raw = '', findPhones = true, targetType = 'advertiser', leadType } = {}) {
+
+  // Auto-sort: decide advertiser vs machine location, category/venue type and machine from the row itself.
+  const VENUE_RULES = [
+    ['Sports Bar & Grill', /sports (bar|grill|pub)/i], ['Brewery / Taproom', /brewery|brewing|taproom|taphouse|tap house/i],
+    ['Bowling Alley / Billiards', /bowling|billiard|pool hall/i], ['Arcade / Family Fun', /arcade|family fun|entertainment center|trampoline|escape room/i],
+    ['Nightclub / Lounge', /night ?club|lounge|dance club/i], ['Hotel / Resort Lounge', /hotel|resort|motel|inn\b/i],
+    ['Laundromat', /laundromat|laundry|coin wash/i], ['Barber / Salon', /barber|salon|hair studio/i],
+    ['Restaurant / Diner', /diner|restaurant|cafe|grill|pizzeria|eatery|kitchen/i], ['Bar / Pub', /\b(bar|pub|tavern|saloon|cantina|alehouse)\b/i],
+  ];
+  const ADVERTISER_RULES = [
+    ['dui', /\b(dui|criminal (defense|law)|defense (attorney|lawyer))/i], ['injury', /personal injury|accident (attorney|lawyer)|injury (law|attorney)/i],
+    ['bail', /bail bond/i], ['family', /divorce|family law|custody/i], ['insurance', /insurance|\bagent\b/i],
+    ['roofing', /roof|storm damage/i], ['hvac', /hvac|heating|air condition|a\/c\b/i], ['plumbing', /plumb|drain|water heater/i],
+    ['medspa', /med ?spa|medical spa|botox|aesthetic|skin care/i], ['dentist', /dentist|dental|orthodont/i], ['debt', /debt|credit repair/i],
+    ['motorcycle', /motorcycle|harley|powersports/i], ['autobody', /auto ?body|collision|body shop/i],
+    ['tattoo', /tattoo|piercing/i], ['barber', /barber/i], ['restaurant', /restaurant|diner|pizza|cafe|grill/i],
+    ['localservices', /landscap|pest|cleaning|electric|locksmith|towing|moving|handyman|pool service|garage door|plumber|contractor|remodel|real estate|realty/i],
+  ];
+  function autoSortRow(row, fallbackMachine) {
+    const text = `${row.venueType} ${row.category} ${row.business}`;
+    const hint = `${row.venueType} ${row.category}`;
+    let venueType = '', categoryId = '';
+    // The explicit type column wins; the business name is only a fallback.
+    const wantsVenue = /venue|host|machine location/i.test(hint);
+    for (const t of [hint, text]) {
+      if (!t.trim()) continue;
+      const a = ADVERTISER_RULES.find(([, re]) => re.test(t));
+      const v = VENUE_RULES.find(([, re]) => re.test(t));
+      if (v && (wantsVenue || !a)) { venueType = v[0]; break; }
+      if (a) { categoryId = a[0]; break; }
+    }
+    const isLocation = Boolean(venueType);
+    let machine = null;
+    const lat = Number(row.lat), lng = Number(row.lng);
+    const geoMachines = ads.machines.filter((m) => Number.isFinite(m.lat) && Number.isFinite(m.lng));
+    if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && geoMachines.length) {
+      machine = geoMachines.map((m) => [m, haversineMiles(m.lat, m.lng, lat, lng)]).sort((x, y) => x[1] - y[1])[0][0];
+    } else {
+      const place = `${row.city} ${row.address}`.toLowerCase();
+      if (place.trim()) machine = ads.machines.find((m) => m.city && place.includes(`${m.city}`.split(',')[0].trim().toLowerCase())) || null;
+    }
+    return { isLocation, venueType, category: categoryId ? categoryById(categoryId) : null, machine: machine || fallbackMachine, matched: Boolean(categoryId || venueType) };
+  }
+
+  function importProspects({ categoryId, machineId, rows, filename = '', raw = '', findPhones = true, targetType = 'advertiser', leadType, autoSort = false } = {}) {
     const isLocation = targetType === 'location' || leadType === 'location';
     let machine = null;
     let category = null;
@@ -484,6 +528,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     const allNames = () => [...byName.values()];
     const ts = nowISO();
     const importId = newId('I');
+    const sortedCounts = { advertiser: 0, location: 0, unsorted: 0 };
     const added = [];
     const mergedIds = [];
     const mergedFields = {};
@@ -496,10 +541,20 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       // "Chrissy Davault – Missouri Farm Bureau Insurance" / "Shelter Insurance - Kevin Moore": lift the person out as the contact.
       const person = personInBusinessName(row.business);
       if (!row.contactName && person) row.contactName = person;
+      let rIsLocation = isLocation, rCategory = category, rMachine = machine, rVenueType = '';
+      if (autoSort) {
+        const sorted = autoSortRow(row, machine);
+        rIsLocation = sorted.isLocation;
+        rVenueType = sorted.venueType;
+        if (sorted.category) rCategory = sorted.category; else if (rIsLocation !== isLocation) rCategory = rIsLocation ? { id: 'venue', label: sorted.venueType || 'Host Venue', icon: 'store' } : categoryById('other') || category;
+        if (sorted.machine) rMachine = sorted.machine;
+        sortedCounts[sorted.matched ? (rIsLocation ? 'location' : 'advertiser') : 'unsorted']++;
+      }
+      const rHasGeo = Number.isFinite(rMachine.lat) && Number.isFinite(rMachine.lng);
       const existing = byName.get(nameKey) || (domain ? (byDomain.get(domain) || []).find((e) => sameBusiness(e, nameKey, Boolean(person))) : undefined) || allNames().find((e) => (!domain || !e.domain) && sameBusiness(e, nameKey, Boolean(person)));
       if (existing) {
         // Already in the list (from Clay or an earlier import): fill in whatever this row adds — never overwrite.
-        const filled = mergeIntoProspect(existing, row, { domain, machine, hasGeo });
+        const filled = mergeIntoProspect(existing, row, { domain, machine: rMachine, hasGeo: rHasGeo });
         if (filled.length) { mergedIds.push(existing.id); for (const f of filled) mergedFields[f] = (mergedFields[f] || 0) + 1; existing.updatedAt = ts; } else duplicates++;
         continue;
       }
@@ -510,10 +565,10 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       const contactName = row.contactName || '';
       const contacts = contactName || email || row.linkedinUrl ? [{ name: contactName || row.business, firstName: contactName ? firstNameOf(contactName) : '', title: row.contactTitle || (contactName ? '' : 'Business'), linkedinUrl: /linkedin\.com\/in\//.test(row.linkedinUrl) ? row.linkedinUrl : '', city: row.city, email, emailSource: email ? 'import' : '', mobile: '' }] : [];
       const city = row.city || (row.address.match(/,\s*([A-Za-z .'-]+),\s*[A-Z]{2}\b/) || [])[1] || machine.city || '';
-      const venueType = clean(row.venueType || (isLocation ? (row.category || category.label) : ''), 60);
+      const venueType = clean(row.venueType || rVenueType || (rIsLocation ? (row.category || rCategory.label) : ''), 60);
       const p = {
         id: newId('P'), source: 'import', importId, clayCompanyId: null,
-        leadType: isLocation ? 'location' : 'advertiser',
+        leadType: rIsLocation ? 'location' : 'advertiser',
         venueType,
         business: row.business, domain, website: domain ? (/^https?:\/\//.test(row.website) ? row.website : `https://${domain}`) : '',
         linkedinUrl: /linkedin\.com\/company\//.test(row.companyLinkedin) ? row.companyLinkedin : '',
@@ -522,10 +577,10 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
         logoUrl: /^https?:\/\//.test(row.logoUrl) ? row.logoUrl : (domain ? faviconFor(domain) : ''),
         rating: Number(row.rating) || null, reviews: Number(String(row.reviews).replace(/[^\d]/g, '')) || null, mapsUrl: /^https?:\/\//.test(row.mapsUrl) ? row.mapsUrl : '',
         contacts, phone: ph ? ph.display : row.phone, phoneE164: ph ? ph.e164 : '', phoneSource: row.phone ? 'import' : '',
-        runId: '', categoryId: category.id, machineId: machine.id, status: 'new', drafts: null, previewToken: '', outreach: [], nextFollowUpAt: '', notes: '', createdAt: ts, updatedAt: ts,
+        runId: '', categoryId: rCategory.id, machineId: rMachine.id, status: 'new', drafts: null, previewToken: '', outreach: [], nextFollowUpAt: '', notes: '', createdAt: ts, updatedAt: ts,
       };
-      p.distanceMiles = hasGeo && geo ? Math.round(haversineMiles(machine.lat, machine.lng, lat, lng) * 10) / 10 : null;
-      const sc = isLocation ? scoreLocation(p) : score(p, category.id, config.defaults.radiusMiles);
+      p.distanceMiles = rHasGeo && geo ? Math.round(haversineMiles(rMachine.lat, rMachine.lng, lat, lng) * 10) / 10 : null;
+      const sc = rIsLocation ? scoreLocation(p) : score(p, rCategory.id, config.defaults.radiusMiles);
       if (p.rating) { sc.score += Math.round(Math.min(10, (p.rating - 3.5) * 8)); sc.scoreNotes.push(`${p.rating}★${p.reviews ? ` (${p.reviews})` : ''}`); }
       p.score = sc.score; p.scoreNotes = sc.scoreNotes;
       added.push(p);
@@ -542,7 +597,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       fs.writeFileSync(path.join(IMPORT_DIR, file), raw);
     }
     const uniqueMerged = [...new Set(mergedIds)];
-    const record = { id: importId, filename: safeName, file, importedAt: ts, targetType: isLocation ? 'location' : 'advertiser', categoryId: category.id, machineId: machine.id, rows: rows.length, imported: added.length, merged: uniqueMerged.length, mergedFields, duplicates, skipped, prospectIds: added.map((p) => p.id), mergedIds: uniqueMerged, phonesLookedUp: 0 };
+    const record = { id: importId, filename: safeName, file, importedAt: ts, targetType: isLocation ? 'location' : 'advertiser', categoryId: category.id, machineId: machine.id, autoSort: autoSort ? sortedCounts : undefined, rows: rows.length, imported: added.length, merged: uniqueMerged.length, mergedFields, duplicates, skipped, prospectIds: added.map((p) => p.id), mergedIds: uniqueMerged, phonesLookedUp: 0 };
     const imports = readImports(); imports.push(record); writeImports(imports.slice(-100));
     log(`[prospecting] import ${importId}: ${added.length} new ${isLocation ? 'machine locations' : category.id + ' leads'}, ${uniqueMerged.length} merged from ${safeName} (${duplicates} dup, ${skipped} skipped)`);
     // Fill in missing phones from their websites in the background — free, but slow.

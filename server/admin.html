@@ -597,6 +597,7 @@
           <div class="step-body">
             <h3 id="importStep2Title">Which category and machine?</h3>
             <p id="importStep2Sub">Everyone in the file gets this category and is pitched for this machine. You can change it per lead later.</p>
+            <label class="t" style="display:flex;gap:8px;align-items:center;margin-bottom:10px"><input type="checkbox" id="importAuto" checked> <span><b>Auto-sort each row</b> — detect advertiser vs. machine location, category / venue type, and the nearest machine from the row's type column, name, city or coordinates. The picks below are only the fallback.</span></label>
             <div class="import-row">
               <div class="field"><label id="importCategoryLabel">Category</label><select id="importCategory"></select></div>
               <div class="field"><label id="importMachineLabel">Machine</label><select id="importMachine"></select></div>
@@ -1602,10 +1603,11 @@
     const objs = rows.map((r) => { const o = {}; mapping.forEach((f, i) => { if (!f || !r[i]) return; (o[f] ||= []).push(r[i]); }); return o; }).filter((o) => o.business);
     $('#importBtn').disabled = true; $('#importBtn').textContent = 'Importing…';
     try {
-      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ targetType: importType, leadType: importType, categoryId: $('#importCategory').value, venueType: loc ? $('#importCategory').value : '', machineId: $('#importMachine').value || 'all', rows: objs, raw, filename }) });
+      const r = await api('/api/prospecting/imports', { method: 'POST', body: JSON.stringify({ targetType: importType, leadType: importType, categoryId: $('#importCategory').value, venueType: loc ? $('#importCategory').value : '', machineId: $('#importMachine').value || 'all', autoSort: $('#importAuto').checked, rows: objs, raw, filename }) });
       try { localStorage.setItem(`kwigz-import-${importType}`, JSON.stringify({ categoryId: $('#importCategory').value, machineId: $('#importMachine').value })); } catch {}
+      const as = r.import.autoSort; const asTxt = as ? ` · sorted ${as.advertiser} advertisers / ${as.location} locations / ${as.unsorted} fallback` : '';
       const mf = r.import.mergedFields || {}; const mfTxt = Object.entries(mf).map(([k, v]) => `${v} ${k}`).slice(0, 4).join(', ');
-      toast(`${r.import.imported} new${r.import.merged ? ` · ${r.import.merged} existing filled in${mfTxt ? ` (${mfTxt})` : ''}` : ''}${r.import.duplicates ? ` · ${r.import.duplicates} already complete` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}`);
+      toast(`${r.import.imported} new${r.import.merged ? ` · ${r.import.merged} existing filled in${mfTxt ? ` (${mfTxt})` : ''}` : ''}${r.import.duplicates ? ` · ${r.import.duplicates} already complete` : ''}${r.import.skipped ? ` · ${r.import.skipped} skipped` : ''}${asTxt}`);
       $('#importText').value = ''; $('#importFileName').textContent = ''; $('#importStep4').hidden = true; importParsed = null; $('#importBtn').textContent = 'Import';
       const ps = await api('/api/prospecting/status').catch(() => null); if (ps) prospecting = { ...ps, credits: prospecting.credits };
       lf = { ...LF_DEFAULT, seg: importType, importId: r.import.id };
