@@ -17,7 +17,7 @@ const crypto = require('crypto');
 const templates = require('./outreach-templates');
 
 const PROSPECT_STATUSES = ['new', 'drafted', 'contacted', 'replied', 'won', 'lost', 'skipped'];
-const OUTREACH_CHANNELS = ['email', 'sms', 'linkedin', 'call', 'visit', 'other'];
+const OUTREACH_CHANNELS = ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit', 'other'];
 const RUN_ACTIVE = ['queued', 'searching', 'enriching', 'contacts', 'emails', 'phones'];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

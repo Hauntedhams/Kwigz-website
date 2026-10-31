@@ -553,7 +553,7 @@
           <div class="filter-foot"><span id="filterCount"></span><button class="btn btn-sm" id="fClear" hidden>Clear filters</button><span style="flex:1;"></span><button class="btn btn-primary btn-sm" id="draftBtn">Generate outreach</button></div>
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>Business</th><th>Decision-maker</th><th>Contact info</th><th class="c">Email</th><th class="c">Text</th><th class="c">LinkedIn</th><th class="c">Call</th><th class="c">Visit</th><th>Follow-up</th><th>Status</th></tr></thead>
+              <thead><tr><th>Business</th><th>Decision-maker</th><th>Contact info</th><th class="c">Email</th><th class="c">Text</th><th class="c">LinkedIn</th><th class="c">IG</th><th class="c">FB</th><th class="c">TikTok</th><th class="c">Call</th><th class="c">Visit</th><th>Follow-up</th><th>Status</th></tr></thead>
               <tbody id="prospectRows"></tbody>
             </table>
           </div>
@@ -838,8 +838,11 @@
   const P_STATUS_LABEL = { new: 'New', drafted: 'Ready to send', contacted: 'Contacted', replied: 'Replied', won: 'Won', lost: 'Lost', skipped: 'Skipped' };
   const LOC_STATUS_LABEL = { ...P_STATUS_LABEL, drafted: 'Pitch ready', contacted: 'Pitched', replied: 'Interested', won: 'Machine placed' };
   const statusLabel = (p) => (p.leadType === 'location' ? LOC_STATUS_LABEL : P_STATUS_LABEL)[p.status] || p.status;
-  const CHANNELS = ['email', 'sms', 'linkedin', 'call', 'visit'];
-  const CHANNEL_LABEL = { email: 'Email', sms: 'Text', linkedin: 'LinkedIn', call: 'Call', visit: 'Visit', other: 'Follow-up' };
+  const CHANNELS = ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit'];
+  const SOCIAL_CH = { instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok' };
+  const socialProfile = (p, ch) => { const name = SOCIAL_CH[ch]; const fromList = (p.socials || []).find((x) => x.platform === name)?.url; if (fromList) return fromList; if (ch === 'instagram') { const h = (p.contacts || []).find((c) => c.instagram)?.instagram; if (h) return socialUrl('Instagram', h); } return ''; };
+  const socialSearchUrl = (p, ch) => `https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, SOCIAL_CH[ch]].filter(Boolean).join(' '))}`;
+  const CHANNEL_LABEL = { email: 'Email', sms: 'Text', linkedin: 'LinkedIn', instagram: 'Instagram', facebook: 'Facebook', tiktok: 'TikTok', call: 'Call', visit: 'Visit', other: 'Follow-up' };
   const isLoc = (p) => p.leadType === 'location';
   const followUpDue = (p) => p.status === 'contacted' && p.nextFollowUpAt && p.nextFollowUpAt <= todayISO;
   const openStatus = (p) => ['new', 'drafted'].includes(p.status);
@@ -1259,8 +1262,8 @@
     const box = (p, ch) => {
       const n = touchCount(p, ch);
       const can = ch === 'email' ? Boolean(pickEmail(p)) : ch === 'sms' ? Boolean(pickPhone(p)) : true;
-      const title = ch === 'email' ? (pickEmail(p)?.value || 'no email') : ch === 'sms' ? (pickPhone(p)?.value || 'no phone') : ch === 'linkedin' ? (primaryContact(p)?.linkedinUrl || 'LinkedIn search') : ch === 'call' ? (pickPhone(p)?.value || 'no phone') : 'Walk in';
-      const go = ['email', 'sms', 'linkedin'].includes(ch) ? `<button class="go" data-pa="send" data-pid="${esc(p.id)}" data-channel="${ch}" title="Open with the draft filled in, then log it" ${can ? '' : 'disabled'}>↗</button>` : '';
+      const title = ch === 'email' ? (pickEmail(p)?.value || 'no email') : ch === 'sms' ? (pickPhone(p)?.value || 'no phone') : ch === 'linkedin' ? (primaryContact(p)?.linkedinUrl || 'LinkedIn search') : ch === 'call' ? (pickPhone(p)?.value || 'no phone') : SOCIAL_CH[ch] ? (socialProfile(p, ch) || `No ${SOCIAL_CH[ch]} saved — ↗ searches Google`) : 'Walk in';
+      const go = ['email', 'sms', 'linkedin', ...Object.keys(SOCIAL_CH)].includes(ch) ? `<button class="go" data-pa="send" data-pid="${esc(p.id)}" data-channel="${ch}" title="Open with the draft filled in, then log it" ${can ? '' : 'disabled'}>↗</button>` : '';
       return `<td class="c" title="${esc(title)}"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${n ? 'checked' : ''} title="${n ? `${n}× — untick to undo the last one` : `Mark ${CHANNEL_LABEL[ch].toLowerCase()} done`}" />${go}${n > 1 ? `<span class="cnt">×${n}</span>` : ''}</td>`;
     };
     $('#prospectRows').innerHTML = rows.map((p) => {
@@ -1277,7 +1280,7 @@
         ${CHANNELS.map((ch) => box(p, ch)).join('')}
         <td style="white-space:nowrap;"><input class="inline" type="date" value="${esc(p.nextFollowUpAt || '')}" data-pa="followup" data-pid="${esc(p.id)}" style="font-size:0.72rem;padding:3px 4px;width:118px;" />${due ? `<div><span class="badge amber dot" style="margin-top:4px;">Due</span></div>` : ''}</td>
         <td><select class="inline" data-pstatus-set="${esc(p.id)}" style="max-width:130px;">${Object.keys(P_STATUS_LABEL).map((s) => `<option value="${s}" ${p.status === s ? 'selected' : ''}>${(isLoc(p) ? LOC_STATUS_LABEL : P_STATUS_LABEL)[s]}</option>`).join('')}</select>${p.outreach?.length ? `<div class="t" style="margin-top:3px;font-size:0.7rem;">${p.outreach.length} touch${p.outreach.length === 1 ? '' : 'es'} · last ${timeAgo(p.outreach[p.outreach.length - 1].at)}</div>` : ''}</td>
-      </tr>${open ? `<tr class="detail"><td colspan="10">${prospectDetail(p)}</td></tr>` : ''}`;
+      </tr>${open ? `<tr class="detail"><td colspan="13">${prospectDetail(p)}</td></tr>` : ''}`;
     }).join('');
     if (openProspectId) { const p = prospects.find((x) => x.id === openProspectId); if (p && !isLoc(p)) renderMockup(p); }
   }
@@ -1830,6 +1833,10 @@
       const li = draftFor(p, 'linkedin'); const c = primaryContact(p);
       await copyText(dom('linkedin.note') ?? li.note, 'Connection note copied — paste it into "Add a note"');
       window.open(c?.linkedinUrl || linkedinSearchUrl(p), '_blank', 'noopener');
+    } else if (SOCIAL_CH[ch]) {
+      const url = socialProfile(p, ch);
+      window.open(url || socialSearchUrl(p, ch), '_blank', 'noopener');
+      note = url ? `Opened ${SOCIAL_CH[ch]}` : `Searched Google for ${SOCIAL_CH[ch]}`;
     } else {
       note = $('#touchNote')?.value?.trim() || '';
     }
@@ -2093,7 +2100,7 @@
     ].join('');
     const checks = CHANNELS.map((ch) => {
       const n = touchCount(p, ch);
-      const go = ['email', 'sms', 'linkedin'].includes(ch) ? `<button class="btn btn-sm go" data-pa="send" data-pid="${esc(p.id)}" data-channel="${ch}">Open ↗</button>` : '';
+      const go = ['email', 'sms', 'linkedin', ...Object.keys(SOCIAL_CH)].includes(ch) ? `<button class="btn btn-sm go" data-pa="send" data-pid="${esc(p.id)}" data-channel="${ch}">Open ↗</button>` : '';
       return `<label class="m-check"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${n ? 'checked' : ''} />${esc(CHANNEL_LABEL[ch])}${n > 1 ? ` ×${n}` : ''}${go}</label>`;
     }).join('');
     return `<div class="m-info">${info}</div><div class="m-h">Outreach checklist</div><div class="m-info" style="padding-top:2px;padding-bottom:2px;">${checks}</div><div class="m-h">Everything else</div><div class="m-more">${prospectDetail(p)}</div>`;
