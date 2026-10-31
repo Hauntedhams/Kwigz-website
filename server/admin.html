@@ -2034,6 +2034,11 @@
     const L = lf.seg === 'location' ? LOC_STATUS_LABEL : P_STATUS_LABEL;
     const chips = [['', 'All'], ['new', 'New'], ['due', 'Follow-up'], ['contacted', L.contacted], ['replied', L.replied], ['won', L.won], ['lost', 'Lost']];
     html += `<div class="m-chips"><button class="m-chip ${mStarOnly ? 'active' : ''}" data-m-star-filter>★ Starred</button>${chips.map(([k, l]) => `<button class="m-chip ${lf.status === k ? 'active' : ''}" data-m-status="${k}">${l}</button>`).join('')}</div>`;
+    const typeCounts = new Map();
+    segProspects().forEach((p) => { const k = isLoc(p) ? catLabel(p) : p.categoryId; if (k) typeCounts.set(k, (typeCounts.get(k) || 0) + 1); });
+    const typeName = (k) => (lf.seg === 'location' ? k : (ADS.categories.find((c) => c.id === k)?.label || k));
+    const typeChips = [...typeCounts.entries()].sort((a, b) => b[1] - a[1]);
+    if (typeChips.length) html += `<div class="m-chips"><button class="m-chip ${lf.category ? '' : 'active'}" data-m-type="">All types</button>${typeChips.map(([k, n]) => `<button class="m-chip ${lf.category === k ? 'active' : ''}" data-m-type="${esc(k)}">${esc(typeName(k))} · ${n}</button>`).join('')}</div>`;
     if (lf.q) html += `<div class="m-chips"><button class="m-chip active" data-m-clearq>Search: ${esc(lf.q)} ✕</button></div>`;
     const rows = filteredProspects().filter((p) => !mStarOnly || p.starred).sort((a, b) => Boolean(b.starred) - Boolean(a.starred));
     html += rows.slice(0, mShown).map((p) => {
@@ -2126,7 +2131,7 @@
   });
 
   $('#mob').addEventListener('click', (e) => {
-    const t = e.target.closest('[data-m-machine], [data-m-seg], [data-m-status], [data-m-star-filter], [data-m-clearq], [data-m-open], [data-m-inlead], [data-m-more], [data-m-menu], [data-m-add-machine], [data-m-add-cancel]');
+    const t = e.target.closest('[data-m-machine], [data-m-seg], [data-m-status], [data-m-type], [data-m-star-filter], [data-m-clearq], [data-m-open], [data-m-inlead], [data-m-more], [data-m-menu], [data-m-add-machine], [data-m-add-cancel]');
     if (!t) return;
     const d = t.dataset;
     if (d.mAddMachine !== undefined) { mAddOpen = true; renderMobile(); }
@@ -2134,6 +2139,7 @@
     else if (d.mMachine) mGo({ machine: d.mMachine });
     else if (d.mSeg) { mShown = 60; lf = { ...lf, seg: d.mSeg, status: '', category: '', importId: '' }; renderLeads(); }
     else if (d.mStatus !== undefined) { mShown = 60; lf = { ...lf, status: d.mStatus }; renderLeads(); }
+    else if (d.mType !== undefined) { mShown = 60; lf = { ...lf, category: d.mType }; renderLeads(); }
     else if (d.mStarFilter !== undefined) { mStarOnly = !mStarOnly; renderMobile(); }
     else if (d.mClearq !== undefined) { $('#mSearch').value = ''; lf = { ...lf, q: '' }; renderLeads(); }
     else if (d.mOpen) mGo({ lead: { id: d.mOpen } });
