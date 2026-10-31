@@ -245,6 +245,7 @@
     .p-detail > div { min-width: 0; }
     .p-detail h4 { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); font-weight: 800; margin: 0 0 8px; }
     .p-detail h4 .lite { font-weight: 500; text-transform: none; letter-spacing: 0; }
+    .p-detail h4.h-flex { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
     .p-detail .block + .block { margin-top: 18px; }
     .p-top { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
     .p-top label { font-size: 0.74rem; font-weight: 700; color: #374151; }
@@ -1282,6 +1283,7 @@
       <div class="alt-row alt-new"><input class="inline" type="${kind === 'email' ? 'email' : 'tel'}" placeholder="+ add ${kind === 'email' ? 'another email' : 'another number'}" data-alt-value /><input class="inline" placeholder="label" data-alt-label /><button class="btn btn-sm" data-alt-add>Add</button></div>
     </div>`;
   }
+  const mockOpenIds = new Set();
   function prospectDetail(p) {
     const c = primaryContact(p);
     const loc = isLoc(p);
@@ -1314,8 +1316,7 @@
         <div><input type="tel" placeholder="mobile" value="${esc(ct.mobile || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="mobile" /></div>
         <div style="grid-column:1/-1;"><input placeholder="LinkedIn profile URL" value="${esc(ct.linkedinUrl || '')}" data-pa="contact-field" data-pid="${esc(p.id)}" data-idx="${i}" data-key="linkedinUrl" /></div>
         <div class="cc-actions">${ct.linkedinUrl ? `<a class="btn btn-sm" href="${esc(ct.linkedinUrl)}" target="_blank" rel="noopener">Open LinkedIn</a>` : ''}${ct.mobile ? `<a class="btn btn-sm" href="tel:${esc(ct.mobileE164 || ct.mobile)}">Call mobile</a>` : (!loc && prospecting.clay?.configured && ct.linkedinUrl ? `<button class="btn btn-sm" data-pa="find-mobile" data-pid="${esc(p.id)}" data-idx="${i}">Find mobile (${prospecting.creditEstimates?.mobilePhone || 10} cr)</button>` : '')}</div>
-      </div>`).join('') + `<button class="btn btn-sm" data-pa="contact-add" data-pid="${esc(p.id)}" style="margin-top:8px;">+ Add decision-maker</button>`;
-
+      </div>`).join('');
     // outreach drafts
     const tabs = (loc ? ['visit', 'call', 'email', 'sms'] : ['email', 'sms', 'linkedin', 'call', 'visit']).map((k) => [k, `${CHANNEL_LABEL[k]}${sent(k) ? ` ✓${sent(k)}` : ''}`]);
     if (!tabs.some(([k]) => k === draftTab)) draftTab = tabs[0][0];
@@ -1340,7 +1341,8 @@
       ${canSave ? '' : `<div class="row-actions"><button class="btn btn-sm" data-pa="draft-one" data-pid="${esc(p.id)}">Generate personalised outreach${loc ? '' : ' + preview link'}</button><span class="t">Default copy is shown until then — edits above are not saved.</span></div>`}`;
     const log = p.outreach.length ? `<div class="touch-log">${p.outreach.slice().reverse().map((o) => `<div><span class="badge ${o.channel === 'visit' ? 'green' : o.channel === 'call' ? 'blue' : o.channel === 'email' ? 'purple' : 'amber'}">${esc(CHANNEL_LABEL[o.channel] || o.channel)}</span>${o.followUp ? 'follow-up ' : ''}<span>· ${new Date(o.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}${o.note ? ` · ${esc(o.note)}` : ''}</span></div>`).join('')}</div>` : '<div class="touch-log"><span>No outreach yet.</span></div>';
 
-    const mockHtml = loc ? '' : `<div class="block"><h4>Mockup — ${esc(p.business)} on ${esc(machineById(p.machineId).name)}</h4>
+    const mockOpen = mockOpenIds.has(p.id);
+    const mockHtml = loc || !mockOpen ? '' : `<div class="block"><h4>Mockup — ${esc(p.business)} on ${esc(machineById(p.machineId).name)}</h4>
         <div class="mock"><canvas id="mock-machine" width="810" height="1215"></canvas></div>
         <div class="mock mock-sm" style="margin-top:10px;"><canvas id="mock-banner" width="1080" height="441"></canvas></div>
         <div class="row-actions" style="margin-top:10px;"><button class="btn btn-sm" data-pa="dl-machine" data-pid="${esc(p.id)}">Download mockup PNG</button><button class="btn btn-sm" data-pa="dl-full" data-pid="${esc(p.id)}">Full photo PNG</button><button class="btn btn-sm" data-pa="dl-banner" data-pid="${esc(p.id)}">Banner PNG</button>${p.previewUrl ? `<button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="preview">Copy preview link</button><a class="btn btn-sm" href="${esc(p.previewUrl)}" target="_blank" rel="noopener">Open preview</a>` : ''}</div>
@@ -1352,6 +1354,7 @@
       <div class="p-top">
         <label>${loc ? 'Target route' : 'Machine'}</label>${machineSel}${catSel ? `<label>Category</label>${catSel}` : ''}
         <span class="spacer"></span>
+        ${loc ? '' : `<button class="btn btn-sm ${mockOpen ? 'btn-primary' : ''}" data-pa="mock-toggle" data-pid="${esc(p.id)}">${mockOpen ? 'Hide mockup' : 'See mockup'}</button>`}
         ${loc ? (p.status !== 'won' ? `<button class="btn btn-sm btn-primary" data-pa="status" data-pid="${esc(p.id)}" data-status="won">✓ Machine placed</button>` : '<span class="badge green">Machine placed ✓</span>')
               : (p.campaignId && campaigns.some((x) => x.id === p.campaignId) ? `<span class="badge green">Booked</span><button class="btn btn-sm" data-edit-campaign="${esc(p.campaignId)}">Open campaign</button>` : `<button class="btn btn-sm btn-primary" data-pa="book" data-pid="${esc(p.id)}">${p.status === 'won' ? 'Book campaign' : 'Won → Book campaign'}</button>`)}
         ${['lost', 'skipped'].includes(p.status) ? `<button class="btn btn-sm" data-pa="status" data-pid="${esc(p.id)}" data-status="${p.drafts ? 'drafted' : 'new'}">Reopen</button>` : `<button class="btn btn-sm" data-pa="status" data-pid="${esc(p.id)}" data-status="skipped">Skip</button>`}
@@ -1363,10 +1366,10 @@
           <h4 style="margin-top:12px;">Extra phone numbers</h4>${altEditor('prospect', p.id, 'phone', p.altPhones)}
           <h4 style="margin-top:12px;">Extra emails</h4>${altEditor('prospect', p.id, 'email', p.altEmails)}
         </div>
-        <div class="block"><h4>Decision-makers</h4>${contacts}</div>
         <div class="block"><h4>Notes</h4><textarea class="notes" data-pa="notes" data-pid="${esc(p.id)}" placeholder="${loc ? 'Who you met, floor space, foot traffic, objections…' : 'Call notes, objections, who referred you…'}">${esc(p.notes || '')}</textarea></div>
       </div>
       <div>
+        <div class="block"><h4 class="h-flex">Points of contact <button class="btn btn-sm btn-primary" data-pa="contact-add" data-pid="${esc(p.id)}">+ Add contact</button></h4>${contacts}</div>
         <div class="block"><h4>Outreach</h4>${draftsHtml}</div>
         <div class="block"><h4>History (${p.outreach.length})</h4>${log}</div>
       </div>
@@ -1871,6 +1874,7 @@
       const id = t.dataset.pid; const p = prospects.find((x) => x.id === id);
       if (!p) return;
       if (pa === 'toggle') { openProspectId = openProspectId === id ? null : id; draftTab = isLoc(p) ? 'visit' : (pickEmail(p) || !pickPhone(p) ? 'email' : 'sms'); renderLeads(); return; }
+      if (pa === 'mock-toggle') { if (mockOpenIds.has(id)) mockOpenIds.delete(id); else mockOpenIds.add(id); renderLeads(); return; }
       if (pa === 'tab') { draftTab = t.dataset.tab; renderLeads(); return; }
       if (pa === 'draft-one') { t.disabled = true; await api('/api/prospects/generate', { method: 'POST', body: JSON.stringify({ ids: [id], status: '' }) }); await refreshProspects(); toast('Drafts written'); return; }
       if (pa === 'copy') {
