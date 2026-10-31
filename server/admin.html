@@ -1303,6 +1303,7 @@
       let link = '';
       if (value) {
         if (['website', 'mapsUrl', 'linkedinUrl'].includes(key)) link = linkBtn(value, `Open ${label}`);
+        else if (key === 'business') link = rawLink(`https://www.google.com/search?q=${encodeURIComponent([value, p.city].filter(Boolean).join(' '))}`, 'Google this business');
         else if (key === 'address') link = rawLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([value, p.city].filter(Boolean).join(', '))}`, 'Find on Google Maps');
         else if (key === 'city' && !p.address) link = rawLink(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`, 'Find on Google Maps');
       }
