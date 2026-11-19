@@ -82,6 +82,8 @@ const PUBLIC_FILES = new Set([
   'styles.css', 'script.js', 'ads-config.js', 'icons.css', 'icons.svg', 'mockup.js',
   'hero-bg.jpg', 'kwigz-logo-nobg.png', 'kwigz-logo.png',
   'slimwall-installed-web.jpg', 'slimwall-inside-web.jpg', 'yucca-installed-web.jpg', 'IMG_2898.jpeg',
+  'ad-examples/tattoo-banner.jpg', 'ad-examples/tattoo-machine.jpg', 'ad-examples/alcock-law.jpg',
+  'ad-examples/rideout-law.png', 'ad-examples/doran-justice.jpg',
 ]);
 const loginAttempts = new Map();
 const MAX_BODY = 8 * 1024 * 1024;          // room for a base64 banner
@@ -116,7 +118,7 @@ const MIME = {
 
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 ensureCsvHeader();
-// Machines added from the admin live in machines.json and are never shown on the public site.
+// Load machines added from the admin into the shared machine list.
 for (const m of readJson(MACHINES_FILE, [])) if (!ADS.machines.some((x) => x.id === m.id)) ADS.machines.push({ ...m, takenCategories: [], custom: true });
 const prospecting = createProspecting({ dataDir: DATA_DIR, ads: ADS, config: prospectingConfig, clay, gemini, siteUrl: SITE_URL, log: console.log });
 
@@ -209,14 +211,17 @@ function availability() {
   for (const c of readCampaigns()) {
     if (!['pending', 'active'].includes(c.status)) continue;
     if (c.end && c.end < today) continue;
-    const counts = (byMachine[c.machineId] ||= {});
-    counts[c.categoryId] = (counts[c.categoryId] || 0) + 1;
+    const machine = (byMachine[c.machineId] ||= { counts: {}, usedUnits: 0 });
+    machine.counts[c.categoryId] = (machine.counts[c.categoryId] || 0) + 1;
+    machine.usedUnits += Number(c.units) || 0;
   }
-  return Object.entries(byMachine).map(([id, counts]) => ({
-    id,
-    counts,
-    takenCategories: Object.keys(counts).filter((cat) => counts[cat] >= maxPerCategory(cat)),
-  }));
+  return ADS.machines.map(({ id, name, city, adHoursPerDay, takenCategories = [] }) => {
+    const { counts = {}, usedUnits = 0 } = byMachine[id] || {};
+    return {
+      id, name, city, adHoursPerDay, counts, usedUnits,
+      takenCategories: [...new Set([...takenCategories, ...Object.keys(counts).filter((cat) => counts[cat] >= maxPerCategory(cat))])],
+    };
+  });
 }
 
 function saveBanner(banner, email) {
@@ -400,11 +405,12 @@ function normalizeCampaign(input, existing = {}) {
   if (!ADS.categories.some(category => category.id === c.categoryId)) throw new Error('Unknown category');
   if (!c.business) throw new Error('Business name is required');
   const budget = ADS.budgets.find(b => b.amount === c.budget);
-  if (!budget) throw new Error('Select a supported budget');
-  c.units = budget.units;
+  const unchangedBudget = existing.id && c.budget === existing.budget;
+  if (!budget && !unchangedBudget) throw new Error('Select a supported budget');
+  c.units = unchangedBudget ? existing.units : budget.units;
   if (!Number.isFinite(c.estPlays) || c.estPlays < 0) {
     const machine = ADS.machines.find(m => m.id === c.machineId);
-    c.estPlays = Math.round(machine.adHoursPerDay * 3600 * ADS.campaignDays * c.units * ADS.playsMultiplier(c.budget) / (ADS.bannerSeconds * ADS.maxUnits));
+    c.estPlays = Math.round(machine.adHoursPerDay * 3600 * ADS.campaignDays * c.units / (ADS.bannerSeconds * ADS.maxUnits));
   }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(c.start || '') || !/^\d{4}-\d{2}-\d{2}$/.test(c.end || '')) throw new Error('start and end must be YYYY-MM-DD');
   if ([c.start, c.end].some(date => {
@@ -418,6 +424,24 @@ function normalizeCampaign(input, existing = {}) {
   return c;
 }
 
+function validateCampaignCapacity(c, campaigns, existing) {
+  if (!['pending', 'active'].includes(c.status) || c.end < todayISO()) return;
+  if (existing && ['machineId', 'start', 'end', 'status', 'units'].every(key => c[key] === existing[key])) return;
+  const events = [{ date: c.start, units: c.units }, { date: c.end, units: -c.units, end: true }];
+  for (const other of campaigns) {
+    if (other.id === c.id || other.machineId !== c.machineId || !['pending', 'active'].includes(other.status)) continue;
+    if (other.end < c.start || other.start > c.end) continue;
+    events.push({ date: other.start < c.start ? c.start : other.start, units: Number(other.units) || 0 });
+    events.push({ date: other.end > c.end ? c.end : other.end, units: -(Number(other.units) || 0), end: true });
+  }
+  events.sort((a, b) => a.date.localeCompare(b.date) || Number(a.end || false) - Number(b.end || false));
+  let used = 0;
+  for (const event of events) {
+    used += event.units;
+    if (used > ADS.maxUnits) throw new Error(`This machine has only ${ADS.maxUnits} advertising slots for the selected dates.`);
+  }
+}
+
 async function handleCampaignPost(req, res) {
   try {
     const body = await readJsonBody(req);
@@ -426,6 +450,7 @@ async function handleCampaignPost(req, res) {
     const campaigns = readCampaigns();
     const c = normalizeCampaign(body);
     c.id = newId('C');
+    validateCampaignCapacity(c, campaigns);
     c.createdAt = c.updatedAt = new Date().toISOString();
     campaigns.push(c);
     writeJson(CAMPAIGNS_FILE, campaigns);
@@ -450,6 +475,7 @@ async function handleCampaignPatch(req, res, id) {
     const idx = campaigns.findIndex((c) => c.id === id);
     if (idx === -1) return sendJson(res, 404, { ok: false, error: 'Campaign not found' });
     const c = normalizeCampaign(body, campaigns[idx]);
+    validateCampaignCapacity(c, campaigns, campaigns[idx]);
     c.updatedAt = new Date().toISOString();
     // Ending a campaign must also stop Stripe from charging for it again.
     const closing = ['ended', 'cancelled'].includes(c.status) && !['ended', 'cancelled'].includes(campaigns[idx].status);
@@ -543,7 +569,7 @@ function paymentEmail(c, url) {
       '',
       url,
       '',
-      `- $${c.budget}/month, one ${ADS.bannerSeconds}-second banner slot (of ${ADS.maxUnits} per machine), about ${Math.round(c.estPlays).toLocaleString('en-US')} scheduled plays per month`,
+      `- $${c.budget}/month, ${c.units} ${ADS.bannerSeconds}-second banner slot${c.units === 1 ? '' : 's'}, about ${Math.round(c.estPlays).toLocaleString('en-US')} scheduled plays per month`,
       `- First run ${fmtLongDate(c.start)} to ${fmtLongDate(c.end)}, then renews automatically each month. Cancel anytime by replying to this email.`,
       '- Your banner goes live ASAP once payment and creative approval are in.',
       '',

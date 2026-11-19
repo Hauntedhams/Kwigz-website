@@ -139,21 +139,30 @@ if (qualifier) {
     // Live availability from the lead server overrides the static config, so
     // campaigns approved in /admin mark categories taken without a code change.
     fetch(LEADS_ENDPOINT.replace(/\/leads$/, '/availability'))
-      .then(r => r.ok ? r.json() : null)
+      .then(r => {
+        if (!r.ok) throw new Error(`Availability request failed (${r.status})`);
+        return r.json();
+      })
       .then(data => {
-        if (!data || !Array.isArray(data.machines)) return;
+        if (!data || !Array.isArray(data.machines)) throw new Error('Invalid machine availability response');
         data.machines.forEach(live => {
           const m = ADS.machines.find(x => x.id === live.id);
           if (m) {
             m.takenCategories = Array.from(new Set([...(m.takenCategories || []), ...live.takenCategories]));
             m.counts = live.counts || {};
+            m.usedUnits = live.usedUnits;
+          } else if (typeof live.id === 'string' && typeof live.name === 'string' &&
+                     typeof live.city === 'string' && Number.isFinite(live.adHoursPerDay)) {
+            ADS.machines.push({ ...live });
           }
         });
+        if (answers.categoryId) renderMachines();
       })
       .catch(err => console.warn('Live availability could not be loaded; final availability will be confirmed on review.', err));
 
     const fmt = (n) => Math.round(n).toLocaleString('en-US');
     const money = (n) => `$${n}`;
+    const escapeHtml = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
     const catById = (id) => ADS.categories.find(c => c.id === id);
     const machineById = (id) => ADS.machines.find(m => m.id === id);
     const icon = (name) => `<svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#${name}"></use></svg>`;
@@ -197,12 +206,12 @@ if (qualifier) {
     const renderMachines = () => {
       machineList.innerHTML = ADS.machines.map(m => {
         const taken = false;
-        const spotsOpen = Math.max(0, ADS.maxUnits - Object.values(m.counts || {}).reduce((a, n) => a + n, 0));
-        return `<button type="button" class="machine-card ${taken ? 'is-taken' : ''}" data-machine="${m.id}">
+        const spotsOpen = m.usedUnits == null ? null : Math.max(0, ADS.maxUnits - m.usedUnits);
+        return `<button type="button" class="machine-card ${taken ? 'is-taken' : ''}" data-machine="${escapeHtml(m.id)}">
           <div class="machine-info">
-            <h4>${m.name}</h4>
-            <p>${m.city} · ${m.adHoursPerDay} advertising hrs/day</p>
-            <span class="machine-open">${spotsOpen} of ${ADS.maxUnits} ad spots open</span>
+            <h4>${escapeHtml(m.name)}</h4>
+            <p>${escapeHtml(m.city)} · ${m.adHoursPerDay} advertising hrs/day</p>
+            <span class="machine-open">${spotsOpen === null ? 'Availability confirmed on review' : `${spotsOpen} ad slots open`}</span>
           </div>
           <span class="avail-badge ${taken ? 'taken' : 'open'}">${icon(taken ? 'lock' : 'check-circle')} ${answers.category} ${taken ? 'taken' : 'available'}</span>
         </button>`;
@@ -223,19 +232,20 @@ if (qualifier) {
     const budgetNote = document.getElementById('budgetNote');
     const sl = ADS.slider;
     let planMachine = null;
-    const playsAt = (m, amount) => Math.round(estimateMonthlyPlays(m, 1) * ADS.playsMultiplier(amount));
-    const leadRange = (plays) => {
-      const lo = Math.max(1, Math.round(plays / 1000 * ADS.leadsPer1000Plays[0])), hi = Math.max(lo, Math.round(plays / 1000 * ADS.leadsPer1000Plays[1]));
-      return lo === hi ? `~${lo}` : `${lo}–${hi}`;
-    };
+    const playsAt = (m, units) => estimateMonthlyPlays(m, units);
+    const estimatedLeads = (units) => ADS.estimatedLeadsPerSlot.map(n => n * units).join('–');
+    const potentialImpressions = (units) => `${fmt(ADS.potentialImpressionsPerSlot * units / 1000)}K+`;
     const updatePlan = () => {
       const amount = Number(planRange.value);
-      const plays = playsAt(planMachine, amount);
+      const units = ADS.budgets.find(b => b.amount === amount).units;
+      const plays = playsAt(planMachine, units);
       planRange.style.setProperty('--pct', `${((amount - sl.min) / (sl.max - sl.min)) * 100}%`);
       document.getElementById('planAmount').textContent = money(amount);
       document.getElementById('planContinueAmt').textContent = money(amount);
       document.getElementById('planPlays').textContent = `~${fmt(plays)}`;
-      document.getElementById('planLeads').textContent = leadRange(plays);
+      document.getElementById('planDailyPlays').textContent = `~${fmt(plays / ADS.campaignDays)}`;
+      document.getElementById('planImpressions').textContent = potentialImpressions(units);
+      document.getElementById('planLeads').textContent = estimatedLeads(units);
     };
     const renderBudgets = (m) => {
       planMachine = m;
@@ -244,7 +254,7 @@ if (qualifier) {
       Object.assign(planRange, { min: sl.min, max: sl.max, step: sl.step, value: answers.budget && answers.budget >= sl.min && answers.budget <= sl.max ? answers.budget : sl.default });
       document.getElementById('planMin').textContent = `${money(sl.min)}/mo`;
       document.getElementById('planMax').textContent = `${money(sl.max)}/mo`;
-      budgetNote.textContent = `Estimates assume ${ADS.bannerSeconds}-second banners and ${m.adHoursPerDay} advertising hours/day at ${m.name}. Inquiry estimates are a projection from scheduled plays, not a guarantee. Scheduled plays are calculated rotations, not guaranteed views.`;
+      budgetNote.textContent = `Estimates assume a fully booked rotation, continuous ${ADS.bannerSeconds}-second banners, ${m.adHoursPerDay} advertising hours/day at ${m.name}, and ${ADS.campaignDays} days/month. Potential impressions are a planning estimate that scales with slots, not measured views or unique people. Lead estimates are based on one slot's experience over approximately one month and assume results scale with slots. Actual results vary and are not guaranteed. Availability is confirmed during review.`;
       updatePlan();
     };
     planRange.addEventListener('input', updatePlan);
@@ -253,14 +263,14 @@ if (qualifier) {
       if (!b) return;
       answers.budget = b.amount;
       answers.units = b.units;
-      answers.estPlays = playsAt(planMachine, b.amount);
+      answers.estPlays = Math.round(playsAt(planMachine, b.units));
       renderSummary(planMachine, b);
       showStep('a4');
     });
     document.getElementById('callCard').addEventListener('click', () => {
       answers.budget = undefined;
       answers.units = undefined;
-      answers.estPlays = playsAt(planMachine, sl.max);
+      answers.estPlays = undefined;
       showStep('a-call');
     });
 
@@ -272,11 +282,13 @@ if (qualifier) {
       answers.campaignStart = localISO(dates.start);
       answers.campaignEnd = localISO(dates.end);
       summaryEl.innerHTML = `
-        <div class="summary-row"><span>Machine</span><strong>${m.name} · ${m.city}</strong></div>
+        <div class="summary-row"><span>Machine</span><strong>${escapeHtml(m.name)} · ${escapeHtml(m.city)}</strong></div>
         <div class="summary-row"><span>Category</span><strong>${answers.category} <em>(${answers.tier})</em></strong></div>
         <div class="summary-row"><span>Plan</span><strong>${money(b.amount)} / month</strong></div>
-        <div class="summary-row"><span>Banner</span><strong>${ADS.bannerSeconds}-second banner · 1 of ${ADS.maxUnits} slots</strong></div>
+        <div class="summary-row"><span>Banner</span><strong>${ADS.bannerSeconds}-second banner · ${b.units} advertising slot${b.units === 1 ? '' : 's'}</strong></div>
         <div class="summary-row summary-highlight"><span>Est. scheduled plays</span><strong>~${fmt(answers.estPlays)} / month</strong></div>
+        <div class="summary-row"><span>Potential local impressions</span><strong>${potentialImpressions(b.units)} / month<em>Estimate only, not measured views</em></strong></div>
+        <div class="summary-row"><span>Est. leads</span><strong>${estimatedLeads(b.units)} / month<em>Estimate only, not guaranteed</em></strong></div>
         <div class="summary-row"><span>Campaign length</span><strong>${ADS.campaignDays} days · ${dates.label}<em>starts on approval, renews monthly</em></strong></div>`;
     };
 

@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const { spawn } = require('node:child_process');
-const { mkdtempSync, rmSync, readFileSync, existsSync } = require('node:fs');
+const { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
@@ -88,17 +88,19 @@ async function stop(child) {
   await new Promise(resolve => { child.once('exit', resolve); child.kill('SIGTERM'); });
 }
 
-test('campaign pricing follows the tiered one-pager with 20 slots per machine', async () => {
+test('campaign pricing assigns 1–5 slots and estimates a 33-slot rotation', async () => {
   const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-pricing-'));
   let instance;
   try {
     instance = await start(dataDir);
     const config = { window: {} };
     vm.runInNewContext(readFileSync(path.join(__dirname, '..', 'ads-config.js'), 'utf8'), config);
-    assert.deepEqual(Array.from(config.window.KWIGZ_ADS.budgets, (b) => b.amount), [75, 100, 125, 150, 175, 200, 225, 250, 300, 400, 500]);
-    assert.equal(config.window.KWIGZ_ADS.maxUnits, 20);
+    assert.deepEqual(Array.from(config.window.KWIGZ_ADS.budgets, (b) => b.amount), [75, 150, 225, 300, 375, 500]);
+    assert.equal(config.window.KWIGZ_ADS.maxUnits, 33);
+    assert.deepEqual(Array.from(config.window.KWIGZ_ADS.estimatedLeadsPerSlot), [5, 10]);
+    assert.equal(config.window.KWIGZ_ADS.potentialImpressionsPerSlot, 10000);
     for (const [budget, units, estPlays, categoryId] of [
-      [75, 1, 5760, 'tattoo'], [175, 1, 13440, 'hvac'], [250, 1, 19200, 'bail'], [500, 1, 19200, 'dui'],
+      [75, 1, 3055, 'tattoo'], [150, 2, 6109, 'hvac'], [225, 3, 9164, 'bail'], [300, 4, 12218, 'dui'], [375, 5, 15273, 'dui'], [500, 1, 3055, 'dui'],
     ]) {
       const response = await fetch(`${instance.base}/api/campaigns`, {
         method: 'POST',
@@ -114,6 +116,113 @@ test('campaign pricing follows the tiered one-pager with 20 slots per machine', 
       assert.equal(campaign.units, units);
       assert.equal(campaign.estPlays, estPlays);
     }
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('slot capacity accounts for overlapping dates and preserves existing plans', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-slots-'));
+  let instance;
+  try {
+    const legacy = { id: 'legacy', machineId: 'cousins-wappapello', categoryId: 'tattoo', business: 'Legacy', budget: 300, units: 1, estPlays: 5000, start: '2099-01-01', end: '2099-01-30', status: 'pending' };
+    writeFileSync(path.join(dataDir, 'campaigns.json'), JSON.stringify([legacy]));
+    instance = await start(dataDir);
+    const request = (url, method, data) => fetch(instance.base + url, {
+      method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` },
+      body: JSON.stringify(data),
+    });
+    const updated = await request('/api/campaigns/legacy', 'PATCH', { notes: 'Keep existing allocation' });
+    assert.equal(updated.status, 200);
+    assert.equal((await updated.json()).campaign.units, 1);
+    const base = { machineId: legacy.machineId, categoryId: 'tattoo', business: 'Test', budget: 300, start: legacy.start, end: legacy.end };
+    for (let i = 0; i < 8; i++) {
+      assert.equal((await request('/api/campaigns', 'POST', base)).status, 201);
+    }
+    const availability = await (await fetch(`${instance.base}/api/availability`)).json();
+    const machine = availability.machines.find(m => m.id === legacy.machineId);
+    assert.equal(machine.usedUnits, 33);
+    assert.equal(machine.counts.tattoo, 9);
+    assert.equal((await request('/api/campaigns', 'POST', { ...base, budget: 75 })).status, 400);
+    assert.equal((await request('/api/campaigns/legacy', 'PATCH', { budget: 375 })).status, 400);
+    assert.equal((await request('/api/campaigns', 'POST', { ...base, start: '2099-01-31', end: '2099-02-28' })).status, 201);
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('public availability includes admin-added machines before and after restart', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-machines-'));
+  let instance;
+  try {
+    instance = await start(dataDir);
+    const response = await fetch(`${instance.base}/api/machines`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` },
+      body: JSON.stringify({ name: 'Test Venue', city: 'Phoenix, AZ', address: 'Private address', adHoursPerDay: 12 }),
+    });
+    assert.equal(response.status, 200);
+    const created = (await response.json()).machine;
+    const check = async () => {
+      const { machines } = await (await fetch(`${instance.base}/api/availability`)).json();
+      const machine = machines.find(m => m.id === created.id);
+      assert.deepEqual(machine, {
+        id: created.id, name: 'Test Venue', city: 'Phoenix, AZ', adHoursPerDay: 12,
+        counts: {}, usedUnits: 0, takenCategories: [],
+      });
+      assert.equal(machines.length, 3);
+    };
+    await check();
+    await stop(instance.child);
+    instance = await start(dataDir);
+    await check();
+  } finally {
+    if (instance) await stop(instance.child);
+    rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('lead script and machine selection persist and invalidate stale distances', async () => {
+  const dataDir = mkdtempSync(path.join(tmpdir(), 'kwigz-lead-detail-'));
+  let instance;
+  try {
+    const lead = { id: 'test-lead', business: 'Test Lead', city: 'Phoenix', address: '1 Main St', lat: 33.49, lng: -112.02, machineId: 'chopper-johns-phoenix', categoryId: 'tattoo', distanceMiles: 1, contacts: [], outreach: [], status: 'new' };
+    writeFileSync(path.join(dataDir, 'prospects.json'), JSON.stringify([lead]));
+    instance = await start(dataDir);
+    const patch = (data) => fetch(`${instance.base}/api/prospects/test-lead`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` },
+      body: JSON.stringify(data),
+    });
+    const edited = await patch({ overallScript: 'Hello\nthere', machineId: 'cousins-wappapello', categoryId: 'dui' });
+    assert.equal(edited.status, 200);
+    const saved = (await edited.json()).prospect;
+    assert.equal(saved.overallScript, 'Hello\nthere');
+    assert.equal(saved.machineId, 'cousins-wappapello');
+    assert.equal(saved.categoryId, 'dui');
+    assert.ok(saved.distanceMiles > 1000);
+    const changedAddress = (await (await patch({ address: '2 Main St' })).json()).prospect;
+    assert.equal(changedAddress.lat, null);
+    assert.equal(changedAddress.lng, null);
+    assert.equal(changedAddress.distanceMiles, null);
+    assert.equal((await patch({ machineId: 'unknown' })).status, 400);
+    const logged = await fetch(`${instance.base}/api/prospects/test-lead/outreach`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${password}` },
+      body: JSON.stringify({ channel: 'call', note: 'Called' }),
+    });
+    assert.equal((await logged.json()).prospect.contactedChannels.call, true);
+    const cleared = (await (await patch({ contactedChannels: { call: false } })).json()).prospect;
+    assert.equal(cleared.contactedChannels.call, false);
+    assert.equal(cleared.outreach.length, 1);
+    assert.equal((await patch({ contactedChannels: { call: 'false' } })).status, 400);
+    await stop(instance.child);
+    instance = await start(dataDir);
+    const persisted = JSON.parse(readFileSync(path.join(dataDir, 'prospects.json'), 'utf8'));
+    assert.equal(persisted[0].overallScript, 'Hello\nthere');
+    assert.equal(persisted[0].distanceMiles, null);
   } finally {
     if (instance) await stop(instance.child);
     rmSync(dataDir, { recursive: true, force: true });
@@ -152,7 +261,7 @@ test('production API protects private files and persists valid leads and campaig
       body: data === undefined ? undefined : JSON.stringify(data),
     });
     assert.equal((await request('/healthz')).status, 200);
-    for (const file of ['/', '/about.html', '/icons.svg', '/admin']) assert.equal((await request(file)).status, 200);
+    for (const file of ['/', '/about.html', '/icons.svg', '/admin', '/ad-examples/tattoo-banner.jpg', '/ad-examples/tattoo-machine.jpg', '/ad-examples/alcock-law.jpg', '/ad-examples/rideout-law.png', '/ad-examples/doran-justice.jpg']) assert.equal((await request(file)).status, 200);
     for (const file of ['/.git/config', '/.env', '/server/leads-server.js', '/server/data/leads.jsonl', '/package.json']) {
       assert.equal((await request(file)).status, 404, file);
     }
@@ -192,7 +301,7 @@ test('production API protects private files and persists valid leads and campaig
     assert.equal(created.status, 201);
     const saved = (await created.json()).campaign;
     assert.equal(saved.units, 1);
-    assert.equal(saved.estPlays, 19200);
+    assert.equal(saved.estPlays, 3055);
     const availability = await (await request('/api/availability')).json();
     assert.deepEqual(availability.machines[0].takenCategories, ['dui']);
     await stop(instance.child);
@@ -278,9 +387,9 @@ test('stripe payment links, signed webhooks, and billing shutdown', async () => 
     assert.match(link.email.subject, /HVAC at Chopper John's/);
     assert.ok(link.email.body.includes(link.url) && link.email.body.includes('$300/month') && link.email.body.includes('Hi Sam'));
     assert.ok(link.email.body.includes('ASAP') && !/business days/.test(link.email.body));
-    assert.equal(c.units, 1);
-    assert.equal(c.estPlays, 19200);
-    assert.ok(link.email.body.includes('one 15-second banner slot') && link.email.body.includes('19,200'));
+    assert.equal(c.units, 4);
+    assert.equal(c.estPlays, 12218);
+    assert.ok(link.email.body.includes('4 15-second banner slots') && link.email.body.includes('12,218'));
     const priceCall = mock.calls.find((x) => x.path === '/prices');
     assert.equal(priceCall.auth, 'Bearer sk_test_mock');
     assert.equal(priceCall.params.unit_amount, '30000');
@@ -470,7 +579,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
     assert.ok(nova.score > prospects.find((p) => p.domain === 'bigfirm.example').score, 'small local firm outscores a 500-person firm');
     assert.equal(nova.status, 'new');
     assert.equal(nova.mockup.tagline, 'DUI Defense');
-    assert.equal(nova.mockup.plays, 5760);
+    assert.equal(nova.mockup.plays, 3055);
 
     // Re-running skips businesses already saved.
     const again = await call('POST', '/api/prospecting/runs', { categoryId: 'dui', machineId: 'chopper-johns-phoenix', limit: 5, findPhones: false });
@@ -494,7 +603,7 @@ test('lead generation: Clay search → enrich → radius → contacts → emails
     assert.match(drafted.drafts.email.body, /^Hi Ryan,/);
     assert.ok(drafted.drafts.email.body.includes(drafted.previewUrl));
     assert.ok(drafted.drafts.email.body.includes('"DUI Defense"'));
-    assert.ok(drafted.drafts.sms.includes('$500/mo'));
+    assert.ok(drafted.drafts.sms.includes('$75/mo'));
     assert.ok(drafted.drafts.linkedin.note.length <= 300);
 
     // Public preview page + JSON + logo proxy need no auth and expose no contact data.
@@ -788,13 +897,13 @@ test('manual import: Google Maps rows become prospects, dedupe, drafts/mockup/ar
     assert.deepEqual(suzMerged.altEmails.map((a) => a.value), ['other@suzukilawoffices.com'], 'a second email for a known contact is kept as an extra');
 
     // Machines board: dropping a lead on a machine books a campaign and marks the prospect won; dragging it off un-wins it.
-    const booked = await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: suzMerged.business, budget: 200, start: '2030-01-10', end: '2030-02-08', prospectId: suzMerged.id });
+    const booked = await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: suzMerged.business, budget: 150, start: '2030-01-10', end: '2030-02-08', prospectId: suzMerged.id });
     assert.equal(booked.status, 201, JSON.stringify(booked.data));
     assert.equal(booked.data.campaign.prospectId, suzMerged.id);
     let s3 = (await call('GET', '/api/prospects')).data.prospects.find((p) => p.id === suzMerged.id);
     assert.equal(s3.status, 'won');
     assert.equal(s3.campaignId, booked.data.campaign.id);
-    assert.equal((await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: 'Nova', budget: 200, start: '2030-01-20', end: '2030-02-01', prospectId: novaMerged.id })).status, 201, 'admin can double-book a category');
+    assert.equal((await call('POST', '/api/campaigns', { machineId: 'cousins-wappapello', categoryId: 'dui', business: 'Nova', budget: 150, start: '2030-01-20', end: '2030-02-01', prospectId: novaMerged.id })).status, 201, 'admin can double-book a category');
     const moved = await call('PATCH', `/api/campaigns/${booked.data.campaign.id}`, { machineId: 'chopper-johns-phoenix' });
     assert.equal(moved.status, 200);
     const off = await call('PATCH', `/api/campaigns/${booked.data.campaign.id}`, { status: 'cancelled' });

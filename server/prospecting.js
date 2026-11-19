@@ -167,7 +167,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
   const categoryById = (id) => ads.categories.find((c) => c.id === id);
   const catConfig = (id) => config.categories[id];
   const metroFor = (machineId) => config.metros[machineId] || config.defaultMetro;
-  const price = (categoryId) => (ads.tierFor ? ads.tierFor(categoryId).prices[0] : ads.budgets[0]?.amount) || 200;
+  const price = () => ads.slider.min;
   const playsFor = (machine, units = ads.budgets[0]?.units || 1) => Math.round(machine.adHoursPerDay * 3600 * ads.campaignDays * units / (ads.bannerSeconds * ads.maxUnits));
 
   function status() {
@@ -773,14 +773,43 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     if (body.machineSize !== undefined) p.machineSize = clean(body.machineSize, 40);
     if (body.starred !== undefined) p.starred = Boolean(body.starred);
     if (body.notes !== undefined) p.notes = clean(body.notes, 4000);
+    if (body.overallScript !== undefined) p.overallScript = String(body.overallScript).slice(0, 6000);
+    if (body.contactedChannels !== undefined) {
+      if (!body.contactedChannels || typeof body.contactedChannels !== 'object' || Array.isArray(body.contactedChannels)) throw new Error('Invalid contacted channels');
+      for (const [channel, checked] of Object.entries(body.contactedChannels)) {
+        if (!OUTREACH_CHANNELS.includes(channel) || typeof checked !== 'boolean') throw new Error('Invalid contacted channel');
+      }
+      p.contactedChannels = { ...(p.contactedChannels || {}), ...body.contactedChannels };
+    }
     if (body.nextFollowUpAt !== undefined) { const v = clean(body.nextFollowUpAt, 10); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('nextFollowUpAt must be YYYY-MM-DD'); p.nextFollowUpAt = v; }
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
     if (body.business !== undefined) { const b = clean(body.business, 160); if (!b) throw new Error('Business name is required'); p.business = b; }
     if (body.website !== undefined) { const w = clean(body.website, 300); const d = normalizeDomain(w); p.website = w && d && !/^https?:\/\//.test(w) ? `https://${w}` : w; p.domain = d || ''; if (!p.logoUrl && d) p.logoUrl = faviconFor(d); }
-    if (body.address !== undefined) p.address = clean(body.address, 200);
+    if (body.address !== undefined) {
+      const address = clean(body.address, 200);
+      if (address !== p.address) { p.lat = null; p.lng = null; p.distanceMiles = null; }
+      p.address = address;
+    }
     if (body.industry !== undefined) p.industry = clean(body.industry, 100);
     if (Array.isArray(body.socials)) p.socials = body.socials.slice(0, 12).map((x) => ({ platform: clean(x.platform, 30), url: clean(x.url, 300) })).filter((x) => x.platform && /^https?:\/\//i.test(x.url));
-    if (body.city !== undefined) p.city = clean(body.city, 80);
+    if (body.city !== undefined) {
+      const city = clean(body.city, 80);
+      if (city !== p.city) { p.lat = null; p.lng = null; p.distanceMiles = null; }
+      p.city = city;
+    }
+    if (body.machineId !== undefined) {
+      const machineId = clean(body.machineId, 80);
+      if (machineId !== 'all' && !machineById(machineId)) throw new Error('Unknown machine');
+      p.machineId = machineId;
+      const machine = machineById(machineId);
+      p.distanceMiles = machine && [machine.lat, machine.lng, p.lat, p.lng].every(Number.isFinite)
+        ? Math.round(haversineMiles(machine.lat, machine.lng, p.lat, p.lng) * 10) / 10 : null;
+    }
+    if (body.categoryId !== undefined) {
+      const categoryId = clean(body.categoryId, 40);
+      if (!categoryById(categoryId)) throw new Error('Unknown category');
+      p.categoryId = categoryId;
+    }
     if (body.linkedinUrl !== undefined) p.linkedinUrl = clean(body.linkedinUrl, 300);
     if (body.mapsUrl !== undefined) p.mapsUrl = clean(body.mapsUrl, 400);
     if (body.altEmails !== undefined) p.altEmails = normalizeAltEmails(body.altEmails);
@@ -863,6 +892,7 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
     if (!p) return null;
     const ts = nowISO();
     p.outreach.push({ channel, at: ts, note: clean(body.note, 500), followUp: body.followUp === true || p.outreach.length > 0 });
+    p.contactedChannels = { ...(p.contactedChannels || {}), [channel]: true };
     if (['new', 'drafted', 'contacted'].includes(p.status)) p.status = 'contacted';
     const days = Math.max(1, Math.min(30, Math.round(Number(body.followUpDays) || config.defaults.followUpDays)));
     const due = new Date(); due.setDate(due.getDate() + days);
@@ -884,7 +914,8 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       if (channel === 'follow-up' ? o.followUp : o.channel === channel) { idx = i; break; }
     }
     if (idx === -1) return p;
-    p.outreach.splice(idx, 1);
+    const [removed] = p.outreach.splice(idx, 1);
+    p.contactedChannels = { ...(p.contactedChannels || {}), [removed.channel]: p.outreach.some(o => o.channel === removed.channel) };
     if (p.outreach.length === 0 && p.status === 'contacted') { p.status = p.drafts ? 'drafted' : 'new'; p.nextFollowUpAt = ''; }
     else if (p.status === 'contacted') { const last = new Date(p.outreach.at(-1).at); last.setDate(last.getDate() + config.defaults.followUpDays); p.nextFollowUpAt = last.toISOString().slice(0, 10); }
     p.updatedAt = nowISO();

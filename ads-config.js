@@ -3,21 +3,20 @@
 // All estimates on the site are computed from these values.
 window.KWIGZ_ADS = {
   bannerSeconds: 15,     // every banner displays for 15 seconds
-  maxUnits: 20,          // a fully booked machine = 20 advertiser slots
+  maxUnits: 33,          // a fully booked machine = 33 advertising slots
   campaignDays: 30,
   approvalDays: 3,       // estimated days from application to going live
   bannerSize: { width: 1080, height: 441 },
 
   // callOnly tiers show "Schedule a call" on the site instead of prices; the prices
   // stay here for admin quoting and booking.
-  // Pricing tiers (per the KWIGZ sales one-pager). Every advertiser takes 1 of the
-  // maxUnits rotation slots; maxPerCategory caps how many advertisers of the same
+  // maxPerCategory caps how many advertisers of the same
   // category can share one machine (null = no cap, until the machine is full).
   tiers: {
     premium:   { label: 'Full Exclusive', callOnly: true, prices: [500],           maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
     exclusive: { label: 'Full Exclusive', callOnly: true, prices: [300, 400],      maxPerCategory: 1,    note: 'Only one advertiser in your category on this machine.' },
-    limited:   { label: 'Limited',        prices: [150, 200, 250], maxPerCategory: 2,    note: 'Limited to 1–2 advertisers per category on this machine.' },
-    open:      { label: 'Multiple OK',    prices: [75, 100, 125],  maxPerCategory: null, note: 'Multiple businesses in your category can advertise here.' },
+    limited:   { label: 'Limited',        prices: [75], maxPerCategory: 2,    note: 'Limited to 1–2 advertisers per category on this machine.' },
+    open:      { label: 'Multiple OK',    prices: [75], maxPerCategory: null, note: 'Multiple businesses in your category can advertise here.' },
   },
 
   categories: [
@@ -51,7 +50,7 @@ window.KWIGZ_ADS = {
       // Used by the admin's lead generator to keep prospects within a driving radius.
       lat: 33.495,
       lng: -112.0285,
-      adHoursPerDay: 16,          // 10 AM – 2 AM
+      adHoursPerDay: 14,          // conservative daily advertising window
       // Category ids currently occupied by an active campaign:
       takenCategories: [],
     },
@@ -69,23 +68,19 @@ window.KWIGZ_ADS = {
   ],
 };
 
-// Self-serve sliding scale: any business can pick $75–$250/mo in $25 steps. More spend = a
-// heavier rotation = more plays. Full Exclusive (higher prices) is quoted on a call.
-window.KWIGZ_ADS.slider = { min: 75, max: 250, step: 25, default: 150 };
-// Estimated inquiries per 1,000 scheduled plays (low, high). Planning assumption, not a guarantee.
-window.KWIGZ_ADS.leadsPer1000Plays = [0.5, 1.5];
-
-// Plays scale linearly with spend: $75 is the baseline single-slot rotation.
-window.KWIGZ_ADS.playsMultiplier = (amount) => Math.min(Math.max(amount, 75), 250) / 75;
-
-// Every supported price. Each advertiser occupies one slot (units: 1).
-window.KWIGZ_ADS.budgets = (() => {
-  const { min, max, step } = window.KWIGZ_ADS.slider;
-  const prices = [];
-  for (let a = min; a <= max; a += step) prices.push(a);
-  Object.values(window.KWIGZ_ADS.tiers).forEach(t => t.prices.forEach(p => { if (!prices.includes(p)) prices.push(p); }));
-  return prices.sort((x, y) => x - y).map(amount => ({ amount, units: 1 }));
-})();
+// Self-serve plans add one $75 slot at each step. The $500 option is reserved
+// for separately quoted exclusive campaigns.
+window.KWIGZ_ADS.slider = { min: 75, max: 375, step: 75, default: 75 };
+window.KWIGZ_ADS.estimatedLeadsPerSlot = [5, 10];
+window.KWIGZ_ADS.potentialImpressionsPerSlot = 10000;
+window.KWIGZ_ADS.budgets = [
+  { amount: 75, units: 1 },
+  { amount: 150, units: 2 },
+  { amount: 225, units: 3 },
+  { amount: 300, units: 4 },
+  { amount: 375, units: 5 },
+  { amount: 500, units: 1 },
+];
 
 // Pricing tier for a category id (falls back to the open tier).
 window.KWIGZ_ADS.tierFor = (categoryId) => {

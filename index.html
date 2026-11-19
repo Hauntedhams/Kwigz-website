@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=11" />
+  <link rel="stylesheet" href="styles.css?v=12" />
   <link rel="stylesheet" href="icons.css?v=1" />
 </head>
 <body class="home">
@@ -203,6 +203,10 @@
           <p class="q-count">Step 1 of 5</p>
           <h3 class="q-question">What type of business are you?</h3>
           <div class="cat-grid" id="catGrid"></div>
+          <div class="ad-example-intro">
+            <img src="ad-examples/tattoo-machine.jpg" alt="Example tattoo advertisement shown on a KWIGZ machine in a bar" width="768" height="1030" loading="lazy" />
+            <div><strong>Your business on the screen</strong><span>See how an example banner looks on a machine in a local venue.</span></div>
+          </div>
           <button type="button" class="q-back" data-back="choose">← Back</button>
         </div>
 
@@ -247,12 +251,14 @@
             </ul>
           </div>
           <div class="plan-slider" id="planSlider">
-            <div class="plan-price"><span id="planAmount">$150</span><small>/mo</small></div>
-            <input type="range" id="planRange" aria-label="Monthly budget" />
+            <div class="plan-price"><span id="planAmount">$75</span><small>/mo</small></div>
+            <input type="range" id="planRange" aria-label="Monthly advertising plan" />
             <div class="plan-ends"><span id="planMin"></span><span id="planMax"></span></div>
             <div class="plan-stats">
-              <div><strong id="planPlays">—</strong><span>scheduled plays / month</span></div>
-              <div><strong id="planLeads">—</strong><span>estimated inquiries / month</span></div>
+              <div><svg class="site-icon" aria-hidden="true"><use href="icons.svg#play"></use></svg><strong id="planPlays">—</strong><span>scheduled plays / month</span></div>
+              <div><svg class="site-icon" aria-hidden="true"><use href="icons.svg#play"></use></svg><strong id="planDailyPlays">—</strong><span>scheduled plays / day</span></div>
+              <div><svg class="site-icon" aria-hidden="true"><use href="icons.svg#eye"></use></svg><strong id="planImpressions">—</strong><span>potential local impressions / month</span></div>
+              <div><svg class="site-icon" aria-hidden="true"><use href="icons.svg#users"></use></svg><strong id="planLeads">—</strong><span>estimated leads / month</span></div>
             </div>
             <button type="button" class="btn btn-primary plan-continue" id="planContinue">Continue with <span id="planContinueAmt"></span>/mo</button>
           </div>
@@ -261,6 +267,19 @@
             <button type="button" class="btn" id="callCard">Schedule a call</button>
           </div>
           <p class="q-fine" id="budgetNote"></p>
+          <section class="ad-examples" aria-labelledby="adExamplesTitle">
+            <div class="ad-examples-heading">
+              <span class="section-tag">Creative inspiration</span>
+              <h4 id="adExamplesTitle">See what your ad could look like</h4>
+              <p>Explore example banner designs for local businesses. Select an image to view it full size.</p>
+            </div>
+            <div class="ad-examples-grid">
+              <figure><a href="ad-examples/tattoo-banner.jpg" target="_blank" rel="noopener" aria-label="View full-size tattoo studio banner"><img src="ad-examples/tattoo-banner.jpg" alt="Example Babyboys Tattoo banner featuring tattoo artwork" width="1616" height="656" loading="lazy" /></a><figcaption>Tattoo studio banner</figcaption></figure>
+              <figure><a href="ad-examples/alcock-law.jpg" target="_blank" rel="noopener" aria-label="View full-size criminal defense banner"><img src="ad-examples/alcock-law.jpg" alt="Example Alcock Law criminal defense banner" width="1616" height="656" loading="lazy" /></a><figcaption>Criminal defense banner</figcaption></figure>
+              <figure><a href="ad-examples/rideout-law.png" target="_blank" rel="noopener" aria-label="View full-size law firm banner concept"><img src="ad-examples/rideout-law.png" alt="Example Rideout Law Group banner design" width="1891" height="768" loading="lazy" /></a><figcaption>Law firm banner concept</figcaption></figure>
+              <figure><a href="ad-examples/doran-justice.jpg" target="_blank" rel="noopener" aria-label="View full-size legal services banner concept"><img src="ad-examples/doran-justice.jpg" alt="Example Doran Justice legal services banner design" width="1616" height="656" loading="lazy" /></a><figcaption>Legal services banner concept</figcaption></figure>
+            </div>
+          </section>
           <button type="button" class="q-back" data-back="a2">← Back</button>
         </div>
 
@@ -350,6 +369,10 @@
             </div>
             <div class="form-group">
               <label for="ad-banner">Upload your banner <span class="label-opt">(optional — we can help you design one)</span></label>
+              <div class="ad-upload-example">
+                <img src="ad-examples/tattoo-banner.jpg" alt="Example advertising banner for Babyboys Tattoo" width="1616" height="656" loading="lazy" />
+                <span>Example banner design</span>
+              </div>
               <label class="upload-box" id="uploadBox" for="ad-banner">
                 <input type="file" id="ad-banner" name="banner" accept="image/png,image/jpeg,image/webp" />
                 <span class="upload-icon"><svg class="site-icon" aria-hidden="true" focusable="false"><use href="icons.svg#image"></use></svg></span>
@@ -406,6 +429,6 @@
   </footer>
 
   <script src="ads-config.js?v=5"></script>
-  <script src="script.js?v=12"></script>
+  <script src="script.js?v=13"></script>
 </body>
 </html>

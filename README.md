@@ -97,12 +97,15 @@ Password-protected, single-page, no build step. Three pages:
   (form submissions). Every row has tick-boxes for the points of contact —
   **Email · Text · LinkedIn · Call · Visit** — a follow-up date and a status
   dropdown. Tick a box to log that touch (the follow-up reminder sets itself);
-  untick to undo it. The ↗ next to Email / Text / LinkedIn opens your mail app /
+  untick to clear its contacted status without deleting history. The ↗ next to Email / Text / LinkedIn opens your mail app /
   Messages / their profile with the draft filled in and ticks the box for you.
   Click a row for the full detail: editable company / venue fields, extra emails
-  and numbers, decision-makers, notes, the outreach drafts (with the screen
-  mockup and AI art for advertisers), history, and *Won → Book campaign* /
-  *Machine placed*. See *Leads page · filters* below.
+  and numbers, decision-makers, notes, history, and *Won → Book campaign* /
+  *Machine placed*. Advertiser details include one saved script, selectable
+  templates, downloadable example ads, and the optional personalized mockup.
+  Distance is straight-line miles only when both the lead and selected machine
+  have coordinates; otherwise use the Google Maps directions link. Changing
+  a lead address clears its previous coordinates. See *Leads page · filters* below.
 - **Import** — a step-by-step import page: what the list is (advertisers or
   machine locations), category + machine, file or paste, column check, import.
   Past imports are listed underneath. See *Import a list* below.
@@ -234,8 +237,9 @@ added as an extra rather than dropped. Website leads (the *Website inbound* segm
 
 Every row on the Leads page has tick-boxes for **Email · Text · LinkedIn · Call ·
 Visit**, the next follow-up date and a status dropdown. Tick a box to log that
-touch (sets the follow-up reminder `followUpDays` out); untick to undo it
-(`DELETE /api/prospects/:id/outreach?channel=…`). The ↗ next to Email / Text /
+touch (sets the follow-up reminder `followUpDays` out); untick to clear the
+contacted indicator while preserving outreach history and follow-up reminders.
+The ↗ next to Email / Text /
 LinkedIn opens your mail app / Messages / their profile with the draft filled in
 and ticks the box for you; Call and Visit are logged from the detail panel with an
 optional note. Any touch after the first counts as a follow-up. Leads with no
@@ -265,13 +269,15 @@ Tap Room); only the dark header strip above the product grid is replaced — the
 rest of the screen is the real photo. To swap the photo, replace that file and
 update `SCREEN_QUAD` / `PHOTO_SIZE` / `CLOSEUP` at the top of `mockup.js`
 (corners of the header strip in photo pixels).
-Open a lead to review/edit the drafts, download the mockup PNGs, then:
+Advertiser details show an editable per-lead script and a template selector,
+alongside downloadable example images and optional personalized mockups. The
+lead table retains the channel-specific send actions:
 
 - **Send email** opens your mail app with to/subject/body filled in.
 - **Send text** opens Messages with the text filled in (Mac/iPhone).
 - **Copy note & open LinkedIn** copies the connection note and opens their profile —
   LinkedIn has no messaging API, so pasting is the one manual step.
-- **Log call** records a phone call.
+- The call checkbox records a phone call.
 
 Each of those logs the touch, flips the lead to *Contacted*, and sets a follow-up
 date (`followUpDays`, default 2). Due follow-ups are counted on the **Leads**
@@ -389,10 +395,20 @@ Machines, categories, budgets and the play formula live in
 [`ads-config.js`](./ads-config.js):
 
 - `machines[]` — add a machine with its `adHoursPerDay`. (`takenCategories` is a
-  static fallback; live availability now comes from campaigns in `/admin`.)
-- `budgets[]` — budget → rotation units at $200/unit (`$200 = 1×`, `$300 = 1.5×`, `$400 = 2×`).
-  The second-to-last tier is marked "Most popular" on the site.
-- `bannerSeconds` (15), `maxUnits` (10), `campaignDays` (30), `approvalDays` (3), `bannerSize` (1080 × 441).
+  static fallback; the public availability API also lists machines added in
+  `/admin` and their live campaign availability. The site must be connected to
+  the same server and data directory as the admin; if the API is unavailable,
+  only the configured machines are shown and availability needs confirmation.)
+- `slider` and `budgets[]` — self-service plans are $75 per slot, from
+  one slot at $75/month to five slots at $375/month. The $500 one-slot
+  option remains available for individually quoted exclusive campaigns.
+- `estimatedLeadsPerSlot` — the planning range of 5–10 leads per slot per
+  month is based on one slot's experience over approximately one month.
+  Additional slots scale this estimate linearly; results are not guaranteed.
+- `potentialImpressionsPerSlot` — the planning estimate starts at 10,000
+  potential local impressions per slot per month and scales with slots. It is
+  not a measurement of actual views or unique people and is not guaranteed.
+- `bannerSeconds` (15), `maxUnits` (33), `campaignDays` (30), `approvalDays` (3), `bannerSize` (1080 × 441).
 
 Estimated scheduled plays shown to advertisers:
 
@@ -400,11 +416,11 @@ Estimated scheduled plays shown to advertisers:
 adHoursPerDay × 3600 / (bannerSeconds × max(maxUnits, units)) × units × campaignDays
 ```
 
-With 15-second banners, 16 ad hours/day and a fully booked 10-unit rotation,
-1 unit ≈ 11,520 plays/month, so the $200 tier ≈ **11,520 plays/month**,
-$300 ≈ 17,280, and $400 ≈ 23,040. The quote
-assumes a full rotation, so a lighter rotation only ever means more plays than
-promised; the dashboard shows both the quoted and the live-rotation figure.
+With 15-second banners, 14 ad hours/day and a fully booked 33-slot rotation,
+the one- through five-slot plans estimate 3,055, 6,109, 9,164, 12,218 and 15,273
+scheduled plays per 30 days, respectively. These estimates assume continuous
+playback and are not guarantees of delivery or views. The admin API prevents
+bookings that would exceed 33 slots on any overlapping campaign date.
 
 Pricing configuration applies to newly created campaigns. Existing stored
 campaign allocations, quoted plays, and Stripe subscriptions are not
