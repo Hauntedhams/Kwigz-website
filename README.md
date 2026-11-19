@@ -105,6 +105,9 @@ Password-protected, single-page, no build step. Three pages:
   templates, horizontally scrollable downloadable example ads, and the optional
   personalized mockup. Company-field review checkboxes are saved separately
   from contacted-channel checkboxes and do not log outreach.
+  The lead header also has independent outcome labels (called with no answer,
+  left voicemail, left message, DM with no answer, and maybe). Filter by one
+  outcome at a time; these labels do not log a touch or schedule a follow-up.
   Distance is straight-line miles only when both the lead and selected machine
   have coordinates; otherwise use the Google Maps directions link. Changing
   a lead address clears its previous coordinates. See *Leads page · filters* below.

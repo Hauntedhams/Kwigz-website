@@ -257,6 +257,8 @@
     .p-top { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
     .p-top label { font-size: 0.74rem; font-weight: 700; color: #374151; }
     .p-top .spacer { flex: 1; }
+    .outcome-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+    .outcome-checks label { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
     .company-fields { display: grid; gap: 7px; }
     .company-field { display: grid; grid-template-columns: 105px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
     .company-field .field-link { display: inline-flex; align-items: center; gap: 6px; color: #4b5563; font-size: 0.76rem; text-decoration: none; }
@@ -544,6 +546,7 @@
               <option value="!call">Not called yet</option>
               <option value="!visit">Not visited yet</option>
             </select></div>
+            <div class="field"><label for="fOutcome">Outcome label</label><select id="fOutcome"></select></div>
             <div class="field"><label>Contact info</label><select id="fHas">
               <option value="">Any</option>
               <option value="email">Has email</option>
@@ -1162,7 +1165,14 @@
   // =====================================================================
   // LEADS — advertisers · machine locations · website inbound
   // =====================================================================
-  const LF_DEFAULT = { seg: 'advertiser', status: '', category: '', machine: '', place: '', touched: '', has: '', importId: '', sort: 'newest', q: '' };
+  const OUTCOME_LABELS = [
+    ['calledNoAnswer', 'Called — no answer'],
+    ['leftVoicemail', 'Left voicemail'],
+    ['leftMessage', 'Left message'],
+    ['dmNoAnswer', 'DM’d — no answer'],
+    ['maybe', 'Maybe'],
+  ];
+  const LF_DEFAULT = { seg: 'advertiser', status: '', category: '', machine: '', place: '', touched: '', outcome: '', has: '', importId: '', sort: 'newest', q: '' };
   let lf = { ...LF_DEFAULT, ...(() => { try { return JSON.parse(localStorage.getItem('kwigz-lead-filters') || '{}'); } catch { return {}; } })() };
   if (!['advertiser', 'location', 'inbound'].includes(lf.seg)) lf.seg = 'advertiser';
   let openProspectId = null, draftTab = 'email';
@@ -1218,6 +1228,7 @@
     if (f.category && (isLoc(p) ? catLabel(p) : p.categoryId) !== f.category) return false;
     if (f.machine && p.machineId !== f.machine) return false;
     if (f.place && placeOf(p).toLowerCase() !== f.place.toLowerCase()) return false;
+    if (f.outcome && !p.outcomeLabels?.[f.outcome]) return false;
     if (f.touched) {
       const n = (p.outreach || []).length;
       if (f.touched === 'untouched' && n) return false;
@@ -1291,9 +1302,10 @@
     const places = {}; list.forEach((p) => { const pl = placeOf(p); if (pl) places[pl] = (places[pl] || 0) + 1; });
     $('#fPlace').innerHTML = opts(Object.entries(places).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([k, c]) => [k, k, c]), lf.place, 'All places');
     $('#fImport').innerHTML = opts((prospecting.imports || []).filter((im) => (im.targetType === 'location') === (lf.seg === 'location')).map((im) => [im.id, `${im.filename.replace(/\.(csv|tsv|txt)$/i, '').slice(0, 38)} · ${fmtDate(iso(new Date(im.importedAt)))}`, im.imported + (im.merged || 0)]), lf.importId, 'Any import');
+    $('#fOutcome').innerHTML = opts(OUTCOME_LABELS, lf.outcome, 'Any outcome');
     $('#fTouched').value = lf.touched; $('#fHas').value = lf.has; $('#fSort').value = lf.sort;
     if (document.activeElement !== $('#fSearch')) $('#fSearch').value = lf.q;
-    Object.entries({ fCategory: lf.category, fMachine: lf.machine, fPlace: lf.place, fTouched: lf.touched, fHas: lf.has, fImport: lf.importId, fSearch: lf.q }).forEach(([id, v]) => $(`#${id}`).closest('.field').classList.toggle('on', Boolean(v)));
+    Object.entries({ fCategory: lf.category, fMachine: lf.machine, fPlace: lf.place, fTouched: lf.touched, fOutcome: lf.outcome, fHas: lf.has, fImport: lf.importId, fSearch: lf.q }).forEach(([id, v]) => $(`#${id}`).closest('.field').classList.toggle('on', Boolean(v)));
 
     const rows = filteredProspects();
     const active = Object.entries(lf).filter(([k, v]) => !['sort', 'seg'].includes(k) && v).length;
@@ -1511,6 +1523,7 @@
     return `<div class="p-detail">
       <div class="p-top">
         <label>${loc ? 'Target route' : 'Machine'}</label>${machineSel}${catSel ? `<label>Category</label>${catSel}` : ''}
+        <div class="outcome-checks" role="group" aria-label="Outcome labels">${OUTCOME_LABELS.map(([key, label]) => `<label><input type="checkbox" data-outcome-label="${key}" data-pid="${esc(p.id)}" ${p.outcomeLabels?.[key] ? 'checked' : ''} />${esc(label)}</label>`).join('')}</div>
         <span class="spacer"></span>
         ${loc ? '' : `<button class="btn btn-sm ${mockOpen ? 'btn-primary' : ''}" data-pa="mock-toggle" data-pid="${esc(p.id)}">${mockOpen ? 'Hide mockup' : 'See mockup'}</button>`}
         ${loc ? (p.status !== 'won' ? `<button class="btn btn-sm btn-primary" data-pa="status" data-pid="${esc(p.id)}" data-status="won">✓ Machine placed</button>` : '<span class="badge green">Machine placed ✓</span>')
@@ -1583,7 +1596,7 @@
   // ---- lead page controls ----
   $('#segTabs').addEventListener('click', (e) => { const b = e.target.closest('[data-seg]'); if (b) { openProspectId = null; setFilter({ seg: b.dataset.seg, status: '', category: '', importId: '' }); } });
   $('#statusChips').addEventListener('click', (e) => { const b = e.target.closest('[data-pstatus]'); if (b) setFilter({ status: b.dataset.pstatus }); });
-  [['#fCategory', 'category'], ['#fMachine', 'machine'], ['#fPlace', 'place'], ['#fTouched', 'touched'], ['#fHas', 'has'], ['#fImport', 'importId'], ['#fSort', 'sort']].forEach(([sel, key]) => $(sel).addEventListener('change', (e) => setFilter({ [key]: e.target.value })));
+  [['#fCategory', 'category'], ['#fMachine', 'machine'], ['#fPlace', 'place'], ['#fTouched', 'touched'], ['#fOutcome', 'outcome'], ['#fHas', 'has'], ['#fImport', 'importId'], ['#fSort', 'sort']].forEach(([sel, key]) => $(sel).addEventListener('change', (e) => setFilter({ [key]: e.target.value })));
   let searchTimer; $('#fSearch').addEventListener('input', (e) => { clearTimeout(searchTimer); searchTimer = setTimeout(() => setFilter({ q: e.target.value.trim() }), 150); });
   $('#fClear').addEventListener('click', () => resetFilters());
   $('#draftBtn').addEventListener('click', async () => {
@@ -2107,6 +2120,12 @@
 
   document.addEventListener('change', async (e) => {
     try {
+      const outcome = e.target.closest('input[data-outcome-label]');
+      if (outcome) {
+        outcome.disabled = true;
+        await patchProspect(outcome.dataset.pid, { outcomeLabels: { [outcome.dataset.outcomeLabel]: outcome.checked } }, 'Outcome label saved');
+        renderAll(); return;
+      }
       const review = e.target.closest('input[data-review-field]');
       if (review) {
         review.disabled = true;
@@ -2228,6 +2247,7 @@
     const L = lf.seg === 'location' ? LOC_STATUS_LABEL : P_STATUS_LABEL;
     const chips = [['', 'All'], ['new', 'New'], ['due', 'Follow-up'], ['contacted', L.contacted], ['replied', L.replied], ['won', L.won], ['lost', 'Lost']];
     html += `<div class="m-chips"><button class="m-chip ${mStarOnly ? 'active' : ''}" data-m-star-filter>★ Starred</button>${chips.map(([k, l]) => `<button class="m-chip ${lf.status === k ? 'active' : ''}" data-m-status="${k}">${l}</button>`).join('')}</div>`;
+    html += `<div class="m-chips" aria-label="Filter by outcome"><button class="m-chip ${lf.outcome ? '' : 'active'}" data-m-outcome="">Any outcome</button>${OUTCOME_LABELS.map(([k, l]) => `<button class="m-chip ${lf.outcome === k ? 'active' : ''}" data-m-outcome="${k}">${esc(l)}</button>`).join('')}</div>`;
     const typeCounts = new Map();
     segProspects().forEach((p) => { const k = isLoc(p) ? catLabel(p) : p.categoryId; if (k) typeCounts.set(k, (typeCounts.get(k) || 0) + 1); });
     const typeName = (k) => (lf.seg === 'location' ? k : (ADS.categories.find((c) => c.id === k)?.label || k));
@@ -2325,7 +2345,7 @@
   });
 
   $('#mob').addEventListener('click', (e) => {
-    const t = e.target.closest('[data-m-machine], [data-m-seg], [data-m-status], [data-m-type], [data-m-star-filter], [data-m-clearq], [data-m-open], [data-m-inlead], [data-m-more], [data-m-menu], [data-m-add-machine], [data-m-add-cancel]');
+    const t = e.target.closest('[data-m-machine], [data-m-seg], [data-m-status], [data-m-outcome], [data-m-type], [data-m-star-filter], [data-m-clearq], [data-m-open], [data-m-inlead], [data-m-more], [data-m-menu], [data-m-add-machine], [data-m-add-cancel]');
     if (!t) return;
     const d = t.dataset;
     if (d.mAddMachine !== undefined) { mAddOpen = true; renderMobile(); }
@@ -2333,6 +2353,7 @@
     else if (d.mMachine) mGo({ machine: d.mMachine });
     else if (d.mSeg) { mShown = 60; lf = { ...lf, seg: d.mSeg, status: '', category: '', importId: '' }; renderLeads(); }
     else if (d.mStatus !== undefined) { mShown = 60; lf = { ...lf, status: d.mStatus }; renderLeads(); }
+    else if (d.mOutcome !== undefined) { mShown = 60; setFilter({ outcome: d.mOutcome }); }
     else if (d.mType !== undefined) { mShown = 60; lf = { ...lf, category: d.mType }; renderLeads(); }
     else if (d.mStarFilter !== undefined) { mStarOnly = !mStarOnly; renderMobile(); }
     else if (d.mClearq !== undefined) { $('#mSearch').value = ''; lf = { ...lf, q: '' }; renderLeads(); }

@@ -64,6 +64,23 @@ test('campaign modal clears hidden identity for add, booking, applications, and 
   assert.equal(fields.id.value, '', 'only explicit edit mode may retain a campaign ID');
 });
 
+test('outcome filters match independently of outreach history', () => {
+  const html = readFileSync(path.join(__dirname, 'admin.html'), 'utf8');
+  const start = html.indexOf("  function matchesFilters(p, skip = '') {");
+  const end = html.indexOf('  const SORTS =', start);
+  assert.ok(start >= 0 && end > start);
+  const context = { lf: { outcome: 'calledNoAnswer' } };
+  vm.createContext(context);
+  vm.runInContext(html.slice(start, end), context);
+  assert.equal(context.matchesFilters({ outcomeLabels: { calledNoAnswer: true }, outreach: [] }), true);
+  assert.equal(context.matchesFilters({ outcomeLabels: { calledNoAnswer: false }, outreach: [{ channel: 'call' }] }), false);
+  assert.equal(context.matchesFilters({}), false);
+  context.lf.outcome = 'maybe';
+  assert.equal(context.matchesFilters({ outcomeLabels: { calledNoAnswer: true, maybe: true } }), true);
+  context.lf.outcome = '';
+  assert.equal(context.matchesFilters({}), true);
+});
+
 async function start(dataDir, extraEnv = {}) {
   const child = spawn(process.execPath, [serverFile], {
     env: { ...process.env, PORT: '0', DATA_DIR: dataDir, ADMIN_PASSWORD: password, NODE_ENV: 'production', ...extraEnv },
@@ -226,12 +243,24 @@ test('lead script and machine selection persist and invalidate stale distances',
     assert.equal(unchecked.contactedChannels.call, false);
     assert.equal((await patch({ reviewedFields: { business: 'true' } })).status, 400);
     assert.equal((await patch({ reviewedFields: { bogus: true } })).status, 400);
+    const outcomeValues = { calledNoAnswer: true, leftVoicemail: true, leftMessage: true, dmNoAnswer: true, maybe: true };
+    const labeled = (await (await patch({ outcomeLabels: outcomeValues })).json()).prospect;
+    assert.deepEqual(labeled.outcomeLabels, outcomeValues);
+    assert.deepEqual(labeled.outreach, cleared.outreach);
+    assert.equal(labeled.nextFollowUpAt, cleared.nextFollowUpAt);
+    assert.equal(labeled.status, cleared.status);
+    const outcomeCleared = (await (await patch({ outcomeLabels: { leftVoicemail: false } })).json()).prospect;
+    assert.deepEqual(outcomeCleared.outcomeLabels, { ...outcomeValues, leftVoicemail: false });
+    assert.equal((await patch({ outcomeLabels: { maybe: 'true' } })).status, 400);
+    assert.equal((await patch({ outcomeLabels: { unknown: true } })).status, 400);
+    assert.equal((await patch({ outcomeLabels: null })).status, 400);
     await stop(instance.child);
     instance = await start(dataDir);
     const persisted = JSON.parse(readFileSync(path.join(dataDir, 'prospects.json'), 'utf8'));
     assert.equal(persisted[0].overallScript, 'Hello\nthere');
     assert.equal(persisted[0].distanceMiles, null);
     assert.deepEqual(persisted[0].reviewedFields, { business: false, website: true });
+    assert.deepEqual(persisted[0].outcomeLabels, { ...outcomeValues, leftVoicemail: false });
   } finally {
     if (instance) await stop(instance.child);
     rmSync(dataDir, { recursive: true, force: true });

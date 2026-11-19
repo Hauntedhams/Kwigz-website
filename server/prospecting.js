@@ -18,6 +18,7 @@ const templates = require('./outreach-templates');
 
 const PROSPECT_STATUSES = ['new', 'drafted', 'contacted', 'replied', 'won', 'lost', 'skipped'];
 const OUTREACH_CHANNELS = ['email', 'sms', 'linkedin', 'instagram', 'facebook', 'tiktok', 'call', 'visit', 'other'];
+const LEAD_OUTCOMES = ['calledNoAnswer', 'leftVoicemail', 'leftMessage', 'dmNoAnswer', 'maybe'];
 const RUN_ACTIVE = ['queued', 'searching', 'enriching', 'contacts', 'emails', 'phones'];
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -787,6 +788,13 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
         if (!['business', 'website', 'address', 'city', 'mapsUrl', 'industry'].includes(field) || typeof checked !== 'boolean') throw new Error('Invalid reviewed field');
       }
       p.reviewedFields = { ...(p.reviewedFields || {}), ...body.reviewedFields };
+    }
+    if (body.outcomeLabels !== undefined) {
+      if (!body.outcomeLabels || typeof body.outcomeLabels !== 'object' || Array.isArray(body.outcomeLabels)) throw new Error('Invalid outcome labels');
+      for (const [outcome, checked] of Object.entries(body.outcomeLabels)) {
+        if (!LEAD_OUTCOMES.includes(outcome) || typeof checked !== 'boolean') throw new Error('Invalid outcome label');
+      }
+      p.outcomeLabels = { ...(p.outcomeLabels || {}), ...body.outcomeLabels };
     }
     if (body.nextFollowUpAt !== undefined) { const v = clean(body.nextFollowUpAt, 10); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('nextFollowUpAt must be YYYY-MM-DD'); p.nextFollowUpAt = v; }
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
