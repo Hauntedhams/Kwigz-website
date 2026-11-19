@@ -218,11 +218,20 @@ test('lead script and machine selection persist and invalidate stale distances',
     assert.equal(cleared.contactedChannels.call, false);
     assert.equal(cleared.outreach.length, 1);
     assert.equal((await patch({ contactedChannels: { call: 'false' } })).status, 400);
+    const reviewed = (await (await patch({ reviewedFields: { business: true, website: true } })).json()).prospect;
+    assert.deepEqual(reviewed.reviewedFields, { business: true, website: true });
+    assert.equal(reviewed.outreach.length, 1);
+    const unchecked = (await (await patch({ reviewedFields: { business: false } })).json()).prospect;
+    assert.deepEqual(unchecked.reviewedFields, { business: false, website: true });
+    assert.equal(unchecked.contactedChannels.call, false);
+    assert.equal((await patch({ reviewedFields: { business: 'true' } })).status, 400);
+    assert.equal((await patch({ reviewedFields: { bogus: true } })).status, 400);
     await stop(instance.child);
     instance = await start(dataDir);
     const persisted = JSON.parse(readFileSync(path.join(dataDir, 'prospects.json'), 'utf8'));
     assert.equal(persisted[0].overallScript, 'Hello\nthere');
     assert.equal(persisted[0].distanceMiles, null);
+    assert.deepEqual(persisted[0].reviewedFields, { business: false, website: true });
   } finally {
     if (instance) await stop(instance.child);
     rmSync(dataDir, { recursive: true, force: true });

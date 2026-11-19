@@ -781,6 +781,13 @@ function createProspecting({ dataDir, ads, config, clay, gemini = null, siteUrl,
       }
       p.contactedChannels = { ...(p.contactedChannels || {}), ...body.contactedChannels };
     }
+    if (body.reviewedFields !== undefined) {
+      if (!body.reviewedFields || typeof body.reviewedFields !== 'object' || Array.isArray(body.reviewedFields)) throw new Error('Invalid reviewed fields');
+      for (const [field, checked] of Object.entries(body.reviewedFields)) {
+        if (!['business', 'website', 'address', 'city', 'mapsUrl', 'industry'].includes(field) || typeof checked !== 'boolean') throw new Error('Invalid reviewed field');
+      }
+      p.reviewedFields = { ...(p.reviewedFields || {}), ...body.reviewedFields };
+    }
     if (body.nextFollowUpAt !== undefined) { const v = clean(body.nextFollowUpAt, 10); if (v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('nextFollowUpAt must be YYYY-MM-DD'); p.nextFollowUpAt = v; }
     if (body.phone !== undefined) { const ph = normalizePhone(body.phone); p.phone = ph ? ph.display : clean(body.phone, 40); p.phoneE164 = ph ? ph.e164 : ''; p.phoneSource = p.phone ? 'manual' : ''; }
     if (body.business !== undefined) { const b = clean(body.business, 160); if (!b) throw new Error('Business name is required'); p.business = b; }

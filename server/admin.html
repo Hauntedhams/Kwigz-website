@@ -258,19 +258,20 @@
     .p-top label { font-size: 0.74rem; font-weight: 700; color: #374151; }
     .p-top .spacer { flex: 1; }
     .company-fields { display: grid; gap: 7px; }
-    .company-field { display: grid; grid-template-columns: 105px minmax(0, 1fr) auto auto; align-items: center; gap: 6px; }
+    .company-field { display: grid; grid-template-columns: 105px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
     .company-field .field-link { display: inline-flex; align-items: center; gap: 6px; color: #4b5563; font-size: 0.76rem; text-decoration: none; }
     .company-field .field-link .site-icon { width: 16px; height: 16px; color: var(--red); }
     .company-field input.inline { width: 100%; min-width: 0; }
+    .company-field-actions { display: flex; align-items: center; gap: 6px; }
     .company-field .contact-check { display: inline-flex; align-items: center; gap: 3px; font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
     .distance-card { border: 1px solid #dbeafe; background: #eff6ff; border-radius: 12px; padding: 14px; }
     .distance-card strong { display: block; font-size: 1.3rem; color: #1e3a5f; margin-bottom: 4px; }
     .distance-card p { color: #4b5563; font-size: 0.78rem; margin: 0 0 6px; }
-    .lead-examples { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 16px; }
-    .lead-example-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .lead-examples { min-width: 0; }
+    .lead-example-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(160px, 45%); gap: 12px; overflow-x: auto; padding-bottom: 8px; overscroll-behavior-x: contain; }
     .lead-example-grid img { display: block; width: 100%; height: auto; border-radius: 8px; }
     .lead-example-grid a { display: block; color: var(--ink); font-size: 0.75rem; margin-top: 5px; }
-    @media (max-width: 700px) { .company-field { grid-template-columns: 90px minmax(0, 1fr) auto; } .company-field .contact-check { grid-column: 2 / -1; } }
+    @media (max-width: 700px) { .company-field { grid-template-columns: 90px minmax(0, 1fr) auto; } .company-field-actions { gap: 4px; } .company-field .contact-check { font-size: 0; } .company-field .contact-check input { font-size: initial; } }
     .mock { background: #111; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
     .mock canvas { width: 100%; height: auto; display: block; }
     .mock-sm { max-width: 420px; }
@@ -1410,7 +1411,10 @@
           : search;
         const icons = { business: 'store', website: 'document', address: 'map-pin', city: 'building', mapsUrl: 'map-pin', linkedinUrl: 'users', industry: 'briefcase' };
         const ch = key === 'linkedinUrl' ? 'linkedin' : '';
-        return `<div class="company-field"><a class="field-link" href="${esc(search)}" target="_blank" rel="noopener" title="Search for ${esc(label)}">${icon(icons[key] || 'document')} ${esc(label)}</a><input class="inline" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" /><a class="btn-link-icon" href="${esc(direct)}" target="_blank" rel="noopener" aria-label="Open or search ${esc(label)}">↗</a>${ch ? `<label class="contact-check"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${channelChecked(p, ch) ? 'checked' : ''} /> Contacted</label>` : ''}</div>`;
+        const check = ch
+          ? `<label class="contact-check"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${channelChecked(p, ch) ? 'checked' : ''} aria-label="Mark ${esc(label)} contacted" /> Contacted</label>`
+          : `<label class="contact-check"><input type="checkbox" data-review-field="${key}" data-pid="${esc(p.id)}" ${p.reviewedFields?.[key] ? 'checked' : ''} aria-label="Mark ${esc(label)} reviewed" /> Reviewed</label>`;
+        return `<div class="company-field"><a class="field-link" href="${esc(search)}" target="_blank" rel="noopener" title="Search for ${esc(label)}">${icon(icons[key] || 'document')} ${esc(label)}</a><input class="inline" value="${esc(value || '')}" placeholder="${esc(placeholder)}" data-pa="pfield" data-pid="${esc(p.id)}" data-key="${key}" /><span class="company-field-actions"><a class="btn-link-icon" href="${esc(direct)}" target="_blank" rel="noopener" aria-label="Open or search ${esc(label)}">↗</a>${check}</span></div>`;
       }
       let link = '';
       if (value) {
@@ -1431,8 +1435,8 @@
       field('LinkedIn', 'linkedinUrl', p.linkedinUrl, 'https://www.linkedin.com/company/…'),
       loc ? '' : field('Industry', 'industry', p.industry || (p.specialties || [])[0] || '', 'e.g. Tattoo, DUI defense'),
       loc ? `<div><span>Business number</span><b><span class="kv-input-wrap"><input class="inline" value="${esc(p.phone || '')}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" />${p.phone ? rawLink(`tel:${p.phoneE164 || p.phone}`, 'Call business') : ''}</span></b></div>`
-        : `<div class="company-field"><a class="field-link" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'phone'].filter(Boolean).join(' '))}">${icon('phone')} Phone</a><input class="inline" value="${esc(p.phone || '')}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /><a class="btn-link-icon" href="${esc(p.phone ? `tel:${p.phoneE164 || p.phone}` : `https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'phone'].filter(Boolean).join(' '))}`)}" target="_blank" rel="noopener" aria-label="Call or search for phone">↗</a><span><label class="contact-check"><input type="checkbox" data-ocheck="call" data-pid="${esc(p.id)}" ${channelChecked(p, 'call') ? 'checked' : ''} /> Call</label> <label class="contact-check"><input type="checkbox" data-ocheck="sms" data-pid="${esc(p.id)}" ${channelChecked(p, 'sms') ? 'checked' : ''} /> Text</label></span></div>
-        <div class="company-field"><a class="field-link" href="https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'email'].filter(Boolean).join(' '))}" target="_blank" rel="noopener">${icon('document')} Email</a><input class="inline" value="${esc(pickEmail(p)?.value || '')}" placeholder="Add email below" readonly /><a class="btn-link-icon" href="${esc(pickEmail(p)?.value ? `mailto:${pickEmail(p).value}` : `https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'email'].filter(Boolean).join(' '))}`)}" target="_blank" rel="noopener" aria-label="Email or search">↗</a><label class="contact-check"><input type="checkbox" data-ocheck="email" data-pid="${esc(p.id)}" ${channelChecked(p, 'email') ? 'checked' : ''} /> Contacted</label></div>`,
+        : `<div class="company-field"><a class="field-link" target="_blank" rel="noopener" href="https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'phone'].filter(Boolean).join(' '))}">${icon('phone')} Phone</a><input class="inline" value="${esc(p.phone || '')}" placeholder="(602) 555-0100" data-pa="phone" data-pid="${esc(p.id)}" /><span class="company-field-actions"><a class="btn-link-icon" href="${esc(p.phone ? `tel:${p.phoneE164 || p.phone}` : `https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'phone'].filter(Boolean).join(' '))}`)}" target="_blank" rel="noopener" aria-label="Call or search for phone">↗</a><label class="contact-check"><input type="checkbox" data-ocheck="call" data-pid="${esc(p.id)}" ${channelChecked(p, 'call') ? 'checked' : ''} aria-label="Mark call contacted" /> Call</label><label class="contact-check"><input type="checkbox" data-ocheck="sms" data-pid="${esc(p.id)}" ${channelChecked(p, 'sms') ? 'checked' : ''} aria-label="Mark text contacted" /> Text</label></span></div>
+        <div class="company-field"><a class="field-link" href="https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'email'].filter(Boolean).join(' '))}" target="_blank" rel="noopener">${icon('document')} Email</a><input class="inline" value="${esc(pickEmail(p)?.value || '')}" placeholder="Add email below" readonly /><span class="company-field-actions"><a class="btn-link-icon" href="${esc(pickEmail(p)?.value ? `mailto:${pickEmail(p).value}` : `https://www.google.com/search?q=${encodeURIComponent([p.business, p.city, 'email'].filter(Boolean).join(' '))}`)}" target="_blank" rel="noopener" aria-label="Email or search">↗</a><label class="contact-check"><input type="checkbox" data-ocheck="email" data-pid="${esc(p.id)}" ${channelChecked(p, 'email') ? 'checked' : ''} aria-label="Mark email contacted" /> Contacted</label></span></div>`,
       loc ? field('Wall space', 'wallSpace', p.wallSpace, 'e.g. 3 ft by the entrance') : '',
       loc ? field('21+ venue', 'age21', p.age21, 'Yes / No / all ages') : '',
       loc ? field('Machine size', 'machineSize', p.machineSize, 'Medium claw / SlimWall') : '',
@@ -1443,7 +1447,7 @@
     const socialQuick = loc ? '' : `<div class="company-fields">${['instagram', 'facebook', 'tiktok'].map(ch => {
       const url = socialProfile(p, ch);
       const search = socialSearchUrl(p, ch);
-      return `<div class="company-field"><a class="field-link" href="${esc(search)}" target="_blank" rel="noopener">${icon('users')} ${esc(CHANNEL_LABEL[ch])}</a><input class="inline" value="${esc(url || '')}" placeholder="Add profile below" readonly /><a class="btn-link-icon" href="${esc(url || search)}" target="_blank" rel="noopener" aria-label="Open or search ${esc(CHANNEL_LABEL[ch])}">↗</a><label class="contact-check"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${channelChecked(p, ch) ? 'checked' : ''} /> Contacted</label></div>`;
+      return `<div class="company-field"><a class="field-link" href="${esc(search)}" target="_blank" rel="noopener">${icon('users')} ${esc(CHANNEL_LABEL[ch])}</a><input class="inline" value="${esc(url || '')}" placeholder="Add profile below" readonly /><span class="company-field-actions"><a class="btn-link-icon" href="${esc(url || search)}" target="_blank" rel="noopener" aria-label="Open or search ${esc(CHANNEL_LABEL[ch])}">↗</a><label class="contact-check"><input type="checkbox" data-ocheck="${ch}" data-pid="${esc(p.id)}" ${channelChecked(p, ch) ? 'checked' : ''} aria-label="Mark ${esc(CHANNEL_LABEL[ch])} contacted" /> Contacted</label></span></div>`;
     }).join('')}</div>`;
     const socialsHtml = `<h4 style="margin-top:12px;">Social media</h4>${socialQuick}${(p.socials || []).map((sc, i) => `<div class="kv-input-wrap social-row"><span class="t" style="min-width:78px;">${esc(sc.platform)}</span><input class="inline" value="${esc(sc.url)}" readonly />${linkBtn(sc.url, `Open ${sc.platform}`)}<button class="btn btn-sm btn-danger" data-pa="social-del" data-pid="${esc(p.id)}" data-idx="${i}" title="Remove">×</button></div>`).join('')}
       <div class="social-add"><select class="inline" id="socialPlat-${esc(p.id)}">${SOCIALS.map((n) => `<option>${n}</option>`).join('')}</select><input class="inline" id="socialUrl-${esc(p.id)}" placeholder="@handle or profile link" /><button class="btn btn-sm" data-pa="social-add" data-pid="${esc(p.id)}">Add</button></div>`;
@@ -1528,10 +1532,10 @@
         <div class="block"><h4 class="h-flex">Outreach <span style="display:flex;gap:6px;align-items:center;"><select class="inline" data-script-pick data-pid="${esc(p.id)}" style="max-width:190px;"><option value="">Scripts…</option>${scripts.filter((x) => x.channel === 'any' || x.channel === draftTab).map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}<option value="__manage">＋ Add / manage scripts…</option></select></span></h4>${draftsHtml}</div>` :
         `<div class="block distance-card"><h4>Distance to ${esc(machine.name)}</h4><strong>${distance === null ? 'Distance unavailable' : `${distance} mi`}</strong><p>${distance === null ? 'Coordinates needed for both locations.' : 'Straight-line distance, not a travel route.'}</p><a href="${esc(directions)}" target="_blank" rel="noopener">Open directions in Google Maps ↗</a></div>
         <div class="block"><h4 class="h-flex">Script <select class="inline" data-script-pick data-pid="${esc(p.id)}" style="max-width:190px;"><option value="">Choose a script…</option>${scripts.map(x => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')}<option value="__manage">＋ Add / manage scripts…</option></select></h4><div class="draft"><textarea data-pa="overall-script" data-pid="${esc(p.id)}" placeholder="Write an outreach script…">${esc(p.overallScript ?? draftFor(p, 'call'))}</textarea><div class="send-row"><span class="hint">Edits save when you click away.</span><button class="btn btn-sm" data-pa="copy" data-pid="${esc(p.id)}" data-what="overall">Copy script</button></div></div></div>
+        <section class="block lead-examples"><h4>Example advertisements</h4><div class="lead-example-grid" tabindex="0" role="region" aria-label="Example advertisements, scroll horizontally">${examples.map(([file, label]) => `<div><img src="/ad-examples/${file}" alt="${esc(label)}" loading="lazy" /><a href="/ad-examples/${file}" download>Download ${esc(label)} ↓</a></div>`).join('')}</div>${mockHtml}</section>
         <details class="block"><summary>Contacts (${(p.contacts || []).length})</summary><div class="row-actions"><button class="btn btn-sm" data-pa="contact-add" data-pid="${esc(p.id)}">+ Add contact</button></div>${contacts}</details>`}
         <div class="block"><h4>History (${p.outreach.length})</h4>${log}</div>
       </div>
-      ${loc ? '' : `<section class="lead-examples"><h4>Example advertisements</h4><div class="lead-example-grid">${examples.map(([file, label]) => `<div><img src="/ad-examples/${file}" alt="${esc(label)}" loading="lazy" /><a href="/ad-examples/${file}" download>Download ${esc(label)} ↓</a></div>`).join('')}</div>${mockHtml}</section>`}
     </div>`;
   }
 
@@ -2103,6 +2107,12 @@
 
   document.addEventListener('change', async (e) => {
     try {
+      const review = e.target.closest('input[data-review-field]');
+      if (review) {
+        review.disabled = true;
+        await patchProspect(review.dataset.pid, { reviewedFields: { [review.dataset.reviewField]: review.checked } }, 'Review status saved');
+        renderAll(); return;
+      }
       const cb = e.target.closest('input[data-ocheck]');
       if (cb) {
         const id = cb.dataset.pid, ch = cb.dataset.ocheck; cb.disabled = true;

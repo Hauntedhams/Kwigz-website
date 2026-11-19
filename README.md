@@ -102,7 +102,9 @@ Password-protected, single-page, no build step. Three pages:
   Click a row for the full detail: editable company / venue fields, extra emails
   and numbers, decision-makers, notes, history, and *Won → Book campaign* /
   *Machine placed*. Advertiser details include one saved script, selectable
-  templates, downloadable example ads, and the optional personalized mockup.
+  templates, horizontally scrollable downloadable example ads, and the optional
+  personalized mockup. Company-field review checkboxes are saved separately
+  from contacted-channel checkboxes and do not log outreach.
   Distance is straight-line miles only when both the lead and selected machine
   have coordinates; otherwise use the Google Maps directions link. Changing
   a lead address clears its previous coordinates. See *Leads page · filters* below.
